@@ -16,3 +16,6 @@
 5. Add OPML, source management, refresh scheduling, image loading and filtering.
 
 Never claim these future items are implemented.
+
+## Build verification
+Source changes are committed, but no successful GitHub Actions build or installable APK has been verified. Current audio playback is foreground-only. The HTML detector is heuristic and requires site fixtures. No signed release exists yet.
