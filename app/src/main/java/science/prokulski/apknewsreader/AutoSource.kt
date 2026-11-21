@@ -1,41 +1,88 @@
 package science.prokulski.apknewsreader
 
 import org.jsoup.Jsoup
-import java.net.HttpURLConnection
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
 import java.net.URI
-import java.net.URL
 
-/** Simple, conservative discovery; no headless browser or remote scraping service. */
+/** HTML/RSS discovery without a browser engine or API keys. Network work must run off the UI thread. */
 object AutoSource {
+    private const val USER_AGENT = "Mozilla/5.0 (compatible; APKNewsReader/0.3)"
+    private fun page(url: String): Document = Jsoup.connect(url).userAgent(USER_AGENT)
+        .timeout(15000).maxBodySize(2_000_000).followRedirects(true).get()
+
     fun discover(address: String): List<NewsItem> {
         val uri = URI(address)
-        require(uri.scheme == "https" || uri.scheme == "http") { "Only HTTP(S) URLs" }
-        val host = uri.host ?: error("Missing hostname")
-        if (listOf("/feed", "/feed/", "/rss", "/rss/", "/atom", "/atom/").any { uri.path.orEmpty().endsWith(it) } || uri.path.orEmpty().endsWith(".xml")) return FeedReader.fetch(address)
-        if (host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com") {
-            val channelId = Regex("/channel/(UC[\\w-]+)").find(uri.path)?.groupValues?.get(1)
-            if (channelId != null) return FeedReader.fetch("https://www.youtube.com/feeds/videos.xml?channel_id=$channelId")
-            error("For YouTube, use a /channel/UC... URL; handle-based discovery is not available yet.")
+        require(uri.scheme == "https" || uri.scheme == "http") { "Only HTTP(S) URLs supported" }
+        val host = uri.host?.lowercase() ?: error("Missing hostname")
+        if (host == "youtube.com" || host.endsWith(".youtube.com")) return youtube(address)
+        if (uri.path.orEmpty().endsWith(".xml") || listOf("/feed", "/feed/", "/rss", "/rss/", "/atom", "/atom/").any { uri.path.orEmpty().endsWith(it) })
+            return FeedReader.fetch(address)
+
+        val doc = page(address)
+        val feed = doc.select("link[rel~=alternate][type*=rss],link[rel~=alternate][type*=atom],link[rel~=alternate][type*=xml]")
+            .map { it.absUrl("href") }.firstOrNull { it.startsWith("http") }
+        if (feed != null) runCatching { FeedReader.fetch(feed) }.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
+
+        val discovered = LinkedHashMap<String, NewsItem>()
+        fun collect(d: Document) {
+            for (item in extractArticles(d, host)) discovered.putIfAbsent(item.link, item)
         }
-        val conn = URL(address).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10000; conn.readTimeout = 15000
-        conn.setRequestProperty("User-Agent", "Mozilla/5.0 (compatible; APKNewsReader/0.2)")
-        try {
-            require(conn.responseCode in 200..299) { "HTTP ${conn.responseCode}" }
-            val html = conn.inputStream.bufferedReader().use { it.readText() }
-            val doc = Jsoup.parse(html, address)
-            val feed = doc.select("link[rel=alternate][type*=rss], link[rel=alternate][type*=atom], link[rel=alternate][type*=xml]")
-                .firstOrNull()?.absUrl("href")
-            if (!feed.isNullOrBlank()) return FeedReader.fetch(feed)
-            val candidates = doc.select("article, .post, .entry, .blog-post, .post-preview")
-            val cards = if (candidates.size >= 2) candidates else doc.select("main h2, main h3, .posts h2, .posts h3")
-            return cards.mapNotNull { element ->
-                val anchor = if (element.tagName() == "a") element else element.selectFirst("h1 a, h2 a, h3 a, a[href]")
-                val link = anchor?.absUrl("href").orEmpty()
-                val title = (element.selectFirst("h1,h2,h3")?.text() ?: anchor?.text()).orEmpty().trim()
-                if (title.length < 8 || link.isBlank() || !link.startsWith("http")) null
-                else NewsItem(link, title, link, element.selectFirst("p")?.text().orEmpty().take(700), host, element.selectFirst("time")?.attr("datetime").orEmpty())
-            }.distinctBy { it.link }.take(100)
-        } finally { conn.disconnect() }
+        collect(doc)
+        // Only follow explicit next-page navigation; never crawl an entire site.
+        val next = doc.selectFirst("link[rel=next],a[rel=next],a.next,a.nextpostslink,a.page-numbers.next")
+            ?.absUrl("href").orEmpty()
+        if (next.isNotBlank() && URI(next).host == host && next != address)
+            runCatching { collect(page(next)) }
+        if (discovered.isEmpty()) {
+            val sitemap = URI(address).resolve("/sitemap.xml").toString()
+            runCatching { discoverSitemap(sitemap, host) }.getOrNull()?.forEach { discovered.putIfAbsent(it.link, it) }
+        }
+        return discovered.values.take(150)
+    }
+
+    internal fun extractArticles(doc: Document, host: String): List<NewsItem> {
+        val containers = doc.select("article,.post,.hentry,.blog-post,.post-preview,.post-item,.entry")
+        val candidates: List<Element> = if (containers.isNotEmpty()) containers
+            else doc.select("main h2,main h3,.posts h2,.posts h3,.post-list h2,.post-list h3").toList()
+        return candidates.mapNotNull { element ->
+            val heading = element.selectFirst("h1,h2,h3")
+            val anchor = heading?.selectFirst("a[href]") ?: element.selectFirst("a[rel=bookmark],a[href]")
+            val link = anchor?.absUrl("href").orEmpty().substringBefore('#')
+            val title = (heading?.text() ?: anchor?.text()).orEmpty().trim()
+            val uri = runCatching { URI(link) }.getOrNull()
+            if (title.length < 8 || uri?.scheme !in listOf("https","http") || uri?.host.isNullOrBlank() ||
+                uri?.host != host || link == doc.location().substringBefore('#')) null
+            else NewsItem(link, title, link,
+                element.selectFirst("p,.excerpt,.summary")?.text().orEmpty().take(700),
+                host, element.selectFirst("time[datetime]")?.attr("datetime")
+                    ?: element.selectFirst("time")?.text().orEmpty())
+        }.distinctBy { it.link }
+    }
+
+    private fun discoverSitemap(url: String, host: String): List<NewsItem> {
+        val doc = Jsoup.connect(url).userAgent(USER_AGENT).timeout(12000).get()
+        val urls = doc.select("url loc").map { it.text() }.filter { runCatching { URI(it).host == host }.getOrDefault(false) }
+        return urls.filter { URI(it).path.trim('/').contains('/') }.take(50).map { link ->
+            NewsItem(link, URI(link).path.substringAfterLast('/').replace('-', ' '), link, "", host, "")
+        }
+    }
+
+    private fun youtube(address: String): List<NewsItem> {
+        val uri = URI(address)
+        val direct = Regex("/channel/(UC[A-Za-z0-9_-]{20,})").find(uri.path)?.groupValues?.get(1)
+        val id = direct ?: run {
+            val doc = page(address)
+            val canonical = doc.selectFirst("link[rel=canonical]")?.absUrl("href").orEmpty()
+            val metadata = doc.selectFirst("meta[itemprop=channelId],meta[itemprop=identifier]")?.attr("content").orEmpty()
+            val html = doc.outerHtml()
+            listOf(
+                Regex("/channel/(UC[A-Za-z0-9_-]{20,})").find(canonical)?.groupValues?.get(1),
+                metadata.takeIf { it.matches(Regex("UC[A-Za-z0-9_-]{20,}")) },
+                Regex("\\\"externalId\\\"\\s*:\\s*\\\"(UC[A-Za-z0-9_-]{20,})\\\"").find(html)?.groupValues?.get(1),
+                Regex("\\\"channelId\\\"\\s*:\\s*\\\"(UC[A-Za-z0-9_-]{20,})\\\"").find(html)?.groupValues?.get(1)
+            ).firstOrNull { it != null } ?: error("Could not resolve YouTube channel ID from this URL")
+        }
+        return FeedReader.fetch("https://www.youtube.com/feeds/videos.xml?channel_id=$id")
     }
 }
