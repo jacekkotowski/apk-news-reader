@@ -11,6 +11,7 @@ object AutoSource {
         val uri = URI(address)
         require(uri.scheme == "https" || uri.scheme == "http") { "Only HTTP(S) URLs" }
         val host = uri.host ?: error("Missing hostname")
+        if (uri.path.orEmpty().matches(Regex(".*(feed|rss|atom|\\\\.xml)/?"))) return FeedReader.fetch(address)
         if (host == "youtube.com" || host == "www.youtube.com" || host == "m.youtube.com") {
             val channelId = Regex("/channel/(UC[\\w-]+)").find(uri.path)?.groupValues?.get(1)
             if (channelId != null) return FeedReader.fetch("https://www.youtube.com/feeds/videos.xml?channel_id=$channelId")
