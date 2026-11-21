@@ -29,14 +29,11 @@ class MainActivity : ComponentActivity() {
 private fun ReaderScreen() {
     val context = LocalContext.current
     val store = remember { Store(context) }
-    val audio = remember { AudioPlayer() }
-    DisposableEffect(audio) { onDispose { audio.stop() } }
     var address by remember { mutableStateOf("") }
     var stories by remember { mutableStateOf(store.articles()) }
     var sources by remember { mutableStateOf(store.sources()) }
     var status by remember { mutableStateOf("Add a website, RSS feed, podcast or YouTube channel URL.") }
     var loading by remember { mutableStateOf(false) }
-    var playing by remember { mutableStateOf(false) }
 
     fun refresh(url: String) {
         if (loading) return
@@ -106,9 +103,18 @@ private fun ReaderScreen() {
                             }
                             if (story.mediaType.startsWith("audio/") && story.media.isNotBlank()) {
                                 Button(onClick = {
-                                    if (playing) { audio.stop(); playing = false }
-                                    else { runCatching { audio.play(story.media) }.onSuccess { playing = true }.onFailure { status = "Audio: ${it.message}" } }
-                                }) { Text(if (playing) "Stop audio" else "Play episode") }
+                                    val intent = Intent(context, PodcastService::class.java)
+                                        .setAction(PodcastService.PLAY)
+                                        .putExtra(PodcastService.URL, story.media)
+                                        .putExtra(PodcastService.TITLE, story.title)
+                                    context.startForegroundService(intent)
+                                }) { Text("Play episode") }
+                                TextButton(onClick = {
+                                    context.startService(Intent(context, PodcastService::class.java).setAction(PodcastService.PAUSE))
+                                }) { Text("Pause") }
+                                TextButton(onClick = {
+                                    context.startService(Intent(context, PodcastService::class.java).setAction(PodcastService.STOP))
+                                }) { Text("Stop") }
                             }
                         }
                     }
