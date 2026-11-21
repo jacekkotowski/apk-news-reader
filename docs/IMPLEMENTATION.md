@@ -1,21 +1,25 @@
-# Implemented scope and limitations
+# Current implementation
 
-- SQLiteOpenHelper: persistent sources and articles, dedupe by ID, saved/read flags. No Room dependency.
-- RSS/Atom and podcast enclosures: Android XML pull parser.
-- AutoSource: HTML feed autodiscovery and repeated article cards via Jsoup. Does not yet parse sitemaps, pagination, or JavaScript-only listings. Test source: https://blog.prokulski.science/.
-- YouTube: channel-ID URL (youtube.com/channel/UC...) resolved to YouTube's published RSS feed. Handles, playlists and arbitrary channel pages not yet supported.
-- Podcast: Android MediaPlayer for basic in-app episode playback. No background media session, notifications or seek UI yet.
-- Media extraction only where source provides an enclosure or media link. Video opens in YouTube/browser.
-- Release signing deliberately not configured: public repo; do not read private keys from apk-signing-keys.
+- RSS/Atom feed parsing using Android XmlPullParser.
+- Podcast enclosure URLs persisted in SQLite; background playback via Android foreground media service and notification Pause/Resume/Stop controls. No Media3 dependency.
+- AutoSource: HTML RSS/Atom discovery, repeated article cards, one explicit next-page link, sitemap fallback.
+- YouTube /channel/UC... and @handle pages: attempt to resolve channel ID from canonical URL, metadata or embedded page data; then use channel RSS.
+- SQLiteOpenHelper caches sources, articles and read/bookmark state. No Room dependency.
+- Vertical Compose cards expand inline; links open in external browser/YouTube.
 
-## Next agent tasks
-1. Run CI and fix any build failures. Add test fixtures and parser tests.
-2. Improve HTML article detection, pagination, sitemap fallback, and full-text reading.
-3. Add background podcast MediaSessionService, play/pause/seek.
-4. Resolve YouTube @handle to channel ID using supported metadata, with graceful fallback.
-5. Add OPML, source management, refresh scheduling, image loading and filtering.
+## Important limitations
+- **Build not verified**; no confirmed installable APK or signed release.
+- HTML extraction is heuristic and can fail on JavaScript-only or unusual layouts. Sitemap fallback currently yields URL-derived titles, not full article metadata.
+- YouTube may change HTML, block requests or omit IDs; handles may fail. No playlist support.
+- Podcast service supports playback/pause/resume/stop and notification controls, but no seek, queue, speed, audio focus or Bluetooth media button verification.
+- Podcast and YouTube entries are still dependent on accessible publisher metadata.
+- No OPML, automated scheduled refresh, article full-text extraction, source removal, or robust offline media.
 
-Never claim these future items are implemented.
+## Next verification
+1. Verify GitHub Actions debug build and fix any compiler/dependency errors.
+2. Test https://blog.prokulski.science/ (feed discovery and HTML fallback) and real YouTube @handles.
+3. Test podcast background playback with screen locked and Bluetooth headset.
+4. Add parser fixtures, lifecycle tests and regression tests.
+5. Secure release signing through GitHub Actions secrets without reading or copying private keys into this public repository.
 
-## Build verification
-Source changes are committed, but no successful GitHub Actions build or installable APK has been verified. Current audio playback is foreground-only. The HTML detector is heuristic and requires site fixtures. No signed release exists yet.
+Read AGENTS.md and PLAN.md before changes.
