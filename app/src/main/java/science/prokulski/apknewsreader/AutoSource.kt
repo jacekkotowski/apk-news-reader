@@ -44,9 +44,9 @@ object AutoSource {
     internal fun extractArticles(doc: Document, host: String): List<NewsItem> {
         val containers = doc.select("article,.post,.hentry,.blog-post,.post-preview,.post-item,.entry")
         val candidates: List<Element> = if (containers.isNotEmpty()) containers
-            else doc.select("main h2,main h3,.posts h2,.posts h3,.post-list h2,.post-list h3").toList()
+            else doc.select("main h2,main h3,.posts h2,.posts h3,.post-list h2,.post-list h3,.listing-title").toList()
         return candidates.mapNotNull { element ->
-            val heading = element.selectFirst("h1,h2,h3")
+            val heading = element.selectFirst("h1,h2,h3,.listing-title,.card-title")
             val anchor = heading?.selectFirst("a[href]") ?: element.selectFirst("a[rel=bookmark],a[href]")
             val link = anchor?.absUrl("href").orEmpty().substringBefore('#')
             val title = (heading?.text() ?: anchor?.text()).orEmpty().trim()
@@ -54,7 +54,7 @@ object AutoSource {
             if (title.length < 8 || uri?.scheme !in listOf("https","http") || uri?.host.isNullOrBlank() ||
                 uri?.host != host || link == doc.location().substringBefore('#')) null
             else NewsItem(link, title, link,
-                element.selectFirst("p,.excerpt,.summary")?.text().orEmpty().take(700),
+                element.selectFirst("p,.excerpt,.summary,.listing-description")?.text().orEmpty().take(700),
                 host, element.selectFirst("time[datetime]")?.attr("datetime")
                     ?: element.selectFirst("time")?.text().orEmpty())
         }.distinctBy { it.link }
