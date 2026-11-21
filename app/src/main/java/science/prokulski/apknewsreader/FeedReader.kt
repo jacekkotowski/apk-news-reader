@@ -7,7 +7,7 @@ import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-data class NewsItem(val id: String, val title: String, val link: String, val summary: String, val source: String, val date: String)
+data class NewsItem(val id: String, val title: String, val link: String, val summary: String, val source: String, val date: String, val media: String = "", val mediaType: String = "")
 
 object FeedReader {
     fun fetch(address: String): List<NewsItem> {
@@ -36,14 +36,18 @@ object FeedReader {
         var description = ""
         var date = ""
         var guid = ""
+        var media = ""
+        var mediaType = ""
         var event = parser.eventType
         while (event != XmlPullParser.END_DOCUMENT) {
             val tag = parser.name?.substringAfter(':')?.lowercase(Locale.ROOT) ?: ""
             if (event == XmlPullParser.START_TAG && (tag == "item" || tag == "entry")) {
                 inside = true; container = tag
-                title = ""; link = ""; description = ""; date = ""; guid = ""
+                title = ""; link = ""; description = ""; date = ""; guid = ""; media = ""; mediaType = ""
             } else if (inside && event == XmlPullParser.START_TAG) {
                 when (tag) {
+                    "enclosure" -> { media = parser.getAttributeValue(null, "url").orEmpty(); mediaType = parser.getAttributeValue(null, "type").orEmpty() }
+                    "thumbnail" -> { /* image metadata is optional */ }
                     "title" -> title = parser.nextText().trim()
                     "description", "summary", "content" -> if (description.isBlank()) description = parser.nextText().trim()
                     "pubdate", "published", "updated", "date" -> if (date.isBlank()) date = parser.nextText().trim()
@@ -58,7 +62,7 @@ object FeedReader {
                 }
             } else if (event == XmlPullParser.END_TAG && inside && tag == container) {
                 if (title.isNotBlank() && link.isNotBlank()) {
-                    items.add(NewsItem(guid.ifBlank { link }, title, link, description.replace(Regex("<[^>]*>"), " ").take(700), source, date))
+                    items.add(NewsItem(guid.ifBlank { link }, title, link, description.replace(Regex("<[^>]*>"), " ").take(700), source, date, media, mediaType))
                 }
                 inside = false
             }
