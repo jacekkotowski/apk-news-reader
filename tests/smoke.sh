@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs inside the emulator job: installs the APK, starts it, looks at the result.
-# Pictures: smoke.png (feed), smoke_open.png (a card opened), smoke_reader1.png to smoke_reader3.png (after "Read full article" on three cards),
-# smoke_topics.png (Topics tab), smoke2.png to smoke4.png (Sources tab). logcat.txt is the log.
+# Pictures: smoke.png (feed), smoke_open.png (a card opened), smoke_reader1.png (after "Read full article"),
+# smoke_stash.png (after Keep), smoke_topics.png (Topics tab), smoke2.png to smoke4.png (Sources tab). logcat.txt is the log.
 cd "$(dirname "$0")/.."
 adb install -r StashReader.apk || exit 1
 adb logcat -c
@@ -18,40 +18,24 @@ find_text() {
     | sed -n 's/.*bounds="\[\([0-9]*\),\([0-9]*\)\]\[\([0-9]*\),\([0-9]*\)\]".*/\1 \2 \3 \4/p' \
     | awk -v h="$H" '{ cy=($2+$4)/2; if (cy>0 && cy<h) printf "%d %d", ($1+$3)/2, cy }'
 }
+# Tap the button with this text if it is on screen; say so when it is not.
+tap_text() {
+  P=$(find_text "$1")
+  if [ -n "$P" ]; then adb shell input tap $P; return 0; fi
+  echo "Could not find the button: $1"; return 1
+}
 
-# Try reader mode on the first three cards (Done after each, so the next card moves up).
-scroll_top() { for i in 1 2 3 4; do adb shell input swipe $((W / 2)) $((H * 30 / 100)) $((W / 2)) $((H * 85 / 100)) 200; done; sleep 1; }
-for n in 1 2 3; do
-  scroll_top
-  adb shell input tap $((W / 2)) $((H * 22 / 100))
-  sleep 2
-  [ $n = 1 ] && adb exec-out screencap -p > smoke_open.png
-  P=""
-  for i in 1 2 3 4 5 6 7 8 9 10; do
-    P=$(find_text "Read full article")
-    [ -n "$P" ] && break
-    adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 25 / 100)) 300
-    sleep 1
-  done
-  if [ -z "$P" ]; then echo "Card $n: could not find the Read full article button"; continue; fi
-  adb shell input tap $P
-  sleep 15
-  adb shell input swipe $((W / 2)) $((H * 35 / 100)) $((W / 2)) $((H * 75 / 100)) 300
-  sleep 1
-  adb exec-out screencap -p > smoke_reader$n.png
-  BTN="Done"; [ $n = 3 ] && BTN="Keep"
-  D=""
-  for i in 1 2 3 4 5 6 7 8 9 10; do
-    D=$(find_text "$BTN")
-    [ -n "$D" ] && break
-    adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 25 / 100)) 300
-    sleep 1
-  done
-  [ -n "$D" ] && adb shell input tap $D
-  sleep 1
-done
+# Open the first card (its buttons are at the top of the opened card) and read the full article.
+adb shell input tap $((W / 2)) $((H * 22 / 100))
+sleep 2
+adb exec-out screencap -p > smoke_open.png
+if tap_text "Read full article"; then sleep 20; fi
+adb exec-out screencap -p > smoke_reader1.png
+# Keep it.
+tap_text "Keep"
+sleep 2
 
-# Stash tab (the third card was kept), then the Topics tab, then the Sources tab with the status of every source.
+# Stash tab (the kept item), then the Topics tab, then the Sources tab with the status of every source.
 adb shell input tap $((W * 3 / 8)) $((H * 96 / 100))
 sleep 2
 adb exec-out screencap -p > smoke_stash.png
