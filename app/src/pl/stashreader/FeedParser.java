@@ -53,15 +53,40 @@ final class FeedParser {
         }
         Document doc;
         try {
-            DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
+            doc = read(xml);
+        } catch (Exception e) {
+            try { doc = read(escapeStrayCdataEnds(xml)); }
+            catch (Exception e2) { throw new FeedException("The feed is not valid XML"); }
+        }
+        return build(doc, feedUrl);
+    }
+
+    private static Document read(byte[] xml) throws Exception {
+        DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
             f.setNamespaceAware(false);
             f.setExpandEntityReferences(false);
             DocumentBuilder b = f.newDocumentBuilder();
             b.setErrorHandler(null);
-            doc = b.parse(new ByteArrayInputStream(xml));
-        } catch (Exception e) {
-            throw new FeedException("The feed is not valid XML");
+            return b.parse(new ByteArrayInputStream(xml));
+    }
+
+    /** Some feeds contain "]]>" in ordinary text, which XML forbids. Outside real CDATA sections it becomes "]]&gt;". */
+    static byte[] escapeStrayCdataEnds(byte[] xml) {
+        String s = new String(xml, StandardCharsets.UTF_8);
+        StringBuilder b = new StringBuilder(s.length() + 16);
+        int i = 0, n = s.length();
+        while (i < n) {
+            if (s.startsWith("<![CDATA[", i)) {
+                int e = s.indexOf("]]>", i + 9);
+                int stop = e < 0 ? n : e + 3;
+                b.append(s, i, stop); i = stop;
+            } else if (s.startsWith("]]>", i)) { b.append("]]&gt;"); i += 3; }
+            else { b.append(s.charAt(i)); i++; }
         }
+        return b.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private static Feed build(Document doc, String feedUrl) throws FeedException {
         Element root = doc.getDocumentElement();
         String kind = local(root).toLowerCase(Locale.ROOT);
         Feed out = new Feed();

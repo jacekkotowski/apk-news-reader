@@ -76,6 +76,9 @@ public final class T {
         yes("atom: content is the body and counts as content", at.items.get(0).fromContent && at.items.get(0).body.contains("<em>content</em>"));
         eq("atom: updated with +01:00", 1794646800000L, at.items.get(0).published);
 
+        FeedParser.Feed st = FeedParser.parse(file("tests/fixtures/stray-cdata-end.xml"), "https://example.com/s");
+        eq("stray ]]> in text is repaired", 1, st.items.size());
+        yes("repaired feed keeps the real CDATA section", st.items.get(0).body.contains("Fine section") && st.items.get(0).body.contains("]]>"));
         try { FeedParser.parse(file("tests/fixtures/doctype.xml"), "x"); yes("doctype refused", false); }
         catch (FeedParser.FeedException e) { yes("doctype refused", e.getMessage().startsWith("Refused")); }
         try { FeedParser.parse("<html><body>no</body></html>".getBytes(StandardCharsets.UTF_8), "x"); yes("html refused", false); }

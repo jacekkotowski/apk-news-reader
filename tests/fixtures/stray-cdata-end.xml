@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Stray</title>
+<item><title>Chart post</title><link>https://example.com/chart</link>
+<description>&lt;style&gt;a { fill:red; }]]&gt;&lt;/style&gt;</description>
+<content:encoded xmlns:content="x"><![CDATA[<p>Fine section</p>]]>text with ]]> in it</content:encoded></item>
+</channel></rss>
