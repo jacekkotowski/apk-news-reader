@@ -33,7 +33,7 @@ section{display:none}section.on{display:block}
 .text code{background:var(--chip);padding:0 4px;border-radius:4px;font-size:.9em}.text pre code{padding:0;background:none}
 .text blockquote{margin:8px 0;padding-left:12px;border-left:3px solid var(--line);color:var(--dim)}
 .text table{border-collapse:collapse;display:block;overflow-x:auto}.text td,.text th{border:1px solid var(--line);padding:3px 6px}
-.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.acts.top{margin:0 0 10px}
 .empty{text-align:center;color:var(--dim);padding:40px 16px}
 .src{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
 .src .t{flex:1;min-width:0;overflow-wrap:anywhere}.src .t div{font-size:12.5px;color:var(--dim)}
@@ -176,13 +176,13 @@ function card(it,mode){
       var sm=el('button','btn','A-');sm.onclick=function(e){e.stopPropagation();setFont(-1)};
       var lg=el('button','btn','A+');lg.onclick=function(e){e.stopPropagation();setFont(1)};
       tools.appendChild(sm);tools.appendChild(lg);b.appendChild(tools);
+      acts=el('div','acts top');b.appendChild(acts);
       label=el('div','label');b.appendChild(label);
       text=el('div','text');text.__card=c;b.appendChild(text);
       text.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href)A.openUrl(a.href)}});
       note=el('div','note');b.appendChild(note);
       paint();
       mine=el('div','mine');b.appendChild(mine);
-      acts=el('div','acts');b.appendChild(acts);
       readBtn=el('button','btn','Read full article');
       readBtn.onclick=function(e){e.stopPropagation();readBtn.disabled=true;readBtn.textContent='Loading page...';note.textContent='';A.fetchPage(it.id);poll(0)};
       buildActs();renderMine();
