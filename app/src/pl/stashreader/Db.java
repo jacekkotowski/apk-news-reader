@@ -22,7 +22,7 @@ final class Db extends SQLiteOpenHelper {
     private static final String[][] DEFAULT_QUERIES = {
         {QuerySource.ARXIV, "causal inference", "causal inference"}, {QuerySource.HN, "claude code", "Claude Code"},
         {QuerySource.HN, "duckdb", "duckdb"}, {QuerySource.HF, "", "AI for data science"},
-        {QuerySource.REDDIT, "r/rstats", "tidymodels"}, {QuerySource.GITHUB, "tidymodels", "tidymodels"},
+        {QuerySource.REDDIT, "r/datascience", "data science"}, {QuerySource.GITHUB, "tidymodels", "tidymodels"},
         {QuerySource.S2, "causal machine learning", "causal inference"}};
     private static final String[][] DEFAULT_TOPICS = {{"tidymodels", "3"}, {"Power BI", "3"}, {"DAX", "2"}, {"Claude Code", "3"}, {"machine learning", "2"}, {"LLM", "2"}, {"data science", "2"}, {"causal inference", "2"}, {"duckdb", "2"}};
     private static final String WHEN = "CASE WHEN i.pub>0 THEN i.pub ELSE i.fetched END";

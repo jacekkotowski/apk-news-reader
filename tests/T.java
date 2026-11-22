@@ -244,7 +244,7 @@ public final class T {
         yes("url arxiv", QuerySource.requestUrl("arxiv", "causal inference", now).startsWith("https://export.arxiv.org/api/query?search_query=all%3A%22causal+inference%22&sortBy=submittedDate"));
         yes("url hn", QuerySource.requestUrl("hn", q, now).startsWith("https://hn.algolia.com/api/v1/search_by_date?query=claude+code&tags=story&numericFilters=points%3E%3D20"));
         eq("url hf", "https://huggingface.co/api/daily_papers?limit=50", QuerySource.requestUrl("hf", "", now));
-        eq("url reddit subreddit", "https://www.reddit.com/r/rstats/new.rss?limit=30", QuerySource.requestUrl("reddit", "r/rstats", now));
+        eq("url reddit subreddit", "https://www.reddit.com/r/rstats/new/.rss?limit=30", QuerySource.requestUrl("reddit", "r/rstats", now));
         yes("url reddit search", QuerySource.requestUrl("reddit", "power bi", now).startsWith("https://www.reddit.com/search.rss?q=power+bi&sort=new"));
         yes("url github: only repos created in the last 90 days", QuerySource.requestUrl("github", "tidymodels", now).contains("q=tidymodels+created%3A%3E2026-08-16&sort=stars"));
         yes("url s2: this and last year", QuerySource.requestUrl("s2", "causal inference", now).contains("&year=2025-2026&fields="));
