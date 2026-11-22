@@ -190,6 +190,12 @@ public final class T {
         FeedParser.add(fx, bad, "https://example.com/f");
         eq("audio: other schemes are dropped", "", fx.items.get(1).audio);
 
+        StringBuilder pad = new StringBuilder("<html><head><script>");
+        for (int i = 0; i < 283000; i++) pad.append('x');
+        pad.append("</script><link rel=\"alternate\" type=\"application/rss+xml\" title=\"RSS\" href=\"https://www.youtube.com/feeds/videos.xml?channel_id=UCcc21gBGNJwZM_eDEByeN-Q\"></head></html>");
+        java.util.List<String> far = FeedDiscovery.alternates(pad.toString(), "https://m.youtube.com/@sqlbi?si=GbjplyTSPoH1WfLZ&cbrd=1&ucbcb=1");
+        yes("discovery: a feed link far into a big page (YouTube) is found", far.size() == 1 && far.get(0).equals("https://www.youtube.com/feeds/videos.xml?channel_id=UCcc21gBGNJwZM_eDEByeN-Q"));
+        eq("discovery: a YouTube address with a share tag is kept as typed", "https://youtube.com/@sqlbi?si=GbjplyTSPoH1WfLZ", FeedDiscovery.normalizeInput("https://youtube.com/@sqlbi?si=GbjplyTSPoH1WfLZ"));
         FeedParser.Feed at = FeedParser.parse(file("tests/fixtures/atom-sample.xml"), "https://example.com/atom");
         eq("atom title", "Atom Sample", at.title);
         eq("atom entries", 2, at.items.size());

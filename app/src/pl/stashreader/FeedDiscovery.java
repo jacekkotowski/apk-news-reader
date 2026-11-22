@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 final class FeedDiscovery {
     private FeedDiscovery() {}
 
+    static final int SCAN_CHARS = 2000000;
     static final String[] COMMON_PATHS = {"/feed", "/rss", "/index.xml", "/atom.xml", "/feed.xml"};
 
     /** "example.com/blog" becomes "https://example.com/blog". Returns "" when nothing usable is left. */
@@ -35,7 +36,8 @@ final class FeedDiscovery {
     static List<String> alternates(String html, String pageUrl) {
         List<String> out = new ArrayList<>();
         if (html == null) return out;
-        String head = html.length() > 200000 ? html.substring(0, 200000) : html;
+        // YouTube puts its feed link after about 280,000 characters of inline script, so look far into the page
+        String head = html.length() > SCAN_CHARS ? html.substring(0, SCAN_CHARS) : html;
         Matcher m = LINK.matcher(head);
         while (m.find()) {
             String tag = m.group();
