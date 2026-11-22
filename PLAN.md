@@ -159,3 +159,7 @@ summaries, Play Store.
   off on HTTP 429.
 - Page-watch on JS-only sites returns nothing: say so in the source's status
   line instead of failing silently.
+
+## 7. Progress (autonomous run, started 2026-11-22)
+
+- [x] Step 0, 2026-11-22: skeleton, signed CI, emulator smoke. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.0 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45039572117)
