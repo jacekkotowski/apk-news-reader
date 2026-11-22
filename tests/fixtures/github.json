@@ -1,0 +1,43 @@
+{
+ "total_count": 68,
+ "incomplete_results": false,
+ "items": [
+  {
+   "id": 1355271227,
+   "full_name": "summitllc/posit-ai-ml",
+   "html_url": "https://github.com/summitllc/posit-ai-ml",
+   "description": "AI/ML SOS IDK. A 20-minute introduction to machine learning workflows with tidymodels in R: NWSL playoff prediction. ",
+   "created_at": "2026-09-02T22:06:58Z",
+   "stargazers_count": 7,
+   "language": "HTML",
+   "topics": []
+  },
+  {
+   "id": 1446865571,
+   "full_name": "ielbadisy/agentic-compactness-r-ai-2026",
+   "html_url": "https://github.com/ielbadisy/agentic-compactness-r-ai-2026",
+   "description": "Code for the R+AI 2026 talk: compactness of ML workflows in funcml, mlr3 and tidymodels",
+   "created_at": "2026-11-05T10:40:27Z",
+   "stargazers_count": 1,
+   "language": "R",
+   "topics": []
+  },
+  {
+   "id": 1392498227,
+   "full_name": "Maria-TM1/hospital-readmission-ml",
+   "html_url": "https://github.com/Maria-TM1/hospital-readmission-ml",
+   "description": "9-model comparison for 30-day hospital readmission: bootstrap confidence intervals show no model beats a simple logistic regression · R · tidymodels",
+   "created_at": "2026-09-28T11:13:03Z",
+   "stargazers_count": 1,
+   "language": "R",
+   "topics": [
+    "data-science",
+    "healthcare",
+    "machine-learning",
+    "r",
+    "statistics",
+    "tidymodels"
+   ]
+  }
+ ]
+}

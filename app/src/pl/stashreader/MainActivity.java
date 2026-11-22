@@ -193,6 +193,26 @@ public class MainActivity extends Activity {
             if (v.startsWith("done:")) addState = "";
             return v;
         }
+        /** Adds a search on an open API (kind: arxiv, hn, hf, reddit, github, s2). Returns "" or a message. */
+        @JavascriptInterface public String addQuerySource(String kind, String query) {
+            if (!QuerySource.valid(kind)) return "Choose where to search";
+            String q = QuerySource.clean(query);
+            if (q.isEmpty() && QuerySource.needsQuery(kind)) return "Type what to search for";
+            if (q.length() > 80) return "Keep the search under 80 characters";
+            final long id = db.addQuerySource(kind, q, "");
+            if (id == -1) return "That search is already in the list";
+            new Thread(() -> Refresher.single(MainActivity.this, id), "add-search").start();
+            return "";
+        }
+        @JavascriptInterface public String queryKinds() {
+            StringBuilder b = new StringBuilder("[");
+            for (int i = 0; i < QuerySource.KINDS.length; i++) {
+                if (i > 0) b.append(',');
+                String k = QuerySource.KINDS[i];
+                b.append("{\"kind\":\"").append(k).append("\",\"label\":\"").append(QuerySource.label(k)).append("\",\"needsQuery\":").append(QuerySource.needsQuery(k)).append('}');
+            }
+            return b.append(']').toString();
+        }
         @JavascriptInterface public void fetchPage(String id) {
             final String key = id;
             pages.remove(key);

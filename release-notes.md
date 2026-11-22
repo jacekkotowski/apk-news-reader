@@ -1,17 +1,15 @@
-## Stash Reader 0.4: Stash, highlights, notes and Markdown export
+## Stash Reader 0.5: searches on open services
 
 **New**
-- The **Kept** tab is now **Stash**. Each kept item shows its highlights and your note, and you can filter the Stash by topic (the source's topic plus any of your Topics found in the title and summary).
-- **Highlights**: select text in an opened card (long-press a word, drag the handles), then press **Highlight selection** at the bottom. Highlighting also keeps the item. Each highlight takes a one-line note and can be removed. Each kept item has a **My note** box.
-- **Share as Markdown** sends one note through the Android share sheet as `text/markdown` (Obsidian, Drive, e-mail, ...).
-- **Export folder**: pick a folder once with the system folder picker (the permission is kept). From then on every Keep, highlight and note change writes or rewrites one file, `YYYY-MM-DD title.md` (the day you kept it), in that folder. **Export all** writes the items you already have; **Stop exporting** forgets the folder. Point it at a folder that Obsidian Sync or Syncthing covers and notes arrive in your vault.
-- A note has YAML front matter (`title`, `source`, `url`, `date`, `kept`, `topics`), then the highlights as `>` quotes (with their notes), then `## My note`.
+- **Search sources**: a source can now be a search instead of a feed address. Six kinds, all free, no account or key: **arXiv** (newest papers matching your words), **Hacker News** (stories with 20+ points), **Hugging Face daily papers** (the day's list; an optional word filter), **Reddit** (`r/rstats` for a subreddit, or any words for a search), **GitHub** (repositories created in the last 90 days, most starred first) and **Semantic Scholar** (papers from this and last year).
+- Seven starter searches are added: arXiv "causal inference", Hacker News "claude code" and "duckdb", Hugging Face daily papers, Reddit r/rstats, GitHub "tidymodels", Semantic Scholar "causal machine learning". They show up in the Feed, ranked by your Topics like everything else. Edit them in Sources: remove one and add your own under **Add a search**.
+- Each search is asked **at most once every 3 hours** (the items already stored are the cache). A search that failed is not retried for 3 hours; a server that answers HTTP 429 is left alone for the time it asks. One request per search per refresh, with the `StashReader/0.5` user agent.
+- Links to `http://` pages (for example arXiv) are opened as `https://`.
 
-**Try on the phone:** open an article, press Read full article, select a sentence, Highlight selection, add a note, then Share as Markdown to Obsidian. Then in the Stash tab choose an export folder and keep another item; look for the file.
+**Try on the phone:** open Sources and look at the status of each search. Add a search for a word you care about (for example arXiv "conformal prediction"). Check that items from arXiv, Hacker News or GitHub appear in the Feed with a "Why this" line.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The Markdown text is tested on the PC. The folder picker, the write into the folder, the share sheet and text selection could not be driven in the emulator, so they are untested.
-- Removing an item from the Stash does not delete its file in the export folder.
-- Two kept items with the same title kept on the same day would write the same file name; the later one replaces the earlier one.
-- Highlights are stored as plain text, not as positions: the same sentence cannot be highlighted twice in one item, and highlights are not painted onto the article.
-- Text selection inside a card depends on the phone's WebView; the Highlight selection bar shows only while a selection exists.
+- Nothing here has been tested on a real phone. The answers of arXiv, Hacker News, Hugging Face and GitHub were saved and tested on the PC; the Reddit and Semantic Scholar answers could not be fetched while building (both answered HTTP 429 to the build computer), so their test files are hand-written from the documented formats. Real answers may differ.
+- Reddit refuses some networks and Semantic Scholar limits requests that carry no key; in that case the source shows the error and tries again after the wait. Nothing else breaks.
+- GitHub allows about 10 anonymous searches a minute; the starter list uses one.
+- Seed-paper recommendations ("because you kept X") and page watching are not in this release.

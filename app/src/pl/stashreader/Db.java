@@ -18,6 +18,12 @@ import org.json.JSONObject;
 final class Db extends SQLiteOpenHelper {
     static final int NEW = 0, KEPT = 1, DONE = 2, LESS = 3;
     static final int MAX_ITEMS = 2000, FEED_LIMIT = 300, RANK_POOL = 600;
+    /** Starter searches: {kind, query, topic}. They bring items from places nobody added by hand. */
+    private static final String[][] DEFAULT_QUERIES = {
+        {QuerySource.ARXIV, "causal inference", "causal inference"}, {QuerySource.HN, "claude code", "Claude Code"},
+        {QuerySource.HN, "duckdb", "duckdb"}, {QuerySource.HF, "", "AI for data science"},
+        {QuerySource.REDDIT, "r/rstats", "tidymodels"}, {QuerySource.GITHUB, "tidymodels", "tidymodels"},
+        {QuerySource.S2, "causal machine learning", "causal inference"}};
     private static final String[][] DEFAULT_TOPICS = {{"tidymodels", "3"}, {"Power BI", "3"}, {"DAX", "2"}, {"Claude Code", "3"}, {"machine learning", "2"}, {"LLM", "2"}, {"data science", "2"}, {"causal inference", "2"}, {"duckdb", "2"}};
     private static final String WHEN = "CASE WHEN i.pub>0 THEN i.pub ELSE i.fetched END";
     private static Db instance;
@@ -27,11 +33,11 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 4); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 5); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
-        d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0)");
+        d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0)");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
@@ -45,6 +51,15 @@ final class Db extends SQLiteOpenHelper {
                 d.insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
             }
         } catch (Exception e) { /* an empty list is better than a crash; the Sources screen can add feeds */ }
+        seedQueries(d);
+    }
+
+    private void seedQueries(SQLiteDatabase d) {
+        for (String[] q : DEFAULT_QUERIES) {
+            ContentValues v = new ContentValues();
+            v.put("url", QuerySource.key(q[0], q[1])); v.put("kind", q[0]); v.put("query", q[1]); v.put("topic", q[2]);
+            d.insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        }
     }
     @Override public void onUpgrade(SQLiteDatabase d, int o, int n) {
         if (o < 2) d.execSQL("ALTER TABLE items ADD COLUMN article TEXT NOT NULL DEFAULT ''");
@@ -54,6 +69,11 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("ALTER TABLE items ADD COLUMN kept_at INTEGER NOT NULL DEFAULT 0");
             d.execSQL("UPDATE items SET kept_at=fetched WHERE state=" + KEPT);
             createHighlights(d);
+        }
+        if (o < 5) {
+            d.execSQL("ALTER TABLE sources ADD COLUMN kind TEXT NOT NULL DEFAULT 'rss'");
+            d.execSQL("ALTER TABLE sources ADD COLUMN query TEXT NOT NULL DEFAULT ''");
+            seedQueries(d);
         }
     }
 
@@ -83,6 +103,23 @@ final class Db extends SQLiteOpenHelper {
         v.put("url", url); v.put("name", name); v.put("topic", topic); v.put("custom", 1);
         return getWritableDatabase().insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
     }
+    /** A search on an open API. The address column holds a stable key; the real request address is built when fetching. */
+    long addQuerySource(String kind, String query, String topic) {
+        ContentValues v = new ContentValues();
+        v.put("url", QuerySource.key(kind, query)); v.put("kind", kind); v.put("query", QuerySource.clean(query)); v.put("topic", topic); v.put("custom", 1);
+        return getWritableDatabase().insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+    }
+
+    static final class Src { String url, kind, query; long lastOk, retryAfter; }
+    Src source(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT url, kind, query, last_ok, retry_after FROM sources WHERE id=?", new String[]{"" + id})) {
+            if (!c.moveToFirst()) return null;
+            Src s = new Src();
+            s.url = c.getString(0); s.kind = c.getString(1); s.query = c.getString(2); s.lastOk = c.getLong(3); s.retryAfter = c.getLong(4);
+            return s;
+        }
+    }
+
     void setEnabled(long id, boolean on) {
         ContentValues v = new ContentValues(); v.put("enabled", on ? 1 : 0);
         getWritableDatabase().update("sources", v, "id=?", new String[]{"" + id});
@@ -342,11 +379,11 @@ final class Db extends SQLiteOpenHelper {
 
     String sourcesJson() throws Exception {
         JSONArray a = new JSONArray();
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT s.id, s.url, s.name, s.topic, s.custom, s.enabled, s.last_ok, s.last_error, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id) FROM sources s ORDER BY s.id", null)) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT s.id, s.url, s.name, s.topic, s.custom, s.enabled, s.last_ok, s.last_error, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id), s.kind, s.query FROM sources s ORDER BY s.id", null)) {
             while (c.moveToNext()) {
                 JSONObject o = new JSONObject();
                 o.put("id", "" + c.getLong(0)); o.put("url", c.getString(1)); o.put("name", c.getString(2)); o.put("topic", c.getString(3));
-                o.put("custom", c.getInt(4) != 0); o.put("enabled", c.getInt(5) != 0); o.put("lastOk", c.getLong(6)); o.put("error", c.getString(7)); o.put("count", c.getInt(8));
+                o.put("custom", c.getInt(4) != 0); o.put("enabled", c.getInt(5) != 0); o.put("lastOk", c.getLong(6)); o.put("error", c.getString(7)); o.put("count", c.getInt(8)); o.put("kind", c.getString(9)); o.put("query", c.getString(10));
                 a.put(o);
             }
         }

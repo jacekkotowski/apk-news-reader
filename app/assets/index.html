@@ -71,6 +71,10 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <section id="sources">
   <div class="add"><input id="url" type="text" placeholder="Blog or feed address, e.g. example.com" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="add">Add</button></div>
   <div id="msg"></div>
+  <h2>Add a search</h2>
+  <div class="add"><select id="qkind" class="btn"></select><input id="qtext" type="text" placeholder="What to search for" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="qadd">Add</button></div>
+  <div id="qmsg" class="note"></div>
+  <p class="meta">Searches ask the open service for new items about your words, at most once every 3 hours each. Reddit may refuse some phones; the status shows it.</p>
   <h2>Background refresh</h2>
   <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
   <h2>Sources</h2><div id="srclist"></div>
@@ -241,12 +245,13 @@ function render(){
     J(A.sources()).sort(function(a,b){return (b.error?1:0)-(a.error?1:0)}).forEach(function(x){
       var r=el('div','src');
       var cb=el('input');cb.type='checkbox';cb.checked=x.enabled;cb.onchange=function(){A.setSourceEnabled(x.id,cb.checked);status()};r.appendChild(cb);
-      var t=el('div','t');t.appendChild(el('span',null,x.name||x.url));
+      var q=x.kind&&x.kind!=='rss';
+      var t=el('div','t');t.appendChild(el('span',null,x.name||(q?x.kind+': '+x.query:x.url)));
       var d=el('div',x.error?'err':(x.lastOk?'good':''),x.error?x.error:(x.lastOk?'OK, '+x.count+' items, updated '+ago(x.lastOk):'Not refreshed yet'));
       t.appendChild(d);
-      t.appendChild(el('div',null,(x.topic?x.topic+' | ':'')+x.url));
+      t.appendChild(el('div',null,(x.topic?x.topic+' | ':'')+(q?'search, at most every 3 hours':x.url)));
       r.appendChild(t);
-      if(x.custom){var rm=el('button','btn','Remove');rm.onclick=function(){A.removeSource(x.id);render()};r.appendChild(rm)}
+      if(x.custom||q){var rm=el('button','btn','Remove');rm.onclick=function(){A.removeSource(x.id);render()};r.appendChild(rm)}
       l.appendChild(r);
     });
     $('ver').textContent='Stash Reader '+A.version();
@@ -279,6 +284,8 @@ $('exportall').onclick=function(){$('exportMsg').textContent='Writing notes...';
 $('clearfolder').onclick=function(){A.clearFolder();$('exportMsg').textContent='Export stopped. Existing files stay where they are.';render()};
 window.folderChosen=function(){$('exportMsg').textContent='Folder set. Notes are written when you keep, highlight or change a note. Press Export all to write the ones you already have.';render()};
 window.exportMsg=function(m){$('exportMsg').textContent=m};
+(function(){var sel=$('qkind');J(A.queryKinds?A.queryKinds():'[]').forEach(function(k){var o=el('option',null,k.label);o.value=k.kind;sel.appendChild(o)})})();
+$('qadd').onclick=function(){var m=A.addQuerySource($('qkind').value,$('qtext').value);$('qmsg').textContent=m;if(!m){$('qtext').value='';wasBusy=true}render()};
 $('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
 $('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
 render();status();setInterval(status,1500);

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/">
+  <category term="rstats" label="r/rstats"/>
+  <title>newest submissions : rstats</title>
+  <entry>
+    <author><name>/u/someone</name><uri>https://www.reddit.com/user/someone</uri></author>
+    <content type="html">&lt;div class="md"&gt;&lt;p&gt;I wrote a tidymodels workflow for churn.&lt;/p&gt;&lt;/div&gt; &lt;a href="https://www.reddit.com/r/rstats/comments/1abc/tidymodels_churn/"&gt;[comments]&lt;/a&gt;</content>
+    <id>t3_1abc</id>
+    <link href="https://www.reddit.com/r/rstats/comments/1abc/tidymodels_churn/"/>
+    <updated>2026-11-20T08:30:00+00:00</updated>
+    <published>2026-11-20T08:30:00+00:00</published>
+    <title>Tidymodels workflow for churn</title>
+  </entry>
+</feed>

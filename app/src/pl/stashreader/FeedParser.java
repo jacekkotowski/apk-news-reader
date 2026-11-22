@@ -106,12 +106,16 @@ final class FeedParser {
         }
         out.title = Sanitizer.text(out.title);
         for (Item i : all) add(out, i, feedUrl);
-        // newest first, then cap, so a feed with years of history does not flood the list
-        Collections.sort(out.items, new Comparator<Item>() {
+        finish(out);
+        return out;
+    }
+
+    /** Newest first, then capped, so a feed with years of history does not flood the list. */
+    static void finish(Feed f) {
+        Collections.sort(f.items, new Comparator<Item>() {
             @Override public int compare(Item a, Item b) { return Long.compare(b.published, a.published); }
         });
-        while (out.items.size() > MAX_ITEMS) out.items.remove(out.items.size() - 1);
-        return out;
+        while (f.items.size() > MAX_ITEMS) f.items.remove(f.items.size() - 1);
     }
 
     private static Item rss(Element e) {
@@ -144,13 +148,14 @@ final class FeedParser {
         return i;
     }
 
-    private static void add(Feed f, Item i, String feedUrl) {
+    static void add(Feed f, Item i, String feedUrl) {
         i.title = Sanitizer.text(i.title);
         if (i.body == null) i.body = "";
         if (i.title.isEmpty()) return;
         if (i.link == null) i.link = "";
         i.link = i.link.trim();
         if (!Sanitizer.isHttp(i.link)) i.link = "";
+        if (i.link.regionMatches(true, 0, "http://", 0, 7)) i.link = "https://" + i.link.substring(7); // the app allows no clear-text traffic
         i.uid = uid(i, feedUrl);
         for (Item o : f.items) if (o.uid.equals(i.uid)) return;
         f.items.add(i);

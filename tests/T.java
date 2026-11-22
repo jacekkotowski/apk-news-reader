@@ -26,6 +26,8 @@ public final class T {
         pageText();
         ranking();
         markdown();
+        json();
+        querySources();
         System.out.println(runs + " checks, " + fails + " failed");
         if (fails > 0) System.exit(1);
     }
@@ -211,6 +213,85 @@ public final class T {
         yes("md: long title is cut", MarkdownExport.fileName(e, utc).length() <= 10 + 1 + 80 + 3);
         eq("topics: all words must be present", java.util.Arrays.asList("tidymodels"), Ranker.matchedTopics("A post on tidymodels", java.util.Arrays.asList(new Ranker.Topic("tidymodels", 3), new Ranker.Topic("Power BI", 3))));
         eq("topics: multi-word match", java.util.Arrays.asList("Power BI"), Ranker.matchedTopics("BI and power users", java.util.Arrays.asList(new Ranker.Topic("Power BI", 1))));
+    }
+
+    static void json() {
+        Object o = Json.parse(" {\"a\": [1, 2.5, -3e2, true, false, null, \"x\\ny\\u00e9\\\"\"], \"b\": {\"c\": {}}, \"d\": []} ");
+        java.util.Map<String, Object> m = Json.obj(o);
+        java.util.List<Object> a = Json.list(m.get("a"));
+        eq("json: number", 1.0, a.get(0));
+        eq("json: decimal", 2.5, a.get(1));
+        eq("json: exponent", -300.0, a.get(2));
+        eq("json: literals", java.util.Arrays.asList(true, false, null), a.subList(3, 6));
+        eq("json: string escapes", "x\ny\u00e9\"", a.get(6));
+        eq("json: nested empty object", 0, Json.obj(Json.obj(m.get("b")).get("c")).size());
+        eq("json: empty array", 0, Json.list(m.get("d")).size());
+        eq("json: whole numbers print without .0", "2026", Json.str(Json.obj(Json.parse("{\"y\": 2026}")), "y"));
+        String[] bad = {"", "{", "[1,]", "{\"a\" 1}", "[1] x", "\"open", "{\"a\": tru}", "[\"\\u12\"]"};
+        for (String b : bad) {
+            try { Json.parse(b); yes("json: rejects <" + b + ">", false); } catch (IllegalArgumentException e) { yes("json: rejects <" + b + ">", true); }
+        }
+        StringBuilder deep = new StringBuilder();
+        for (int i = 0; i < 80; i++) deep.append('[');
+        try { Json.parse(deep.toString()); yes("json: deep nesting refused", false); } catch (IllegalArgumentException e) { yes("json: deep nesting refused", true); }
+    }
+
+    static void querySources() throws Exception {
+        long now = 1794700000000L; // 2026-11-14
+        String q = "claude code";
+        eq("key: lower case and trimmed", "query:hn:claude code", QuerySource.key("hn", "  Claude   Code "));
+        yes("kinds: all six are valid", QuerySource.valid("arxiv") && QuerySource.valid("hn") && QuerySource.valid("hf") && QuerySource.valid("reddit") && QuerySource.valid("github") && QuerySource.valid("s2") && !QuerySource.valid("rss"));
+        yes("url arxiv", QuerySource.requestUrl("arxiv", "causal inference", now).startsWith("https://export.arxiv.org/api/query?search_query=all%3A%22causal+inference%22&sortBy=submittedDate"));
+        yes("url hn", QuerySource.requestUrl("hn", q, now).startsWith("https://hn.algolia.com/api/v1/search_by_date?query=claude+code&tags=story&numericFilters=points%3E%3D20"));
+        eq("url hf", "https://huggingface.co/api/daily_papers?limit=50", QuerySource.requestUrl("hf", "", now));
+        eq("url reddit subreddit", "https://www.reddit.com/r/rstats/new.rss?limit=30", QuerySource.requestUrl("reddit", "r/rstats", now));
+        yes("url reddit search", QuerySource.requestUrl("reddit", "power bi", now).startsWith("https://www.reddit.com/search.rss?q=power+bi&sort=new"));
+        yes("url github: only repos created in the last 90 days", QuerySource.requestUrl("github", "tidymodels", now).contains("q=tidymodels+created%3A%3E2026-08-16&sort=stars"));
+        yes("url s2: this and last year", QuerySource.requestUrl("s2", "causal inference", now).contains("&year=2025-2026&fields="));
+
+        FeedParser.Feed ax = QuerySource.parse("arxiv", "causal inference", file("tests/fixtures/arxiv.xml"), now);
+        eq("arxiv: three papers", 3, ax.items.size());
+        eq("arxiv: feed title", "arXiv: causal inference", ax.title);
+        yes("arxiv: https link and a summary", ax.items.get(0).link.startsWith("https://arxiv.org/abs/") && ax.items.get(0).body.length() > 50);
+        yes("arxiv: newest first", ax.items.get(0).published >= ax.items.get(2).published);
+
+        FeedParser.Feed hn = QuerySource.parse("hn", q, file("tests/fixtures/hn.json"), now);
+        eq("hn: four stories", 4, hn.items.size());
+        FeedParser.Item noUrl = null;
+        for (FeedParser.Item i : hn.items) if (i.title.startsWith("Show HN: Mastra Factory")) noUrl = i;
+        yes("hn: a story without a url links to its discussion", noUrl != null && noUrl.link.startsWith("https://news.ycombinator.com/item?id=") && noUrl.body.contains("points"));
+        yes("hn: published time is in milliseconds", hn.items.get(0).published > 1700000000000L);
+
+        FeedParser.Feed hf = QuerySource.parse("hf", "", file("tests/fixtures/hf.json"), now);
+        eq("hf: three papers", 3, hf.items.size());
+        yes("hf: paper link", hf.items.get(0).link.startsWith("https://huggingface.co/papers/2611."));
+        FeedParser.Feed hfq = QuerySource.parse("hf", "policy", file("tests/fixtures/hf.json"), now);
+        eq("hf: a query keeps only matching papers", 2, hfq.items.size());
+
+        FeedParser.Feed gh = QuerySource.parse("github", "tidymodels", file("tests/fixtures/github.json"), now);
+        eq("github: three repositories", 3, gh.items.size());
+        eq("github: newest repository first", "ielbadisy/agentic-compactness-r-ai-2026", gh.items.get(0).title.split(":")[0]);
+        yes("github: link is the repository page", gh.items.get(0).link.equals("https://github.com/ielbadisy/agentic-compactness-r-ai-2026"));
+        yes("github: body carries the stars", gh.items.get(1).body.contains("1 stars") || gh.items.get(2).body.contains("7 stars"));
+
+        FeedParser.Feed s2 = QuerySource.parse("s2", "causal machine learning", file("tests/fixtures/s2.json"), now);
+        eq("s2: two papers", 2, s2.items.size());
+        eq("s2: title is plain text", "Causal machine learning for policy evaluation", s2.items.get(0).title);
+        yes("s2: abstract is escaped for HTML", s2.items.get(0).body.contains("how &amp; when"));
+        yes("s2: missing abstract is said so", s2.items.get(1).body.contains("(no abstract available)"));
+        eq("s2: the year stands in for a missing date", FeedParser.date("2025-01-01"), s2.items.get(1).published);
+
+        FeedParser.Feed rd = QuerySource.parse("reddit", "r/rstats", file("tests/fixtures/reddit.xml"), now);
+        eq("reddit: one post", 1, rd.items.size());
+        yes("reddit: link and date", rd.items.get(0).link.endsWith("/tidymodels_churn/") && rd.items.get(0).published > 0);
+
+        try { QuerySource.parse("github", "x", "{\"message\":\"API rate limit exceeded\"}".getBytes(StandardCharsets.UTF_8), now); yes("github: rate limit message", false); }
+        catch (FeedParser.FeedException e) { eq("github: rate limit message", "GitHub says: API rate limit exceeded", e.getMessage()); }
+        try { QuerySource.parse("s2", "x", "{\"message\": \"Too Many Requests.\", \"code\": \"429\"}".getBytes(StandardCharsets.UTF_8), now); yes("s2: message", false); }
+        catch (FeedParser.FeedException e) { eq("s2: message", "Semantic Scholar says: Too Many Requests.", e.getMessage()); }
+        try { QuerySource.parse("hn", "x", "<html>".getBytes(StandardCharsets.UTF_8), now); yes("hn: not json", false); }
+        catch (FeedParser.FeedException e) { eq("hn: not json", "The answer was not valid JSON", e.getMessage()); }
+        eq("s2: no matches is an empty list, not an error", 0, QuerySource.parse("s2", "x", "{\"total\": 0, \"offset\": 0}".getBytes(StandardCharsets.UTF_8), now).items.size());
     }
 
     static String msg(String u) {

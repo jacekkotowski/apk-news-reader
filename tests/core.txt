@@ -4,3 +4,5 @@ FeedDiscovery.java
 PageText.java
 Ranker.java
 MarkdownExport.java
+Json.java
+QuerySource.java

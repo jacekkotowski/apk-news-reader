@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "0.4";
+    static final String VERSION = "0.5";
     static final String AGENT = "StashReader/" + VERSION;
     private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
@@ -44,18 +44,29 @@ final class Refresher {
 
     private static void one(Db db, long id, boolean force) {
         try {
-            String url = db.sourceUrl(id);
-            if (url == null) return;
+            Db.Src src = db.source(id);
+            if (src == null) return;
+            boolean query = !src.kind.equals("rss");
             long now = System.currentTimeMillis();
-            if (!force && db.retryAfter(id) > now) return; // told to back off (HTTP 429)
+            if (!force && src.retryAfter > now) return; // told to wait (HTTP 429), or a failed search that is not retried yet
+            // the stored items are the cache: a search source is not asked again within three hours
+            if (!force && query && src.lastOk > 0 && now - src.lastOk < QuerySource.MIN_INTERVAL_MS) return;
+            long failRetry = query ? now + QuerySource.MIN_INTERVAL_MS : 0;
             try {
-                db.store(id, FeedParser.parse(fetch(url), url), now);
-            } catch (FeedParser.FeedException e) { db.sourceFailed(id, e.getMessage(), 0); }
+                FeedParser.Feed f;
+                if (query) {
+                    byte[] body = fetch(QuerySource.requestUrl(src.kind, src.query, now), MAX_BYTES, QuerySource.accept(src.kind), new String[1]);
+                    f = QuerySource.parse(src.kind, src.query, body, now);
+                } else {
+                    f = FeedParser.parse(fetch(src.url), src.url);
+                }
+                db.store(id, f, now);
+            } catch (FeedParser.FeedException e) { db.sourceFailed(id, e.getMessage(), failRetry); }
             catch (RateLimited e) { db.sourceFailed(id, "The server asked us to slow down (HTTP 429); trying again later", now + e.waitMs); }
             catch (UnknownHostException e) { db.sourceFailed(id, "No network, or the server name was not found", 0); }
-            catch (SocketTimeoutException e) { db.sourceFailed(id, "The server took too long to answer", 0); }
-            catch (javax.net.ssl.SSLException e) { db.sourceFailed(id, "The server's secure connection could not be verified", 0); }
-            catch (IOException e) { db.sourceFailed(id, String.valueOf(e.getMessage()), 0); }
+            catch (SocketTimeoutException e) { db.sourceFailed(id, "The server took too long to answer", failRetry); }
+            catch (javax.net.ssl.SSLException e) { db.sourceFailed(id, "The server's secure connection could not be verified", failRetry); }
+            catch (IOException e) { db.sourceFailed(id, String.valueOf(e.getMessage()), failRetry); }
         } catch (Throwable t) {
             try { db.sourceFailed(id, "Unexpected problem: " + t, 0); } catch (Throwable ignored) { }
         }

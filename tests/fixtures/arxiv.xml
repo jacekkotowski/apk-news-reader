@@ -1,0 +1,126 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Y0qrjFyRbW8WQkX0FZNs99J52aw</id>
+  <title>arXiv Query: search_query=all:"causal inference"&amp;id_list=&amp;start=0&amp;max_results=3</title>
+  <updated>2026-11-22T17:10:51Z</updated>
+  <link href="https://arxiv.org/api/query?search_query=all:%22causal+inference%22&amp;start=0&amp;max_results=3&amp;id_list=" type="application/atom+xml"/>
+  <opensearch:itemsPerPage>3</opensearch:itemsPerPage>
+  <opensearch:totalResults>3892</opensearch:totalResults>
+  <opensearch:startIndex>0</opensearch:startIndex>
+  <entry>
+    <id>http://arxiv.org/abs/2611.24850v1</id>
+    <title>Statistical methods for extrapolation from one population to another: a review</title>
+    <updated>2026-11-18T18:10:25Z</updated>
+    <link href="https://arxiv.org/abs/2611.24850v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.24850v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Background: Extrapolation refers to statistical approaches that support inference on treatment effects in a target population using data from completed clinical trials conducted in a source population. This is particularly important when only limited data are available in the target population. Extrapolation may be based on multiple sources of information, including pharmacokinetic, pharmacodynamic, mechanistic, or clinical outcome data. This review focuses on methods that enable borrowing of information from one population to support inference in another.
+  Methods: We conducted a review of statistical methodologies for extrapolation, focusing on approaches that incorporate outcome data from source populations to support inference in target populations. Methods were identified across a range of settings, including extrapolation across age groups and across different clinical indications. Literature searches were conducted using the Science Citation Index Expanded database within Web of Science and included all English-language records available up to 30 June 2025.
+  Results: The review identified 218 extrapolation approaches from 159 papers, which can be broadly classified into three main categories: Bayesian, frequentist, and causal inference methods. These methods vary in their assumptions, implementation, and applicability across different extrapolation settings.
+  Conclusions: This review provides a comprehensive and up-to-date overview of statistical methods for extrapolation, offering a foundation for further methodological development and applied research. It also discusses key considerations for method selection and current limitations, and highlights priorities for future research, including the development of new extrapolation methods and clinical trial designs that facilitate extrapolation.</summary>
+    <category term="stat.OT" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-18T18:10:25Z</published>
+    <arxiv:comment>A Methodological Review of Statistical Methods for Extrapolation</arxiv:comment>
+    <arxiv:primary_category term="stat.OT"/>
+    <author>
+      <name>Lingjiao Wang</name>
+    </author>
+    <author>
+      <name>Francois Mercier</name>
+    </author>
+    <author>
+      <name>Astrid Jullion</name>
+    </author>
+    <author>
+      <name>Xuan Zhu</name>
+    </author>
+    <author>
+      <name>Christian Rover</name>
+    </author>
+    <author>
+      <name>Marc Vandemeulebroecke</name>
+    </author>
+    <author>
+      <name>Martin Posch</name>
+    </author>
+    <author>
+      <name>Sarah Zohar</name>
+    </author>
+    <author>
+      <name>Nigel Stallard</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.24321v1</id>
+    <title>Benchmarking LLM abilities on postdoc-level natural science problems</title>
+    <updated>2026-11-18T12:25:33Z</updated>
+    <link href="https://arxiv.org/abs/2611.24321v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.24321v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Scientific problems have no answer key, so evaluating an agent means deciding what counts as a better solution before any agent is run. Existing benchmarks either match a symbolic answer against a key or, where they require executable work, score it by unit tests, by a rubric, or by position on a competition leaderboard. None of these is the criterion by which a field decides that one published method beats another. STEMBench adopts that criterion directly. Each of its twelve research problems in high-energy physics, astrophysics and neuroscience is scored by its own field's figure of merit, and each comes with two measured anchors: a submission that uses no domain knowledge, and an expert reference reproducing a published method, both obtained by running code shipped with the benchmark. The interval between them states how much of a problem is crossed by scientific insight rather than by engineering. Across eight frontier models, task-level wins and domain-level leadership dissociate: a model that wins five of the twelve tasks leads no domain mean. In the high-effort cross-model comparison, at least one model's mean score exceeds the expert anchor on seven of twelve tasks. The remaining five span uncertainty estimation, latent and causal inference, and cross-site clinical classification. Numerical scores and official-submission validity capture different aspects of performance and are reported separately. We release the tasks, graders, anchors and harness.</summary>
+    <category term="cs.AI" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="physics.data-an" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-18T12:25:33Z</published>
+    <arxiv:comment>22 pages, 7 tables, 2 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.AI"/>
+    <author>
+      <name>Alina Avanesyan</name>
+    </author>
+    <author>
+      <name>Alexey Boldyrev</name>
+    </author>
+    <author>
+      <name>Liqun Deng</name>
+    </author>
+    <author>
+      <name>Denis Derkach</name>
+    </author>
+    <author>
+      <name>Mary Godunova</name>
+    </author>
+    <author>
+      <name>Mikhail Hushchyn</name>
+    </author>
+    <author>
+      <name>Dmitry Ilvovsky</name>
+    </author>
+    <author>
+      <name>Irina Knyazeva</name>
+    </author>
+    <author>
+      <name>Irina Piontkovskaya</name>
+    </author>
+    <author>
+      <name>Dmitry Polubotko</name>
+    </author>
+    <author>
+      <name>Fedor Ratnikov</name>
+    </author>
+    <author>
+      <name>Ekaterina Trofimova</name>
+    </author>
+    <author>
+      <name>Zhenhe Zhang</name>
+    </author>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/2611.24149v1</id>
+    <title>Human-LLM Cognitive Extension: A Framework for Studying Coupled Cognition</title>
+    <updated>2026-11-18T09:54:43Z</updated>
+    <link href="https://arxiv.org/abs/2611.24149v1" rel="alternate" type="text/html"/>
+    <link href="https://arxiv.org/pdf/2611.24149v1" rel="related" type="application/pdf" title="pdf"/>
+    <summary>Recent research on the use of Large Language Models (LLMs) reports divergent cognitive outcomes, including improved assisted performance, limited transfer, and compromised unaided learning. Here, we argue that part of this seeming inconsistency arises because studies often assess different cognitive systems without making the unit of analysis explicit. Building on work in extended and distributed cognition, we propose the Human-LLM Cognitive Extension (HLCE) as a methodological framework for matching experimental designs, measures, and causal inferences to four distinct systems: the human acting independently, the artificial agent, the joined human-LLM configuration, and the human after division. The framework also treats the coupling architecture as part of the experimental object. HLCE separates performance augmentation, system-level complementarity, post-interaction human change, and stronger claims of constitutive cognitive integration. This separation can improve the interpretation of existing evidence and guide the design of human-LLM interactions without assuming in advance that these configurations constitute extended minds. We illustrate the application of HLCE with a synthetic diagnostic experiment comparing two connecting configurations that differ in how supporting information is communicated. The example highlights how distinct couplings can shape the organization of joint problem-solving, even when the final outcome remains unchanged. Overall, HLCE provides a methodological basis for designing controlled experiments and interpreting evidence across distinct forms of human-LLM cognitive interaction.</summary>
+    <category term="cs.CY" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.HC" scheme="http://arxiv.org/schemas/atom"/>
+    <published>2026-11-18T09:54:43Z</published>
+    <arxiv:comment>24 pages, two supplementary tables</arxiv:comment>
+    <arxiv:primary_category term="cs.CY"/>
+    <author>
+      <name>Ernesto Biempica</name>
+    </author>
+    <author>
+      <name>Emiliano Bruner</name>
+    </author>
+    <author>
+      <name>Juan F Poyatos</name>
+    </author>
+  </entry>
+</feed>
