@@ -54,7 +54,7 @@ adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 15 / 100)) 
 sleep 1
 adb exec-out screencap -p > smoke4.png
 # A link shared from another app lands in the Stash.
-adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.SUBJECT "Smoke share test" --es android.intent.extra.TEXT "https://www.tidyverse.org/blog/" -n pl.stashreader/.MainActivity > /dev/null
+adb shell 'am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.SUBJECT "Smoke share test" --es android.intent.extra.TEXT "https://www.tidyverse.org/blog/" -n pl.stashreader/.MainActivity' 2>&1 | tr -d '' | head -5
 sleep 6
 adb exec-out screencap -p > smoke_share.png
 adb logcat -d > logcat.txt
