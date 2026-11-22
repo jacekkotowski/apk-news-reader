@@ -171,7 +171,7 @@ summaries, Play Store.
 - [x] Steps 6 and 7, 2026-11-22: page and sitemap watch with robots.txt, recommendations from kept papers. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.6 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45064965080).
 - [x] Step 8, 2026-11-22: daily curator on GitHub Actions, Atom feed on branch curator-data. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.7 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45066117861).
 
-- [ ] Step 9 (added 2026-11-22 at Jacek's request): YouTube channels and podcasts, lean form (Watch opens the YouTube app, Listen opens the phone's audio player). Release v0.8.
+- [x] Step 9 (added 2026-11-22 at Jacek's request): YouTube channels and podcasts, lean form (Watch opens the YouTube app, Listen opens the phone's audio player). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.8 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45074079681). Not tested on a phone.
 
 ## 8. Open problems
 
