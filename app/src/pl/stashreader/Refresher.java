@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "0.8";
+    static final String VERSION = "0.9";
     static final String AGENT = "StashReader/" + VERSION;
     private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
@@ -46,6 +46,7 @@ final class Refresher {
         try {
             Db.Src src = db.source(id);
             if (src == null) return;
+            if (src.kind.equals("shared")) return; // links shared from other apps: nothing to fetch
             boolean query = !src.kind.equals("rss");
             long now = System.currentTimeMillis();
             if (!force && src.retryAfter > now) return; // told to wait (HTTP 429), or a failed search that is not retried yet

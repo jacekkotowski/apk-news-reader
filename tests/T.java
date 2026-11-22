@@ -21,6 +21,7 @@ public final class T {
     public static void main(String[] a) throws Exception {
         sanitizer();
         feeds();
+        shareAndRecall();
         starter();
         discovery();
         pageText();
@@ -56,6 +57,33 @@ public final class T {
         eq("word count", 3, Sanitizer.words("one two  three"));
         eq("attr unquoted", "https://a.b", Sanitizer.attr(" href=https://a.b class=x", "href"));
         eq("attr not fooled by data-href", null, Sanitizer.attr(" data-href=\"https://a.b\"", "href"));
+    }
+
+    static void shareAndRecall() {
+        eq("share: url from youtube text", "https://youtu.be/abc123?si=x", Share.extractUrl("Great video https://youtu.be/abc123?si=x"));
+        eq("share: trailing punctuation is dropped", "https://example.com/a", Share.extractUrl("See (https://example.com/a)."));
+        eq("share: no address", "", Share.extractUrl("just words"));
+        eq("share: null text", "", Share.extractUrl(null));
+        eq("share: title from subject", "A good post", Share.titleFor("A good post", "https://example.com/p", "https://example.com/p"));
+        eq("share: subject that is only an address is ignored", "Hello there", Share.titleFor("https://example.com/p", "Hello there https://example.com/p", "https://example.com/p"));
+        eq("share: title from text around the address", "Great video", Share.titleFor(null, "Great video https://youtu.be/abc", "https://youtu.be/abc"));
+        eq("share: quotes and dashes around the title are removed", "Great video", Share.titleFor(null, "\u201cGreat video\u201d - https://youtu.be/abc", "https://youtu.be/abc"));
+        eq("share: nothing useful gives empty title", "", Share.titleFor(null, "https://example.com/p", "https://example.com/p"));
+        eq("share: host without www", "example.com", Share.hostOf("https://www.example.com/p?q=1"));
+        long now = 1000000000000L;
+        Recall.Next a = Recall.next(0, true, now);
+        eq("recall: first success moves to step 1", 1, a.step);
+        eq("recall: first success asks again in 3 days", now + 3 * Recall.DAY, a.due);
+        eq("recall: second success in 7 days", now + 7 * Recall.DAY, Recall.next(1, true, now).due);
+        eq("recall: third success in 21 days", now + 21 * Recall.DAY, Recall.next(2, true, now).due);
+        eq("recall: fourth success in 60 days", now + 60 * Recall.DAY, Recall.next(3, true, now).due);
+        eq("recall: later successes stay at 60 days", now + 60 * Recall.DAY, Recall.next(9, true, now).due);
+        Recall.Next r = Recall.next(5, false, now);
+        eq("recall: Again resets the step", 0, r.step);
+        eq("recall: Again asks tomorrow", now + Recall.DAY, r.due);
+        eq("recall: cap leaves what is not yet answered", 3, Recall.toShow(2, 10));
+        eq("recall: fewer due than the cap", 2, Recall.toShow(0, 2));
+        eq("recall: nothing left after the cap", 0, Recall.toShow(5, 10));
     }
 
     static void feeds() throws Exception {

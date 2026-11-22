@@ -53,6 +53,10 @@ adb exec-out screencap -p > smoke3.png
 adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 15 / 100)) 400
 sleep 1
 adb exec-out screencap -p > smoke4.png
+# A link shared from another app lands in the Stash.
+adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.SUBJECT "Smoke share test" --es android.intent.extra.TEXT "https://www.tidyverse.org/blog/" -n pl.stashreader/.MainActivity > /dev/null
+sleep 6
+adb exec-out screencap -p > smoke_share.png
 adb logcat -d > logcat.txt
 rc=0
 if grep -q "FATAL EXCEPTION" logcat.txt; then echo "The app crashed (FATAL EXCEPTION in logcat)"; rc=1; fi

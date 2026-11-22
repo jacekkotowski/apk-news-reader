@@ -8,3 +8,5 @@ Json.java
 QuerySource.java
 Robots.java
 PageWatch.java
+Share.java
+Recall.java

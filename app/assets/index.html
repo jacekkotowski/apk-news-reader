@@ -61,6 +61,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
     <div class="acts"><button class="btn" id="choose">Choose folder</button><button class="btn" id="exportall">Export all</button><button class="btn" id="clearfolder">Stop exporting</button></div>
     <div class="meta" id="exportMsg"></div>
   </div>
+  <div id="recall"></div>
   <div id="chips" class="chips"></div>
   <div id="keptlist"></div>
 </section>
@@ -88,7 +89,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
 var KL={};
-var pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
+var recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
 function J(s){try{return JSON.parse(s)}catch(e){return []}}
@@ -222,6 +223,7 @@ function render(){
     else if(items.length>=300)box.appendChild(el('div','empty','Showing the newest 300. Mark some as Done to see older ones.'));
   }else if(tab==='kept'){
     $('folder').textContent=(A.exportFolder&&A.exportFolder())||'not set';
+    renderRecall();
     var kb=$('keptlist');kb.textContent='';
     var ki=J(A.kept());
     var tp={};ki.forEach(function(it){(it.topics||[]).forEach(function(x){tp[x]=(tp[x]||0)+1})});
@@ -264,6 +266,46 @@ function render(){
     var sel=$('hours');if(sel&&A.refreshHours)sel.value=''+A.refreshHours();
   }
 }
+function renderRecall(){
+  var box=$('recall');box.textContent='';recallOn=false;
+  var cards=J(A.recall?A.recall():'[]');
+  if(!cards.length)return;
+  var b=el('button','btn main','Recall: '+cards.length+(cards.length===1?' card':' cards')+' for today');
+  b.style.width='100%';b.style.marginBottom='12px';
+  b.onclick=function(){runRecall(cards,box)};
+  box.appendChild(b);
+}
+function runRecall(list,box){
+  recallOn=true;box.textContent='';
+  var p=el('div','panel');box.appendChild(p);
+  var total=list.length,n=0;
+  function finish(){
+    recallOn=false;p.textContent='';
+    p.appendChild(el('div','label','Done for today'));p.appendChild(el('p',null,'Come back tomorrow.'));
+    var c=el('button','btn','Close');c.onclick=function(){render()};p.appendChild(c);
+  }
+  function ask(){
+    if(n>=list.length){finish();return}
+    var c=list[n];p.textContent='';
+    p.appendChild(el('div','label','Recall '+(n+1)+' of '+total));
+    p.appendChild(el('div','meta',c.title+' | '+c.source));
+    p.appendChild(el('h3',null,c.front));
+    var rv=el('button','btn main','Show answer');
+    rv.onclick=function(){
+      p.textContent='';
+      p.appendChild(el('div','label','Recall '+(n+1)+' of '+total));
+      p.appendChild(el('div','meta',c.title));
+      var a=el('p',null,c.back);a.style.whiteSpace='pre-wrap';p.appendChild(a);
+      var row=el('div','acts');
+      var ok=el('button','btn main','Got it');ok.onclick=function(){A.recallAnswer(c.id,true);n++;ask()};
+      var no=el('button','btn','Again tomorrow');no.onclick=function(){A.recallAnswer(c.id,false);n++;ask()};
+      row.appendChild(ok);row.appendChild(no);p.appendChild(row);
+    };
+    p.appendChild(rv);
+  }
+  ask();
+}
+window.sharedSaved=function(){show('kept')};
 function status(){
   var s=J(A.status());
   $('stat').textContent=s.refreshing?'Refreshing...':(s.fresh!=null?s.fresh+' new'+(s.failed?', '+s.failed+' source(s) with errors':''):'');
@@ -271,7 +313,7 @@ function status(){
   if(wasBusy&&!s.refreshing)pending=true;
   wasBusy=!!s.refreshing;
   // never redraw under a card that is open: the reader would lose their place, a highlight or a note
-  if(pending){if(document.querySelector('.card.open')){if(!s.refreshing)$('stat').textContent='New items are ready; close the open card to show them'}else{pending=false;render()}}
+  if(pending){if(recallOn){}else if(document.querySelector('.card.open')){if(!s.refreshing)$('stat').textContent='New items are ready; close the open card to show them'}else{pending=false;render()}}
 }
 function show(t){
   tab=t;pending=false;['feed','kept','topics','sources'].forEach(function(n){$(n).classList.toggle('on',n===t)});

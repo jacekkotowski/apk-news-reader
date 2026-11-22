@@ -35,7 +35,7 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 8); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 9); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
@@ -44,6 +44,7 @@ final class Db extends SQLiteOpenHelper {
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
         createHighlights(d);
+        createCards(d);
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
             for (int k = 0; k < a.length(); k++) {
@@ -100,6 +101,15 @@ final class Db extends SQLiteOpenHelper {
                 }
             } catch (Exception e) { /* the Sources screen can still add them */ }
         }
+        if (o < 9) { // recall cards, one for every highlight you already have
+            createCards(d);
+            d.execSQL("INSERT INTO cards(item_id, hl_id, due) SELECT item_id, id, created + " + Recall.DAY + " FROM highlights");
+        }
+    }
+
+    private void createCards(SQLiteDatabase d) {
+        // hl_id set: the card asks about a highlight (text and note are read from it); otherwise front and back hold a question and answer
+        d.execSQL("CREATE TABLE cards(id INTEGER PRIMARY KEY, item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE, hl_id INTEGER REFERENCES highlights(id) ON DELETE CASCADE, front TEXT NOT NULL DEFAULT '', back TEXT NOT NULL DEFAULT '', due INTEGER NOT NULL, step INTEGER NOT NULL DEFAULT 0, last INTEGER NOT NULL DEFAULT 0)");
     }
 
     private void createHighlights(SQLiteDatabase d) {
@@ -361,7 +371,12 @@ final class Db extends SQLiteOpenHelper {
         try (Cursor c = d.rawQuery("SELECT 1 FROM highlights WHERE item_id=? AND text=?", new String[]{"" + item, t})) { if (c.moveToFirst()) return true; }
         ContentValues v = new ContentValues();
         v.put("item_id", item); v.put("text", t); v.put("created", System.currentTimeMillis());
-        d.insert("highlights", null, v);
+        long hid = d.insert("highlights", null, v);
+        if (hid > 0) {
+            ContentValues cv = new ContentValues();
+            cv.put("item_id", item); cv.put("hl_id", hid); cv.put("due", System.currentTimeMillis() + Recall.DAY);
+            d.insert("cards", null, cv);
+        }
         setState(item, KEPT);
         return true;
     }
@@ -373,6 +388,74 @@ final class Db extends SQLiteOpenHelper {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT item_id FROM highlights WHERE id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getLong(0) : -1; }
     }
     void removeHighlight(long id) { getWritableDatabase().delete("highlights", "id=?", new String[]{"" + id}); }
+    /** Saves a link shared from another app straight into the Stash. Returns the item id, or -1 when the link is not usable. */
+    long addShared(String url, String title) {
+        SQLiteDatabase d = getWritableDatabase();
+        long now = System.currentTimeMillis();
+        ContentValues sv = new ContentValues();
+        sv.put("url", "stash:shared"); sv.put("name", "Shared with Stash Reader"); sv.put("kind", "shared"); sv.put("custom", 1);
+        d.insertWithOnConflict("sources", null, sv, SQLiteDatabase.CONFLICT_IGNORE);
+        long sid;
+        try (Cursor c = d.rawQuery("SELECT id FROM sources WHERE url='stash:shared'", null)) { if (!c.moveToFirst()) return -1; sid = c.getLong(0); }
+        FeedParser.Item i = new FeedParser.Item();
+        i.title = title; i.link = url; i.body = ""; i.published = now;
+        FeedParser.Feed f = new FeedParser.Feed();
+        FeedParser.add(f, i, "stash:shared");
+        if (f.items.isEmpty() || f.items.get(0).link.isEmpty()) return -1;
+        i = f.items.get(0);
+        ContentValues v = new ContentValues();
+        v.put("source_id", sid); v.put("key", i.uid); v.put("title", i.title); v.put("excerpt", "Saved from a share."); v.put("html", "");
+        v.put("link", i.link); v.put("pub", now); v.put("fetched", now); v.put("state", KEPT); v.put("kept_at", now);
+        long id = d.insertWithOnConflict("items", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        if (id == -1) { // the same link is already known, perhaps from a feed: keep that one
+            try (Cursor c = d.rawQuery("SELECT id FROM items WHERE key=?", new String[]{i.uid})) { if (!c.moveToFirst()) return -1; id = c.getLong(0); }
+            setState(id, KEPT);
+        }
+        return id;
+    }
+
+    private static long dayStart(long now) {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.setTimeInMillis(now);
+        c.set(java.util.Calendar.HOUR_OF_DAY, 0); c.set(java.util.Calendar.MINUTE, 0); c.set(java.util.Calendar.SECOND, 0); c.set(java.util.Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+    /** The recall cards to ask now: due, on a kept item, and no more than what is left of today's cap. */
+    String recallJson() throws Exception {
+        long now = System.currentTimeMillis();
+        JSONArray a = new JSONArray();
+        int answered = count("SELECT COUNT(*) FROM cards WHERE last>=" + dayStart(now));
+        int due = count("SELECT COUNT(*) FROM cards c JOIN items i ON i.id=c.item_id WHERE i.state=" + KEPT + " AND c.due<=" + now);
+        int show = Recall.toShow(answered, due);
+        if (show == 0) return a.toString();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT c.id, i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, c.hl_id, c.front, c.back, h.text, h.note FROM cards c JOIN items i ON i.id=c.item_id AND i.state=" + KEPT + " JOIN sources s ON s.id=i.source_id LEFT JOIN highlights h ON h.id=c.hl_id WHERE c.due<=" + now + " ORDER BY c.due LIMIT " + show, null)) {
+            while (c.moveToNext()) {
+                JSONObject o = new JSONObject();
+                o.put("id", "" + c.getLong(0)); o.put("title", c.getString(1)); o.put("source", c.getString(2));
+                if (c.isNull(3)) { o.put("front", c.getString(4)); o.put("back", c.getString(5)); }
+                else {
+                    String note = c.getString(7);
+                    o.put("front", "What do you remember about this?");
+                    o.put("back", c.getString(6) + (note == null || note.isEmpty() ? "" : "\n\nMy note: " + note));
+                }
+                a.put(o);
+            }
+        }
+        return a.toString();
+    }
+
+    void recallAnswer(long id, boolean ok) {
+        SQLiteDatabase d = getWritableDatabase();
+        int step;
+        try (Cursor c = d.rawQuery("SELECT step FROM cards WHERE id=?", new String[]{"" + id})) { if (!c.moveToFirst()) return; step = c.getInt(0); }
+        long now = System.currentTimeMillis();
+        Recall.Next n = Recall.next(step, ok, now);
+        ContentValues v = new ContentValues();
+        v.put("step", n.step); v.put("due", n.due); v.put("last", now);
+        d.update("cards", v, "id=?", new String[]{"" + id});
+    }
+
     void setNote(long item, String note) {
         ContentValues v = new ContentValues(); v.put("note", note == null ? "" : note.trim());
         getWritableDatabase().update("items", v, "id=?", new String[]{"" + item});

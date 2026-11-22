@@ -53,6 +53,36 @@ public class MainActivity extends Activity {
         applyTheme();
         web.loadUrl("file:///android_asset/index.html");
         refreshInBackground();
+        handleShare(getIntent());
+    }
+
+    @Override protected void onNewIntent(Intent in) {
+        super.onNewIntent(in);
+        setIntent(in);
+        handleShare(in);
+    }
+
+    /** A link shared from another app goes straight into the Stash. The title comes from the share, else from the page. */
+    private void handleShare(Intent in) {
+        if (in == null || !Intent.ACTION_SEND.equals(in.getAction()) || in.getBooleanExtra("handled", false)) return;
+        in.putExtra("handled", true);
+        final String text = in.getStringExtra(Intent.EXTRA_TEXT);
+        final String url = Share.extractUrl(text);
+        if (url.isEmpty()) { android.widget.Toast.makeText(this, "No web address found in what you shared", android.widget.Toast.LENGTH_LONG).show(); return; }
+        final String given = Share.titleFor(in.getStringExtra(Intent.EXTRA_SUBJECT), text, url);
+        new Thread(() -> {
+            String title = given;
+            if (title.isEmpty()) {
+                try { title = PageWatch.meta(Refresher.fetchPage(url)).title; } catch (Exception ignored) { }
+                if (title == null || title.isEmpty()) title = Share.hostOf(url);
+            }
+            final long id = db.addShared(url, title);
+            runOnUiThread(() -> {
+                android.widget.Toast.makeText(MainActivity.this, id < 0 ? "That link could not be saved" : "Saved to Stash", android.widget.Toast.LENGTH_SHORT).show();
+                if (id >= 0) web.evaluateJavascript("window.sharedSaved&&sharedSaved()", null);
+            });
+            if (id >= 0) sync(id);
+        }, "share").start();
     }
 
     private boolean dark() {
@@ -244,6 +274,8 @@ public class MainActivity extends Activity {
                 catch (Exception e) { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception e2) { /* no app can play it */ } }
             });
         }
+        @JavascriptInterface public String recall() { try { return db.recallJson(); } catch (Exception e) { return "[]"; } }
+        @JavascriptInterface public void recallAnswer(String id, boolean ok) { db.recallAnswer(Long.parseLong(id), ok); }
         @JavascriptInterface public void openUrl(String url) {
             if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) return;
             runOnUiThread(() -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));
