@@ -16,9 +16,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "0.1";
+    static final String VERSION = "0.2";
     static final String AGENT = "StashReader/" + VERSION;
-    private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, POOL = 4;
+    private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
 
     static boolean busy() { return BUSY.get(); }
@@ -63,12 +63,23 @@ final class Refresher {
 
     static final class RateLimited extends IOException { final long waitMs; RateLimited(long w) { super("HTTP 429"); waitMs = w; } }
 
-    static byte[] fetch(String address) throws IOException {
+    static byte[] fetch(String address) throws IOException { return fetch(address, MAX_BYTES, "application/rss+xml, application/atom+xml, application/xml, text/xml, */*;q=0.5"); }
+
+    /** A web page as text. The character set comes from the HTTP header, then from a meta tag, then UTF-8. */
+    static String fetchPage(String address) throws IOException {
+        String[] type = new String[1];
+        byte[] b = fetch(address, PAGE_BYTES, "text/html, application/xhtml+xml;q=0.9, */*;q=0.5", type);
+        return PageText.decode(b, type[0]);
+    }
+
+    static byte[] fetch(String address, int max, String accept) throws IOException { return fetch(address, max, accept, new String[1]); }
+
+    static byte[] fetch(String address, int max, String accept, String[] contentType) throws IOException {
         HttpURLConnection h = (HttpURLConnection) new URL(address).openConnection();
         try {
             h.setConnectTimeout(CONNECT_MS); h.setReadTimeout(READ_MS);
             h.setRequestProperty("User-Agent", AGENT + " (personal reader; Android)");
-            h.setRequestProperty("Accept", "application/rss+xml, application/atom+xml, application/xml, text/xml, */*;q=0.5");
+            h.setRequestProperty("Accept", accept);
             int code = h.getResponseCode();
             if (code == 429) {
                 long wait = 3600000L;
@@ -76,12 +87,13 @@ final class Refresher {
                 throw new RateLimited(wait);
             }
             if (code != 200) throw new IOException("The server answered HTTP " + code);
+            contentType[0] = h.getContentType();
             try (InputStream in = h.getInputStream()) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();
                 byte[] b = new byte[16384];
                 for (int n; (n = in.read(b)) > 0; ) {
                     out.write(b, 0, n);
-                    if (out.size() > MAX_BYTES) throw new IOException("The feed is larger than 16 MB");
+                    if (out.size() > max) throw new IOException("The page is larger than " + (max / 1048576) + " MB");
                 }
                 return out.toByteArray();
             }

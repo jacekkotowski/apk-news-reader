@@ -71,6 +71,8 @@ jobs:
           name: smoke
           path: |
             smoke.png
+            smoke_open.png
+            smoke_reader.png
             smoke2.png
             smoke3.png
             smoke4.png

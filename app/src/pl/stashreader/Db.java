@@ -22,12 +22,12 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 1); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 2); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0)");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0)");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
@@ -39,7 +39,9 @@ final class Db extends SQLiteOpenHelper {
             }
         } catch (Exception e) { /* an empty list is better than a crash; the Sources screen can add feeds */ }
     }
-    @Override public void onUpgrade(SQLiteDatabase d, int o, int n) { }
+    @Override public void onUpgrade(SQLiteDatabase d, int o, int n) {
+        if (o < 2) d.execSQL("ALTER TABLE items ADD COLUMN article TEXT NOT NULL DEFAULT ''");
+    }
 
     private String readAsset(String name) throws Exception {
         try (InputStream in = ctx.getAssets().open(name)) {
@@ -117,10 +119,22 @@ final class Db extends SQLiteOpenHelper {
         return added;
     }
 
+    /** Stores the reader-mode text (sanitised here) and corrects the reading time. */
+    void saveArticle(long id, String html) {
+        String clean = Sanitizer.clean(html, 400000);
+        int words = Sanitizer.words(Sanitizer.text(clean));
+        ContentValues v = new ContentValues();
+        v.put("article", clean); v.put("mins", Math.max(1, Math.round(words / 220f)));
+        getWritableDatabase().update("items", v, "id=?", new String[]{"" + id});
+    }
+    String itemLink(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT link FROM items WHERE id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getString(0) : ""; }
+    }
+
     void setState(long id, int state) {
         ContentValues v = new ContentValues(); v.put("state", state);
         // a finished item no longer needs its text; the row stays so the item is not offered again
-        if (state == DONE) v.put("html", "");
+        if (state == DONE) { v.put("html", ""); v.put("article", ""); }
         getWritableDatabase().update("items", v, "id=?", new String[]{"" + id});
     }
 
@@ -147,9 +161,9 @@ final class Db extends SQLiteOpenHelper {
         return a.toString();
     }
     String itemJson(long id) throws Exception {
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt FROM items WHERE id=?", new String[]{"" + id})) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt, article FROM items WHERE id=?", new String[]{"" + id})) {
             JSONObject o = new JSONObject();
-            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); }
+            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); o.put("article", c.getString(4)); }
             return o.toString();
         }
     }

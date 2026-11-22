@@ -21,6 +21,8 @@ public class MainActivity extends Activity {
     private WebView web;
     private FrameLayout root;
     private Db db;
+    private volatile String addState = "";
+    private final java.util.concurrent.ConcurrentHashMap<String, String> pages = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
@@ -28,6 +30,7 @@ public class MainActivity extends Activity {
         web = new WebView(this);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
         s.setBlockNetworkLoads(true);
         web.addJavascriptInterface(new Bridge(), "Android");
         // A WebView ignores its own padding, so the system-bar insets go on a parent layout.
@@ -106,15 +109,33 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void unkeep(String id) { db.setState(Long.parseLong(id), Db.NEW); }
         @JavascriptInterface public String sources() { try { return db.sourcesJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public void refresh() { refreshInBackground(); }
-        @JavascriptInterface public String addSource(String url) {
-            try {
-                String u = FeedParser.validateUrl(url);
-                final long id = db.addSource(u, "", "");
-                if (id == -1) return "That source is already in the list";
-                new Thread(() -> Refresher.single(MainActivity.this, id), "add-source").start();
-                return "";
-            } catch (FeedParser.FeedException e) { return e.getMessage(); }
+        @JavascriptInterface public String addSource(String input) {
+            if ("pending".equals(addState)) return "Still checking the last address";
+            addState = "pending";
+            new Thread(() -> {
+                String m;
+                try { m = Discoverer.add(MainActivity.this, input); } catch (Throwable t) { m = "Unexpected problem: " + t; }
+                addState = "done:" + m;
+            }, "add-source").start();
+            return "";
         }
+        /** "" when idle, "pending" while working, "done:" plus a message (empty on success) once, then idle again. */
+        @JavascriptInterface public String addStatus() {
+            String v = addState;
+            if (v.startsWith("done:")) addState = "";
+            return v;
+        }
+        @JavascriptInterface public void fetchPage(String id) {
+            final String key = id;
+            pages.remove(key);
+            new Thread(() -> {
+                try { pages.put(key, "ok:" + Refresher.fetchPage(db.itemLink(Long.parseLong(key)))); }
+                catch (Throwable t) { pages.put(key, "err:" + (t instanceof java.io.IOException ? t.getMessage() : "Unexpected problem: " + t)); }
+            }, "fetch-page").start();
+        }
+        /** "" while loading, else "ok:" plus the page HTML or "err:" plus a message. */
+        @JavascriptInterface public String pageResult(String id) { String v = pages.remove(id); return v == null ? "" : v; }
+        @JavascriptInterface public void saveArticle(String id, String html) { db.saveArticle(Long.parseLong(id), html); }
         @JavascriptInterface public void setSourceEnabled(String id, boolean on) { db.setEnabled(Long.parseLong(id), on); }
         @JavascriptInterface public void removeSource(String id) { db.removeSource(Long.parseLong(id)); }
         @JavascriptInterface public void openUrl(String url) {

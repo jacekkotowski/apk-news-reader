@@ -22,6 +22,8 @@ public final class T {
         sanitizer();
         feeds();
         starter();
+        discovery();
+        pageText();
         System.out.println(runs + " checks, " + fails + " failed");
         if (fails > 0) System.exit(1);
     }
@@ -96,6 +98,34 @@ public final class T {
         eq("link normalising", "example.com/a/?x=1", FeedParser.normalizeLink("https://www.example.com/a/?x=1&utm_source=rss#frag"));
         eq("https is required for sources", "The address must start with https://", msg("http://example.com/feed"));
         eq("host is required", "The address has no valid host name", msg("https://localhost/feed"));
+    }
+
+    static void discovery() throws Exception {
+        String page = new String(file("tests/fixtures/page-with-feeds.html"), StandardCharsets.UTF_8);
+        java.util.List<String> alt = FeedDiscovery.alternates(page, "https://blog.example.org/posts/hello/");
+        eq("alternates: three distinct feeds", 3, alt.size());
+        eq("alternates: relative href resolved", "https://blog.example.org/index.xml", alt.get(0));
+        eq("alternates: absolute href with entities", "https://blog.example.org/comments.atom?a=1&b=2", alt.get(1));
+        eq("alternates: http upgraded to https, upper case tag read", "https://old.example.org/feed", alt.get(2));
+        eq("alternates: none in a page without links", 0, FeedDiscovery.alternates("<p>hi</p>", "https://a.org/").size());
+        java.util.List<String> g = FeedDiscovery.commonGuesses("https://blog.example.org/posts/hello/");
+        eq("guesses: folder first", "https://blog.example.org/posts/hello/feed", g.get(0));
+        yes("guesses: all five common paths at the root", g.contains("https://blog.example.org/feed") && g.contains("https://blog.example.org/rss") && g.contains("https://blog.example.org/index.xml") && g.contains("https://blog.example.org/atom.xml") && g.contains("https://blog.example.org/feed.xml"));
+        eq("guesses: root page gives five", 5, FeedDiscovery.commonGuesses("https://example.com/").size());
+        eq("input: bare host gets https", "https://example.com/blog", FeedDiscovery.normalizeInput("  example.com/blog "));
+        eq("input: http becomes https", "https://example.com/x", FeedDiscovery.normalizeInput("http://example.com/x"));
+        eq("input: spaces refused", "", FeedDiscovery.normalizeInput("not a url"));
+        eq("input: other scheme refused", "", FeedDiscovery.normalizeInput("ftp://example.com/"));
+        eq("input: no dot refused", "", FeedDiscovery.normalizeInput("localhost"));
+    }
+
+    static void pageText() throws Exception {
+        byte[] latin = "<p>zażółć</p>".getBytes("UTF-8");
+        eq("page: utf-8 by default", "<p>zażółć</p>", PageText.decode(latin, null));
+        byte[] iso = "café".getBytes("ISO-8859-1");
+        eq("page: charset from header", "café", PageText.decode(iso, "text/html; charset=ISO-8859-1"));
+        eq("page: charset from meta tag", "café", PageText.decode("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">café".getBytes("ISO-8859-1"), null).substring(PageText.decode("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">café".getBytes("ISO-8859-1"), null).length() - 4));
+        eq("page: unknown charset falls back to utf-8", "ok", PageText.decode("ok".getBytes("UTF-8"), "text/html; charset=nonsense-9"));
     }
 
     static String msg(String u) {

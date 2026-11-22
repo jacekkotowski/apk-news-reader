@@ -23,9 +23,11 @@ final class Sanitizer {
     private static boolean in(String[] set, String s) { for (String x : set) if (x.equals(s)) return true; return false; }
 
     /** Safe HTML: allowed tags, no event attributes, no scripts. Tags are balanced. */
-    static String clean(String html) {
+    static String clean(String html) { return clean(html, MAX_IN); }
+
+    static String clean(String html, int max) {
         if (html == null) return "";
-        String s = html.length() > MAX_IN ? html.substring(0, MAX_IN) : html;
+        String s = html.length() > max ? html.substring(0, max) : html;
         StringBuilder out = new StringBuilder();
         Deque<String> open = new ArrayDeque<>();
         int i = 0, n = s.length();

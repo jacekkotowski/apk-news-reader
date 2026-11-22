@@ -27,7 +27,7 @@ section{display:none}section.on{display:block}
 .body{display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;overflow-wrap:anywhere}
 .open .body{display:block}
 .label{font-size:12px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
-.text{font-size:17px;line-height:1.6}
+:root{--fs:17px}.text{font-size:var(--fs);line-height:1.6}.tools{display:flex;gap:8px;justify-content:flex-end;margin-bottom:6px}.tools .btn{padding:2px 12px}.note{color:var(--bad);font-size:13px;margin-top:8px}
 .text a{color:var(--accent)}.text pre{overflow-x:auto;background:var(--chip);padding:8px;border-radius:8px;font-size:14px}
 .text code{background:var(--chip);padding:0 4px;border-radius:4px;font-size:.9em}.text pre code{padding:0;background:none}
 .text blockquote{margin:8px 0;padding-left:12px;border-left:3px solid var(--line);color:var(--dim)}
@@ -47,13 +47,14 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <section id="feed" class="on"></section>
 <section id="kept"></section>
 <section id="sources">
-  <div class="add"><input id="url" type="url" placeholder="https://example.com/feed.xml" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="add">Add</button></div>
+  <div class="add"><input id="url" type="text" placeholder="Blog or feed address, e.g. example.com" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="add">Add</button></div>
   <div id="msg"></div>
   <h2>Sources</h2><div id="srclist"></div>
   <p class="meta" id="ver"></p>
 </section>
 </main>
 <nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Kept</button><button data-t="sources">Sources</button></nav>
+<script src="Readability.js"></script>
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
 var tab='feed',wasBusy=false,lastSig='';
@@ -64,6 +65,9 @@ function $(id){return document.getElementById(id)}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
 function ago(ms){var m=Math.round((Date.now()-ms)/60000);if(m<60)return Math.max(m,1)+' min ago';var h=Math.round(m/60);if(h<48)return h+' h ago';return Math.round(h/24)+' d ago'}
 
+function fontSize(){var v=17;try{v=parseInt(localStorage.getItem('fs'))||17}catch(e){}return Math.max(13,Math.min(28,v))}
+function setFont(d){var v=Math.max(13,Math.min(28,fontSize()+d));try{localStorage.setItem('fs',v)}catch(e){}document.documentElement.style.setProperty('--fs',v+'px')}
+document.documentElement.style.setProperty('--fs',fontSize()+'px');
 function card(it,kept){
   var c=el('div','card');
   var m=el('div','meta');m.appendChild(el('b',null,it.source));m.appendChild(el('span',null,ago(it.pub)));m.appendChild(el('span',null,it.mins+' min'));
@@ -72,18 +76,45 @@ function card(it,kept){
   c.appendChild(el('p','ex',it.excerpt));
   if(it.topic)c.appendChild(el('span','chip',it.topic));
   var b=el('div','body');c.appendChild(b);
-  var loaded=false;
+  var loaded=false,d={},failed=false,label,text,note,readBtn;
+  function paint(){
+    if(d.article){label.textContent='Full article, reader mode (saved on this phone)';text.innerHTML=d.article}
+    else{
+      label.textContent=failed?'Excerpt':(d.full?'Full text, as sent by the feed':'Summary from the feed, not the full article');
+      if(d.html)text.innerHTML=d.html;else text.textContent=d.excerpt||'No text was saved for this item.';
+    }
+  }
+  function fail(msg){failed=true;note.textContent=msg+' Use Open in browser to read it.';paint();readBtn.textContent='Try reader mode again';readBtn.disabled=false}
+  function extract(html){
+    try{
+      var doc=new DOMParser().parseFromString(html,'text/html');
+      var base=doc.createElement('base');base.href=d.link;doc.head.insertBefore(base,doc.head.firstChild);
+      var art=new Readability(doc).parse();
+      if(art&&art.textContent&&art.textContent.trim().length>=300){
+        A.saveArticle(it.id,art.content);d=J(A.item(it.id));failed=false;note.textContent='';paint();
+        if(d.article){readBtn.style.display='none'}else fail('The article text could not be saved.');
+      }else fail('Reader mode could not find the article text on that page.');
+    }catch(e){fail('Reader mode failed on that page.')}
+  }
+  function poll(n){
+    var r=A.pageResult(it.id);
+    if(!r){if(n>80)fail('The page took too long to load.');else setTimeout(function(){poll(n+1)},500)}
+    else if(r.indexOf('err:')===0)fail('Could not load the page: '+r.slice(4)+'.');
+    else extract(r.slice(3));
+  }
   function toggle(){
     var open=c.classList.toggle('open');
     if(open&&!loaded){loaded=true;
-      var d=J(A.item(it.id));if(!d.html&&!d.excerpt){b.appendChild(el('p',null,'No text was saved for this item.'))}
-      else{
-        b.appendChild(el('div','label',d.full?'Full text, as sent by the feed':'Summary from the feed, not the full article'));
-        var t=el('div','text');
-        if(d.html)t.innerHTML=d.html;else t.textContent=d.excerpt;
-        t.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href)A.openUrl(a.href)}});
-        b.appendChild(t);
-      }
+      d=J(A.item(it.id));
+      var tools=el('div','tools');
+      var sm=el('button','btn','A-');sm.onclick=function(e){e.stopPropagation();setFont(-1)};
+      var lg=el('button','btn','A+');lg.onclick=function(e){e.stopPropagation();setFont(1)};
+      tools.appendChild(sm);tools.appendChild(lg);b.appendChild(tools);
+      label=el('div','label');b.appendChild(label);
+      text=el('div','text');b.appendChild(text);
+      text.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href)A.openUrl(a.href)}});
+      note=el('div','note');b.appendChild(note);
+      paint();
       var acts=el('div','acts');
       if(!kept){
         var k=el('button','btn main','Keep');k.onclick=function(e){e.stopPropagation();A.keep(it.id);gone(c)};acts.appendChild(k);
@@ -91,6 +122,9 @@ function card(it,kept){
       }else{
         var u=el('button','btn','Remove from Kept');u.onclick=function(e){e.stopPropagation();A.unkeep(it.id);gone(c)};acts.appendChild(u);
       }
+      readBtn=el('button','btn','Read full article');
+      readBtn.onclick=function(e){e.stopPropagation();readBtn.disabled=true;readBtn.textContent='Loading page...';note.textContent='';A.fetchPage(it.id);poll(0)};
+      if(d.link&&!d.article)acts.appendChild(readBtn);
       if(d.link){var o=el('button','btn','Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(o)}
       b.appendChild(acts);
     }
@@ -143,7 +177,13 @@ function show(t){
 }
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){show(b.dataset.t)}});
 $('refresh').onclick=function(){A.refresh();setTimeout(status,300)};
-$('add').onclick=function(){var m=A.addSource($('url').value);$('msg').textContent=m;if(!m){$('url').value='';wasBusy=true}render()};
+$('add').onclick=function(){
+  var m=A.addSource($('url').value);$('msg').textContent=m;if(m)return;
+  $('add').disabled=true;$('msg').textContent='Checking the address...';
+  (function wait(){var r=A.addStatus();
+    if(r.indexOf('done:')===0){$('add').disabled=false;var e=r.slice(5);$('msg').textContent=e;if(!e){$('url').value='';wasBusy=true}render()}
+    else setTimeout(wait,600)})();
+};
 render();status();setInterval(status,1500);
 </script>
 </body></html>

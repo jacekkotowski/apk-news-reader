@@ -1,2 +1,4 @@
 Sanitizer.java
 FeedParser.java
+FeedDiscovery.java
+PageText.java
