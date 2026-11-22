@@ -27,10 +27,10 @@ for n in 1 2 3; do
   sleep 2
   [ $n = 1 ] && adb exec-out screencap -p > smoke_open.png
   P=""
-  for i in 1 2 3; do
+  for i in 1 2 3 4 5 6 7 8 9 10; do
     P=$(find_text "Read full article")
     [ -n "$P" ] && break
-    adb shell input swipe $((W / 2)) $((H * 75 / 100)) $((W / 2)) $((H * 35 / 100)) 300
+    adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 25 / 100)) 300
     sleep 1
   done
   if [ -z "$P" ]; then echo "Card $n: could not find the Read full article button"; continue; fi
@@ -41,10 +41,10 @@ for n in 1 2 3; do
   adb exec-out screencap -p > smoke_reader$n.png
   BTN="Done"; [ $n = 3 ] && BTN="Keep"
   D=""
-  for i in 1 2 3; do
+  for i in 1 2 3 4 5 6 7 8 9 10; do
     D=$(find_text "$BTN")
     [ -n "$D" ] && break
-    adb shell input swipe $((W / 2)) $((H * 75 / 100)) $((W / 2)) $((H * 35 / 100)) 300
+    adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 25 / 100)) 300
     sleep 1
   done
   [ -n "$D" ] && adb shell input tap $D
