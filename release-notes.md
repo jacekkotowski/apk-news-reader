@@ -1,18 +1,16 @@
-## Stash Reader 0.1: the first feed
+## Stash Reader 0.2: reader mode and add-by-page
 
 **New**
-- A vertical feed of items from 20 starter RSS/Atom sources: tidymodels and R, Power BI, AI for data science, data-science skills, Claude Code. Items load on start and with the Refresh button (four sources at a time; one broken source never stops the others).
-- Tap a card to open it: you see the feed's own text, cleaned of scripts, styles, frames and event attributes. A label says whether it is the full text as sent by the feed or only a summary. "Open in browser" opens the real article.
-- **Keep** moves a card to the Kept tab, **Done** hides it for good. The same article from two feeds shows once. At most 2000 items are stored; kept items are never removed.
-- Feeds that break the XML rules in one place (the Tidyverse blog does) are repaired and still load.
-- Sources tab: status of every source (OK, error text, last update), on/off switch, add your own https RSS/Atom address.
-- Light and dark colours follow the phone setting.
+- **Read full article** on every opened card: the app downloads the page and extracts the article text with Mozilla Readability (the code behind Firefox Reader View). The cleaned text is saved on the phone, so it opens again offline. Scripts, styles, frames and images are removed.
+- If reader mode cannot find the article (paywall, a site that refuses the download, a JavaScript-only page, no network), the card falls back to the feed text labelled **Excerpt**, with the reason and the Open in browser button. An excerpt is never shown as the full article.
+- **A- / A+** change the reading size; the choice is remembered.
+- **Add a source from any page address** (Sources tab): paste a blog address such as `example.com/blog`. The app reads the feed the page announces (`<link rel="alternate">`), then tries `/feed`, `/rss`, `/index.xml`, `/atom.xml`, `/feed.xml`. At most nine requests per attempt.
+- Reading time is corrected once the full article is saved.
 
-**Try on the phone:** install, wait a few seconds for the first refresh, scroll, open a card, press Keep, look in Kept, switch a source off in Sources, add your own blog feed address.
-
-**Starter feeds dropped** (checked with curl on 2026-11-22): `tidymodels.org/start/index.xml` (404), `posit.co/blog/feed/` (404), `blog.rstudio.com/index.xml` (returns a web page), `anthropic.com/rss.xml` (404), `sqlbi.com/blog/feed/` (same feed as `sqlbi.com/feed/`). Also left out to keep the list near 20: Machine Learning Mastery, KDnuggets, O'Reilly Radar.
+**Try on the phone:** open a card and press Read full article on ten different blogs (Julia Silge, SQLBI, Simon Willison, Prokulski...). Turn on aeroplane mode and open one of them again. Add a blog by its plain address in Sources.
 
 **Known limits**
-- Nothing here has been tested on a real phone; the emulator smoke test only shows that the app starts and draws the feed.
-- Cards show the feed text only. Full-article reading arrives in step 2, topics and ranking in step 3 (the order is newest first for now).
-- No background refresh yet.
+- Nothing here has been tested on a real phone. The emulator smoke test presses Read full article on three cards; it shows that the flow runs, not that ten blogs read well.
+- Some sites answer the download with an error (Towards Data Science gave HTTP 403 in the emulator); those cards show the excerpt.
+- Images in articles are not shown or saved.
+- Topics and ranking come in step 3; the feed is still newest first.

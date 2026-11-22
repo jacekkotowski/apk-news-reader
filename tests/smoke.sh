@@ -1,6 +1,6 @@
 #!/bin/bash
 # Runs inside the emulator job: installs the APK, starts it, looks at the result.
-# Pictures: smoke.png (feed), smoke_open.png (a card opened), smoke_reader.png (after "Read full article"),
+# Pictures: smoke.png (feed), smoke_open.png (a card opened), smoke_reader1.png to smoke_reader3.png (after "Read full article" on three cards),
 # smoke2.png to smoke4.png (Sources tab). logcat.txt is the log.
 cd "$(dirname "$0")/.."
 adb install -r StashReader.apk || exit 1
@@ -19,24 +19,36 @@ find_text() {
     | awk -v h="$H" '{ cy=($2+$4)/2; if (cy>0 && cy<h) printf "%d %d", ($1+$3)/2, cy }'
 }
 
-# Open the first card, then ask for the full article.
-adb shell input tap $((W / 2)) $((H * 22 / 100))
-sleep 2
-adb exec-out screencap -p > smoke_open.png
-P=""
-for i in 1 2 3; do
-  P=$(find_text "Read full article")
-  [ -n "$P" ] && break
-  adb shell input swipe $((W / 2)) $((H * 75 / 100)) $((W / 2)) $((H * 35 / 100)) 300
+# Try reader mode on the first three cards (Done after each, so the next card moves up).
+scroll_top() { for i in 1 2 3 4; do adb shell input swipe $((W / 2)) $((H * 30 / 100)) $((W / 2)) $((H * 85 / 100)) 200; done; sleep 1; }
+for n in 1 2 3; do
+  scroll_top
+  adb shell input tap $((W / 2)) $((H * 22 / 100))
+  sleep 2
+  [ $n = 1 ] && adb exec-out screencap -p > smoke_open.png
+  P=""
+  for i in 1 2 3; do
+    P=$(find_text "Read full article")
+    [ -n "$P" ] && break
+    adb shell input swipe $((W / 2)) $((H * 75 / 100)) $((W / 2)) $((H * 35 / 100)) 300
+    sleep 1
+  done
+  if [ -z "$P" ]; then echo "Card $n: could not find the Read full article button"; continue; fi
+  adb shell input tap $P
+  sleep 15
+  adb shell input swipe $((W / 2)) $((H * 35 / 100)) $((W / 2)) $((H * 75 / 100)) 300
+  sleep 1
+  adb exec-out screencap -p > smoke_reader$n.png
+  D=""
+  for i in 1 2 3; do
+    D=$(find_text "Done")
+    [ -n "$D" ] && break
+    adb shell input swipe $((W / 2)) $((H * 75 / 100)) $((W / 2)) $((H * 35 / 100)) 300
+    sleep 1
+  done
+  [ -n "$D" ] && adb shell input tap $D
   sleep 1
 done
-if [ -n "$P" ]; then
-  adb shell input tap $P
-  sleep 20
-else
-  echo "Could not find the Read full article button"
-fi
-adb exec-out screencap -p > smoke_reader.png
 
 # Sources tab with the status of every source.
 adb shell input tap $((W * 5 / 6)) $((H * 96 / 100))
