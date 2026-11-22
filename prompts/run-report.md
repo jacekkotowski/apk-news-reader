@@ -1,9 +1,9 @@
 # Run report: Stash Reader, autonomous run of 2026-11-22
 
 **Download (always the latest release):** https://github.com/jacekkotowski/apk-news-reader/releases/latest/download/StashReader.apk
-**Latest release tag:** `v0.5`. The link was checked with `curl -sIL` and ends in HTTP 200; the file is about 87 KB.
+**Latest release tag:** `v0.7` (steps 6 to 8 were added later the same day at Jacek's request, see "Second part" below). The link was checked with `curl -sIL` and ends in HTTP 200; the file is about 87 KB.
 
-Steps 0 to 5 are done. Steps 6 to 8 were out of scope for this run. Every step has a GitHub Release whose build was green in CI (PC tests, signed build, emulator smoke test).
+Steps 0 to 5 are done (first part). Steps 6 to 8 were done in a second part after Jacek said "do 6 through 8". Every step has a GitHub Release whose build was green in CI (PC tests, signed build, emulator smoke test).
 
 | Step | Result | Release | CI run of the commit that was tagged |
 |---|---|---|---|
@@ -41,3 +41,19 @@ Starter searches (7): arXiv "causal inference", Hacker News "claude code" and "d
 1. Install v0.5 on the phone and go through the "Try on the phone" list in each release note; the ones for 0.4 (highlight, share to Obsidian, export folder) matter most.
 2. Fix what the phone shows, in small releases (v0.5.1 ...), before step 6.
 3. Then step 6 (page watch for sites without a feed), step 7 (recommendations from kept papers), step 8 (curator).
+
+## Second part: steps 6 to 8 (same day)
+
+| Step | Result | Release | CI run of the tagged commit |
+|---|---|---|---|
+| 6 Page and sitemap watch, robots.txt | done in code and PC tests; not driven in the emulator | [v0.6](https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.6) | [45064965080](https://github.com/jacekkotowski/apk-news-reader/actions/runs/45064965080) |
+| 7 Recommendations from kept papers | done in code and PC tests; Semantic Scholar answers hand-written | v0.6 (same release as step 6) | same run |
+| 8 Daily curator on GitHub Actions | done; one manual run published a feed the app parser reads; the scheduled run has not happened yet | [v0.7](https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.7) | [45066117861](https://github.com/jacekkotowski/apk-news-reader/actions/runs/45066117861) |
+
+Also in v0.5.1/v0.6 (Jacek's corrections): **Keep** is a single toggle (Keep / "✓ Kept", no Undo); a finishing refresh no longer redraws the Feed under an open card (found in the emulator, where a tap on a card was undone by the redraw).
+
+- **Step 6:** `Robots` (rules, wildcards, longest match), `PageWatch` (article links, page title/description/date, sitemaps), `Watcher` (one listing page per refresh, at most 8 new pages, 1 s apart, daily at most). Link finder also tried on three live pages (Anthropic news, OpenAI news, RStudio blog).
+- **Step 7:** `QuerySource.paperId` (arXiv, Hugging Face papers, Semantic Scholar, DOI), `Recommender` (Semantic Scholar recommendations from kept papers, negatives from Less like this, plus recent papers citing the two newest seeds), a ranking bonus and a "why" line.
+- **Step 8:** `curator/curate.py` (Python standard library only), `.github/workflows/curator.yml` (daily 05:17 UTC), output on branch `curator-data` as Atom and JSON Feed; the app source is `https://raw.githubusercontent.com/jacekkotowski/apk-news-reader/curator-data/curator.xml`. Served on a branch instead of GitHub Pages so no repository setting was touched. Free: public repo, key-less APIs, no LLM, no Firecrawl.
+- **Tests:** 246 Java checks plus 11 Python tests (CI runs both). Smoke run of v0.7: feed with 689 items, Keep toggle shows "✓ Kept" and the card lands in the Stash, Sources shows the Recommendations note.
+- **Open problems added:** the curator's scheduled run has not yet fired; Semantic Scholar recommendations depend on an unauthenticated API that often answers 429; the page-watch link finder is a heuristic; page watch, recommendations, highlights, share and the export folder have not been used on a phone.

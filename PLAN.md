@@ -168,7 +168,11 @@ summaries, Play Store.
 - [x] Step 3, 2026-11-22: topics with weights, explainable ranking (BM25 + kept/less + freshness), why-this line, Less like this, background refresh (RefreshJob, default every 6 h). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.3 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45044659198). The background job was scheduled but not seen firing.
 - [x] Step 4, 2026-11-22: Stash tab, highlights + notes, Markdown share and export folder. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.4 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45047248685). Emulator showed reader mode on a real article and Keep into the Stash. Not exercised: text selection, highlights, share sheet, writing into the export folder (the folder picker did open once by accident).
 - [x] Step 5, 2026-11-22: search sources (arXiv, Hacker News, Hugging Face papers, Reddit, GitHub, Semantic Scholar), seven starter searches, at most one request per search every 3 hours. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.5 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45048719238).
+- [x] Steps 6 and 7, 2026-11-22: page and sitemap watch with robots.txt, recommendations from kept papers. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.6 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45064965080).
+- [x] Step 8, 2026-11-22: daily curator on GitHub Actions, Atom feed on branch curator-data. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.7 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45066117861).
 
 ## 8. Open problems
 
 See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit and Semantic Scholar could not be checked for real (HTTP 404 and 429 from the build computer); the Stash folder export, share sheet and text selection were not exercised in the emulator; steps 6 to 8 are not started.
+
+Added after steps 6 to 8: the curator's scheduled run has not fired yet; page watch, recommendations, highlights, share and the export folder were not used on a phone.
