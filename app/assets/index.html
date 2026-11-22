@@ -34,6 +34,7 @@ section{display:none}section.on{display:block}
 .text blockquote{margin:8px 0;padding-left:12px;border-left:3px solid var(--line);color:var(--dim)}
 .text table{border-collapse:collapse;display:block;overflow-x:auto}.text td,.text th{border:1px solid var(--line);padding:3px 6px}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.btn.on{border-color:var(--ok);color:var(--ok);font-weight:700}.acts.top{margin:0 0 10px}
+.acts .more{flex:1 0 100%;display:flex;gap:8px;flex-wrap:wrap}.btn.icon{padding:6px 14px;font-weight:700}
 .empty{text-align:center;color:var(--dim);padding:40px 16px}
 .src{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
 .src .t{flex:1;min-width:0;overflow-wrap:anywhere}.src .t div{font-size:12.5px;color:var(--dim)}
@@ -56,9 +57,9 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <main>
 <section id="feed" class="on"></section>
 <section id="kept">
-  <div class="panel">
-    <div class="meta">Export folder: <b id="folder">not set</b></div>
-    <div class="acts"><button class="btn" id="choose">Choose folder</button><button class="btn" id="exportall">Export all</button><button class="btn" id="clearfolder">Stop exporting</button></div>
+  <div class="meta" style="margin-bottom:8px">Export folder: <b id="folder">not set</b> <button class="btn" id="exptoggle" style="padding:2px 12px;margin-left:6px">Options</button></div>
+  <div class="panel" id="exppanel" style="display:none">
+    <div class="acts" style="margin-top:0"><button class="btn" id="choose">Choose folder</button><button class="btn" id="exportall">Export all</button><button class="btn" id="clearfolder">Stop exporting</button></div>
     <div class="meta" id="exportMsg"></div>
   </div>
   <div id="recall"></div>
@@ -78,8 +79,11 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <div class="add q"><select id="qkind" class="btn"></select><input id="qtext" type="text" placeholder="What to search for" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="qadd">Add</button></div>
   <div id="qmsg" class="note"></div>
   <p class="meta">Searches ask an open service for new items about your words, at most once every 3 hours each. Watching a page lists the new article links on it, at most once a day, and skips pages that robots.txt closes to robots. A watched page that builds its list with JavaScript shows nothing.</p>
+  <h2>Reading text size</h2>
+  <div class="acts"><button class="btn" id="fsm">A− smaller</button><button class="btn" id="flg">A+ larger</button></div>
   <h2>Background refresh</h2>
   <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
+  <h2>Sources</h2><div id="srclist"></div>
   <h2>Gemini (optional)</h2>
   <div class="panel">
     <div class="meta" id="gstate"></div>
@@ -88,7 +92,6 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
     <div id="gmsg" class="note"></div>
     <p class="meta">With a free key from aistudio.google.com, cards get a Make notes button and the Stash can make a learning path. Free tier: Google may use what you send to improve its products. Only public links, article text, titles and highlighted passages are sent. Your own notes are never sent. The key stays on this phone.</p>
   </div>
-  <h2>Sources</h2><div id="srclist"></div>
   <p class="meta" id="ver"></p>
 </section>
 </main>
@@ -121,7 +124,7 @@ function card(it,mode){
   if(it.why)c.appendChild(el('div','why','Why this: '+it.why));
   if(it.topic)c.appendChild(el('span','chip',it.topic));
   var b=el('div','body');c.appendChild(b);
-  var loaded=false,d={},failed=false,label,text,note,readBtn,acts,mine,aiBox;
+  var loaded=false,d={},failed=false,label,text,note,readBtn,acts,mine,aiBox,moreOpen=false;
   function paint(){
     if(d.article){label.textContent='Full article, reader mode (saved on this phone)';text.innerHTML=d.article}
     else{
@@ -152,21 +155,25 @@ function card(it,mode){
     var k=el('button',kept?'btn on':'btn',kept?'\u2713 Kept':'Keep');
     k.onclick=function(e){e.stopPropagation();if(kept){A.unkeep(it.id);kept=false}else{A.keep(it.id);kept=true}buildActs();renderMine()};
     acts.appendChild(k);
-    if(mode==='feed'&&!kept){
-      var dn=el('button','btn','Done');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};acts.appendChild(dn);
-      var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};acts.appendChild(ls);
-    }
+    // the one way into the content
+    if(d.kind==='audio'){var pl=el('button','btn main','\u25B6 Listen');pl.onclick=function(e){e.stopPropagation();A.play(it.id)};acts.appendChild(pl)}
+    else if(d.kind==='video'&&d.link){var wt=el('button','btn main','\u25B6 Watch');wt.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(wt)}
+    else if(d.link&&!d.article&&!d.full)acts.appendChild(readBtn);
+    var more=el('button','btn icon','\u22EF');more.title='More';
+    more.onclick=function(e){e.stopPropagation();moreOpen=!moreOpen;buildActs()};
+    acts.appendChild(more);
+    if(!moreOpen)return;
+    var row=el('div','more');acts.appendChild(row);
     if(A.geminiKeySet&&A.geminiKeySet()&&d.kind!=='audio'&&!d.ai){
       var mk=el('button','btn','Make notes');
       mk.onclick=function(e){e.stopPropagation();mk.disabled=true;mk.textContent='Asking Gemini...';note.textContent='';A.makeNotes(it.id);
         gstart('notes:'+it.id,function(ok,m){if(ok){d=J(A.item(it.id));buildActs();renderAi()}else{mk.disabled=false;mk.textContent='Make notes';note.textContent=m}})};
-      acts.appendChild(mk);
+      row.appendChild(mk);
     }
-    if(d.kind==='audio'){var pl=el('button','btn main','\u25B6 Listen');pl.onclick=function(e){e.stopPropagation();A.play(it.id)};acts.appendChild(pl)}
-    if(d.kind==='video'&&d.link){var wt=el('button','btn main','\u25B6 Watch on YouTube');wt.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(wt)}
-    else{
-    if(d.link&&!d.article&&!d.kind)acts.appendChild(readBtn);
-    if(d.link){var o=el('button','btn','Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(o)}
+    if(d.link&&d.kind!=='video'){var o=el('button','btn',d.kind==='audio'?'Open episode page':'Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};row.appendChild(o)}
+    if(mode==='feed'&&!kept){
+      var dn=el('button','btn','Hide');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};row.appendChild(dn);
+      var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};row.appendChild(ls);
     }
   }
   function renderAi(){
@@ -204,10 +211,6 @@ function card(it,mode){
     var open=c.classList.toggle('open');
     if(open&&!loaded){loaded=true;
       d=J(A.item(it.id));
-      var tools=el('div','tools');
-      var sm=el('button','btn','A-');sm.onclick=function(e){e.stopPropagation();setFont(-1)};
-      var lg=el('button','btn','A+');lg.onclick=function(e){e.stopPropagation();setFont(1)};
-      tools.appendChild(sm);tools.appendChild(lg);b.appendChild(tools);
       acts=el('div','acts top');b.appendChild(acts);
       label=el('div','label');b.appendChild(label);
       text=el('div','text');text.__card=c;b.appendChild(text);
@@ -407,6 +410,7 @@ $('add').onclick=function(){
     if(r.indexOf('done:')===0){$('add').disabled=false;var e=r.slice(5);$('msg').textContent=e;if(!e){$('url').value='';wasBusy=true}render()}
     else setTimeout(wait,600)})();
 };
+$('exptoggle').onclick=function(){var p=$('exppanel');p.style.display=p.style.display==='none'?'block':'none'};
 $('choose').onclick=function(){A.chooseFolder()};
 $('exportall').onclick=function(){$('exportMsg').textContent='Writing notes...';A.exportAll()};
 $('clearfolder').onclick=function(){A.clearFolder();$('exportMsg').textContent='Export stopped. Existing files stay where they are.';render()};
@@ -424,6 +428,8 @@ $('gtest').onclick=function(){
   $('gtest').disabled=true;$('gmsg').textContent='Asking Gemini...';A.testGemini();
   gstart('test',function(ok,m){$('gtest').disabled=false;$('gmsg').textContent=m;$('gmsg').style.color=ok?'var(--ok)':''});
 };
+$('fsm').onclick=function(){setFont(-1)};
+$('flg').onclick=function(){setFont(1)};
 $('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
 $('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
 render();status();setInterval(status,1500);
