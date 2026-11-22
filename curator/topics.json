@@ -1,0 +1,17 @@
+{
+  "topics": [
+    {"phrase": "tidymodels", "weight": 3},
+    {"phrase": "Power BI", "weight": 3},
+    {"phrase": "DAX", "weight": 2},
+    {"phrase": "Claude Code", "weight": 3},
+    {"phrase": "machine learning", "weight": 2},
+    {"phrase": "LLM", "weight": 2},
+    {"phrase": "data science", "weight": 2},
+    {"phrase": "causal inference", "weight": 2},
+    {"phrase": "duckdb", "weight": 2}
+  ],
+  "hn": ["claude code", "tidymodels", "duckdb", "power bi", "causal inference"],
+  "arxiv": ["causal inference", "conformal prediction", "tabular machine learning"],
+  "hf": true,
+  "github": ["tidymodels", "duckdb", "claude code"]
+}

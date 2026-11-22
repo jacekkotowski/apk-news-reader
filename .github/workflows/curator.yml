@@ -1,0 +1,31 @@
+name: curator
+# Runs once a day off the phone. Free: a public repository has unlimited Actions minutes, and the script uses only
+# key-less public APIs. The result is published on the branch "curator-data" (not on main, so it never starts the Android build).
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  curate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tests
+        run: python3 -m unittest discover -s curator
+      - name: Curate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 curator/curate.py --out out
+      - name: Publish on the curator-data branch
+        run: |
+          cd out
+          git init -q
+          git checkout -q -b curator-data
+          git config user.name "stash-reader-curator"
+          git config user.email "actions@users.noreply.github.com"
+          git add curator.xml feed.json
+          git commit -q -m "Curator output $(date -u +%F)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" curator-data

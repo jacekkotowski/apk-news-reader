@@ -18,5 +18,6 @@
   {"name": "Simon Willison on Claude Code", "url": "https://simonwillison.net/tags/claude-code.atom", "topic": "Claude Code"},
   {"name": "Claude Code releases", "url": "https://github.com/anthropics/claude-code/releases.atom", "topic": "Claude Code"},
   {"name": "Hacker News: Claude Code (30+ points)", "url": "https://hnrss.org/newest?q=%22claude+code%22&points=30", "topic": "Claude Code"},
+  {"name": "Curator (daily, from the cloud)", "url": "https://raw.githubusercontent.com/jacekkotowski/apk-news-reader/curator-data/curator.xml", "topic": ""},
   {"name": "Claude blog", "url": "https://claude.com/blog/rss.xml", "topic": "Claude Code"}
 ]}

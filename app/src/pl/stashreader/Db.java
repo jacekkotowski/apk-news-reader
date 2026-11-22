@@ -25,6 +25,7 @@ final class Db extends SQLiteOpenHelper {
         {QuerySource.RECS, "", "AI for data science"},
         {QuerySource.REDDIT, "r/datascience", "data science"}, {QuerySource.GITHUB, "tidymodels", "tidymodels"},
         {QuerySource.S2, "causal machine learning", "causal inference"}};
+    static final String CURATOR_URL = "https://raw.githubusercontent.com/jacekkotowski/apk-news-reader/curator-data/curator.xml";
     private static final String[][] DEFAULT_TOPICS = {{"tidymodels", "3"}, {"Power BI", "3"}, {"DAX", "2"}, {"Claude Code", "3"}, {"machine learning", "2"}, {"LLM", "2"}, {"data science", "2"}, {"causal inference", "2"}, {"duckdb", "2"}};
     private static final String WHEN = "CASE WHEN i.pub>0 THEN i.pub ELSE i.fetched END";
     private static Db instance;
@@ -34,7 +35,7 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 6); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 7); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
@@ -80,6 +81,11 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("ALTER TABLE items ADD COLUMN because TEXT NOT NULL DEFAULT ''");
             ContentValues v = new ContentValues();
             v.put("url", QuerySource.key(QuerySource.RECS, "")); v.put("kind", QuerySource.RECS); v.put("query", ""); v.put("topic", "AI for data science");
+            d.insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        }
+        if (o < 7) { // the daily curator feed, published by the curator workflow
+            ContentValues v = new ContentValues();
+            v.put("url", CURATOR_URL); v.put("name", "Curator (daily, from the cloud)");
             d.insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
         }
     }
