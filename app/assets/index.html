@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"><title>Stash Reader</title>
+<style>
+:root{--bg:#f6f4ef;--text:#1b2a41;--dim:#5d6b7c;--gold:#b8801a}
+@media (prefers-color-scheme:dark){:root{--bg:#1b2a41;--text:#e8edf3;--dim:#9fb0c3;--gold:#f5c26b}}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,sans-serif}
+main{padding:32px 20px}
+h1{margin:0 0 8px;font-size:28px}
+p{color:var(--dim)}b{color:var(--gold)}
+</style></head><body><main>
+<h1>Stash Reader</h1>
+<p>Hello. This is the build skeleton, version <b id="v">?</b>. The feed arrives in step 1.</p>
+</main>
+<script>document.getElementById('v').textContent=(window.Android&&Android.version())||'(no bridge)';</script>
+</body></html>
