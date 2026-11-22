@@ -164,3 +164,4 @@ summaries, Play Store.
 
 - [x] Step 0, 2026-11-22: skeleton, signed CI, emulator smoke. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.0 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45039572117)
 - [x] Step 1, 2026-11-22: feed, cards, Keep/Done, Sources screen. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.1 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45041567103)
+- [x] Step 2, 2026-11-22: reader mode (Readability.js 0.6.0), offline article cache, add source by page URL. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.2 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45042839453). Reader mode success path checked in a browser with a real article; in the emulator the three tried cards were all Towards Data Science, which answers HTTP 403, so only the fallback to "Excerpt" was seen there.
