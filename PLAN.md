@@ -163,3 +163,4 @@ summaries, Play Store.
 ## 7. Progress (autonomous run, started 2026-11-22)
 
 - [x] Step 0, 2026-11-22: skeleton, signed CI, emulator smoke. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.0 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45039572117)
+- [x] Step 1, 2026-11-22: feed, cards, Keep/Done, Sources screen. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.1 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45041567103)
