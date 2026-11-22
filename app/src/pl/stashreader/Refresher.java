@@ -18,7 +18,7 @@ final class Refresher {
     private Refresher() {}
     static final String VERSION = "0.1";
     static final String AGENT = "StashReader/" + VERSION;
-    private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 5 * 1024 * 1024, POOL = 4;
+    private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
 
     static boolean busy() { return BUSY.get(); }
@@ -81,7 +81,7 @@ final class Refresher {
                 byte[] b = new byte[16384];
                 for (int n; (n = in.read(b)) > 0; ) {
                     out.write(b, 0, n);
-                    if (out.size() > MAX_BYTES) throw new IOException("The feed is larger than 5 MB");
+                    if (out.size() > MAX_BYTES) throw new IOException("The feed is larger than 16 MB");
                 }
                 return out.toByteArray();
             }

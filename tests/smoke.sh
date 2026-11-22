@@ -12,6 +12,12 @@ W=${SIZE%x*}; H=${SIZE#*x}
 adb shell input tap $((W * 5 / 6)) $((H * 96 / 100))
 sleep 3
 adb exec-out screencap -p > smoke2.png
+adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 15 / 100)) 400
+sleep 1
+adb exec-out screencap -p > smoke3.png
+adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 15 / 100)) 400
+sleep 1
+adb exec-out screencap -p > smoke4.png
 adb logcat -d > logcat.txt
 rc=0
 if grep -q "FATAL EXCEPTION" logcat.txt; then echo "The app crashed (FATAL EXCEPTION in logcat)"; rc=1; fi

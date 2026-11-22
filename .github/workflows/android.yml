@@ -72,6 +72,8 @@ jobs:
           path: |
             smoke.png
             smoke2.png
+            smoke3.png
+            smoke4.png
             logcat.txt
           if-no-files-found: warn
 
