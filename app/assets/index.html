@@ -33,7 +33,7 @@ section{display:none}section.on{display:block}
 .text code{background:var(--chip);padding:0 4px;border-radius:4px;font-size:.9em}.text pre code{padding:0;background:none}
 .text blockquote{margin:8px 0;padding-left:12px;border-left:3px solid var(--line);color:var(--dim)}
 .text table{border-collapse:collapse;display:block;overflow-x:auto}.text td,.text th{border:1px solid var(--line);padding:3px 6px}
-.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.keptmark{align-self:center;color:var(--ok);font-weight:700;margin-right:4px}.acts.top{margin:0 0 10px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.btn.on{border-color:var(--ok);color:var(--ok);font-weight:700}.acts.top{margin:0 0 10px}
 .empty{text-align:center;color:var(--dim);padding:40px 16px}
 .src{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
 .src .t{flex:1;min-width:0;overflow-wrap:anywhere}.src .t div{font-size:12.5px;color:var(--dim)}
@@ -138,17 +138,12 @@ function card(it,mode){
   }
   function buildActs(){
     acts.textContent='';
-    if(!kept){
-      var k=el('button','btn','Keep');k.onclick=function(e){e.stopPropagation();A.keep(it.id);kept=true;note.textContent='';buildActs();renderMine()};acts.appendChild(k);
+    var k=el('button',kept?'btn on':'btn',kept?'\u2713 Kept':'Keep');
+    k.onclick=function(e){e.stopPropagation();if(kept){A.unkeep(it.id);kept=false}else{A.keep(it.id);kept=true}buildActs();renderMine()};
+    acts.appendChild(k);
+    if(mode==='feed'&&!kept){
       var dn=el('button','btn','Done');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};acts.appendChild(dn);
       var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};acts.appendChild(ls);
-    }else{
-      acts.appendChild(el('span','keptmark','\u2713 Kept in your Stash'));
-      if(mode==='stash'){
-        var u=el('button','btn','Remove from Stash');u.onclick=function(e){e.stopPropagation();A.unkeep(it.id);gone(c)};acts.appendChild(u);
-      }else{
-        var un=el('button','btn','Undo');un.onclick=function(e){e.stopPropagation();A.unkeep(it.id);kept=false;buildActs();renderMine()};acts.appendChild(un);
-      }
     }
     if(d.link&&!d.article)acts.appendChild(readBtn);
     if(d.link){var o=el('button','btn','Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(o)}
