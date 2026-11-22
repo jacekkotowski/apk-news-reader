@@ -172,7 +172,7 @@ function render(){
     });
   }else{
     var l=$('srclist');l.textContent='';
-    J(A.sources()).forEach(function(x){
+    J(A.sources()).sort(function(a,b){return (b.error?1:0)-(a.error?1:0)}).forEach(function(x){
       var r=el('div','src');
       var cb=el('input');cb.type='checkbox';cb.checked=x.enabled;cb.onchange=function(){A.setSourceEnabled(x.id,cb.checked);status()};r.appendChild(cb);
       var t=el('div','t');t.appendChild(el('span',null,x.name||x.url));

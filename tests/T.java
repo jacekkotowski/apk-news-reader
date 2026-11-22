@@ -179,6 +179,8 @@ public final class T {
             new Ranker.Doc(10, "Business intelligence", "power plants and a bi weekly meeting", now),
             new Ranker.Doc(11, "Dashboards", "learning Power BI step by step", now)), java.util.Arrays.asList(new Ranker.Topic("Power BI", 1)), none, none, now);
         eq("phrase: the exact phrase beats two scattered words", 11L, ph.get(0).id);
+        java.util.List<Ranker.Scored> sc = Ranker.rank(java.util.Arrays.asList(new Ranker.Doc(20, "Claude is an assistant", "nothing about the other word", now)), java.util.Arrays.asList(new Ranker.Topic("Claude Code", 3)), none, none, now);
+        yes("phrase: a topic needs all of its words", !sc.get(0).why.contains("Matches"));
         eq("empty input gives an empty list", 0, Ranker.rank(new java.util.ArrayList<Ranker.Doc>(), t1, none, none, now).size());
     }
 

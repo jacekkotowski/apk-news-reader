@@ -154,11 +154,9 @@ final class Ranker {
             double idf = Math.log(1 + (n - d + 0.5) / (d + 0.5));
             sum += idf * (f * (K1 + 1)) / (f + K1 * (1 - B + B * p.len / avg));
         }
-        if (matched == 0) return 0;
+        if (matched < terms.size()) return 0; // every word of a multi-word topic must be present
         double s = sum / terms.size();
         if (terms.size() > 1 && p.lower.contains(t.phrase.toLowerCase(Locale.ROOT).trim())) s += PHRASE_BONUS;
-        // a multi-word topic with only some words present counts proportionally less
-        s *= (double) matched / terms.size();
         return s * t.weight;
     }
 
