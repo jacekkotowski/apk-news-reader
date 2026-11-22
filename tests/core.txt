@@ -3,3 +3,4 @@ FeedParser.java
 FeedDiscovery.java
 PageText.java
 Ranker.java
+MarkdownExport.java

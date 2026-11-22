@@ -39,9 +39,10 @@ for n in 1 2 3; do
   adb shell input swipe $((W / 2)) $((H * 35 / 100)) $((W / 2)) $((H * 75 / 100)) 300
   sleep 1
   adb exec-out screencap -p > smoke_reader$n.png
+  BTN="Done"; [ $n = 3 ] && BTN="Keep"
   D=""
   for i in 1 2 3; do
-    D=$(find_text "Done")
+    D=$(find_text "$BTN")
     [ -n "$D" ] && break
     adb shell input swipe $((W / 2)) $((H * 75 / 100)) $((W / 2)) $((H * 35 / 100)) 300
     sleep 1
@@ -50,7 +51,10 @@ for n in 1 2 3; do
   sleep 1
 done
 
-# Topics tab, then the Sources tab with the status of every source.
+# Stash tab (the third card was kept), then the Topics tab, then the Sources tab with the status of every source.
+adb shell input tap $((W * 3 / 8)) $((H * 96 / 100))
+sleep 2
+adb exec-out screencap -p > smoke_stash.png
 adb shell input tap $((W * 5 / 8)) $((H * 96 / 100))
 sleep 2
 adb exec-out screencap -p > smoke_topics.png

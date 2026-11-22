@@ -27,14 +27,15 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 3); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 4); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0)");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '')");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0)");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
+        createHighlights(d);
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
             for (int k = 0; k < a.length(); k++) {
@@ -48,6 +49,16 @@ final class Db extends SQLiteOpenHelper {
     @Override public void onUpgrade(SQLiteDatabase d, int o, int n) {
         if (o < 2) d.execSQL("ALTER TABLE items ADD COLUMN article TEXT NOT NULL DEFAULT ''");
         if (o < 3) createTopics(d);
+        if (o < 4) {
+            d.execSQL("ALTER TABLE items ADD COLUMN note TEXT NOT NULL DEFAULT ''");
+            d.execSQL("ALTER TABLE items ADD COLUMN kept_at INTEGER NOT NULL DEFAULT 0");
+            d.execSQL("UPDATE items SET kept_at=fetched WHERE state=" + KEPT);
+            createHighlights(d);
+        }
+    }
+
+    private void createHighlights(SQLiteDatabase d) {
+        d.execSQL("CREATE TABLE highlights(id INTEGER PRIMARY KEY, item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE, text TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', created INTEGER NOT NULL)");
     }
 
     private void createTopics(SQLiteDatabase d) {
@@ -149,8 +160,15 @@ final class Db extends SQLiteOpenHelper {
     void setState(long id, int state) {
         ContentValues v = new ContentValues(); v.put("state", state);
         // a finished item no longer needs its text; the row stays so the item is not offered again
+        if (state == KEPT) v.put("kept_at", System.currentTimeMillis());
         if (state == DONE || state == LESS) { v.put("html", ""); v.put("article", ""); }
-        getWritableDatabase().update("items", v, "id=?", new String[]{"" + id});
+        SQLiteDatabase d = getWritableDatabase();
+        if (state == KEPT) { // keep the first kept date when an item is kept again
+            try (Cursor c = d.rawQuery("SELECT kept_at, state FROM items WHERE id=?", new String[]{"" + id})) {
+                if (c.moveToFirst() && c.getLong(0) > 0 && c.getInt(1) == KEPT) v.remove("kept_at");
+            }
+        }
+        d.update("items", v, "id=?", new String[]{"" + id});
     }
 
     private static JSONObject card(Cursor c) throws Exception {
@@ -225,15 +243,87 @@ final class Db extends SQLiteOpenHelper {
 
     String keptJson() throws Exception {
         JSONArray a = new JSONArray();
-        try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + KEPT + " ORDER BY i.id DESC", null)) {
-            while (c.moveToNext()) a.put(card(c));
+        List<Ranker.Topic> topics = topicList();
+        try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + KEPT + " ORDER BY i.kept_at DESC, i.id DESC", null)) {
+            while (c.moveToNext()) {
+                JSONObject o = card(c);
+                JSONArray ts = new JSONArray();
+                java.util.Set<String> seen = new java.util.HashSet<>();
+                String own = c.getString(6);
+                if (!own.isEmpty() && seen.add(own.toLowerCase(java.util.Locale.ROOT))) ts.put(own);
+                for (String t : Ranker.matchedTopics(c.getString(1) + " " + c.getString(2), topics)) if (seen.add(t.toLowerCase(java.util.Locale.ROOT))) ts.put(t);
+                o.put("topics", ts);
+                o.put("hl", count("SELECT COUNT(*) FROM highlights WHERE item_id=" + c.getLong(0)));
+                a.put(o);
+            }
         }
         return a.toString();
     }
+
+    String highlightsJson(long item) throws Exception {
+        JSONArray a = new JSONArray();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT id, text, note FROM highlights WHERE item_id=? ORDER BY id", new String[]{"" + item})) {
+            while (c.moveToNext()) {
+                JSONObject o = new JSONObject();
+                o.put("id", "" + c.getLong(0)); o.put("text", c.getString(1)); o.put("note", c.getString(2));
+                a.put(o);
+            }
+        }
+        return a.toString();
+    }
+    /** Adds a highlight; the item is kept at the same time, because only kept items are exported. Returns false for empty text. */
+    boolean addHighlight(long item, String text) {
+        String t = text == null ? "" : text.trim();
+        if (t.isEmpty()) return false;
+        if (t.length() > 3000) t = t.substring(0, 3000);
+        SQLiteDatabase d = getWritableDatabase();
+        try (Cursor c = d.rawQuery("SELECT 1 FROM highlights WHERE item_id=? AND text=?", new String[]{"" + item, t})) { if (c.moveToFirst()) return true; }
+        ContentValues v = new ContentValues();
+        v.put("item_id", item); v.put("text", t); v.put("created", System.currentTimeMillis());
+        d.insert("highlights", null, v);
+        setState(item, KEPT);
+        return true;
+    }
+    void setHighlightNote(long id, String note) {
+        ContentValues v = new ContentValues(); v.put("note", note == null ? "" : note.trim());
+        getWritableDatabase().update("highlights", v, "id=?", new String[]{"" + id});
+    }
+    long highlightItem(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT item_id FROM highlights WHERE id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getLong(0) : -1; }
+    }
+    void removeHighlight(long id) { getWritableDatabase().delete("highlights", "id=?", new String[]{"" + id}); }
+    void setNote(long item, String note) {
+        ContentValues v = new ContentValues(); v.put("note", note == null ? "" : note.trim());
+        getWritableDatabase().update("items", v, "id=?", new String[]{"" + item});
+    }
+
+    /** Everything the Markdown note needs, or null when the item is gone or not kept. */
+    MarkdownExport.Note noteFor(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.link, i.pub, i.kept_at, i.note, s.topic, i.excerpt, i.state FROM items i JOIN sources s ON s.id=i.source_id WHERE i.id=?", new String[]{"" + id})) {
+            if (!c.moveToFirst() || c.getInt(8) != KEPT) return null;
+            MarkdownExport.Note n = new MarkdownExport.Note();
+            n.title = c.getString(0); n.source = c.getString(1); n.url = c.getString(2); n.published = c.getLong(3); n.keptAt = c.getLong(4); n.note = c.getString(5);
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            if (!c.getString(6).isEmpty() && seen.add(c.getString(6).toLowerCase(java.util.Locale.ROOT))) n.topics.add(c.getString(6));
+            for (String t : Ranker.matchedTopics(n.title + " " + c.getString(7), topicList())) if (seen.add(t.toLowerCase(java.util.Locale.ROOT))) n.topics.add(t);
+            try (Cursor h = getReadableDatabase().rawQuery("SELECT text, note FROM highlights WHERE item_id=? ORDER BY id", new String[]{"" + id})) {
+                while (h.moveToNext()) n.highlights.add(new MarkdownExport.Highlight(h.getString(0), h.getString(1)));
+            }
+            return n;
+        }
+    }
+    long[] keptIds() {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT id FROM items WHERE state=" + KEPT + " ORDER BY id", null)) {
+            long[] out = new long[c.getCount()];
+            for (int i = 0; c.moveToNext(); i++) out[i] = c.getLong(0);
+            return out;
+        }
+    }
+
     String itemJson(long id) throws Exception {
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt, article FROM items WHERE id=?", new String[]{"" + id})) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt, article, note, state FROM items WHERE id=?", new String[]{"" + id})) {
             JSONObject o = new JSONObject();
-            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); o.put("article", c.getString(4)); }
+            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); o.put("article", c.getString(4)); o.put("note", c.getString(5)); o.put("state", c.getInt(6)); }
             return o.toString();
         }
     }

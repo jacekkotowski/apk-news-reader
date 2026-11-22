@@ -25,6 +25,7 @@ public final class T {
         discovery();
         pageText();
         ranking();
+        markdown();
         System.out.println(runs + " checks, " + fails + " failed");
         if (fails > 0) System.exit(1);
     }
@@ -182,6 +183,34 @@ public final class T {
         java.util.List<Ranker.Scored> sc = Ranker.rank(java.util.Arrays.asList(new Ranker.Doc(20, "Claude is an assistant", "nothing about the other word", now)), java.util.Arrays.asList(new Ranker.Topic("Claude Code", 3)), none, none, now);
         yes("phrase: a topic needs all of its words", !sc.get(0).why.contains("Matches"));
         eq("empty input gives an empty list", 0, Ranker.rank(new java.util.ArrayList<Ranker.Doc>(), t1, none, none, now).size());
+    }
+
+    static void markdown() {
+        java.util.TimeZone utc = java.util.TimeZone.getTimeZone("UTC");
+        MarkdownExport.Note n = new MarkdownExport.Note();
+        n.title = "Tuning \"tidymodels\": a guide / part 1?";
+        n.source = "Julia Silge"; n.url = "https://juliasilge.com/blog/tune/"; n.published = 1794303000000L; n.keptAt = 1794700000000L;
+        n.topics.add("tidymodels"); n.topics.add("Power BI");
+        n.highlights.add(new MarkdownExport.Highlight("First line of a quote\nsecond line\n\nafter a blank line", "why it matters"));
+        n.highlights.add(new MarkdownExport.Highlight("Plain one", ""));
+        n.note = "Try this on the churn data.";
+        String md = MarkdownExport.note(n, utc);
+        yes("md: starts with front matter", md.startsWith("---\ntitle: \"Tuning \\\"tidymodels\\\": a guide / part 1?\"\nsource: \"Julia Silge\"\nurl: \"https://juliasilge.com/blog/tune/\"\ndate: 2026-11-10\nkept: 2026-11-14\ntopics: [\"tidymodels\", \"Power BI\"]\n---\n"));
+        yes("md: heading and source link", md.contains("\n# Tuning \"tidymodels\": a guide / part 1?\n\n[Julia Silge](https://juliasilge.com/blog/tune/)\n"));
+        yes("md: highlight as block quote with blank line kept inside", md.contains("> First line of a quote\n> second line\n>\n> after a blank line\n\nNote: why it matters\n"));
+        yes("md: highlight without note", md.contains("> Plain one\n\n"));
+        yes("md: my note section", md.endsWith("## My note\n\nTry this on the churn data.\n"));
+        eq("md: file name", "2026-11-14 Tuning tidymodels a guide part 1.md", MarkdownExport.fileName(n, utc));
+        eq("md: file name uses the local day", "2026-11-15 Tuning tidymodels a guide part 1.md", MarkdownExport.fileName(n, java.util.TimeZone.getTimeZone("Pacific/Auckland")));
+        MarkdownExport.Note e = new MarkdownExport.Note();
+        e.keptAt = 1794700000000L;
+        eq("md: untitled file name", "2026-11-14 Untitled.md", MarkdownExport.fileName(e, utc));
+        String empty = MarkdownExport.note(e, utc);
+        yes("md: empty note has no sections", !empty.contains("## ") && empty.contains("topics: []"));
+        e.title = "A very long title ".repeat(10);
+        yes("md: long title is cut", MarkdownExport.fileName(e, utc).length() <= 10 + 1 + 80 + 3);
+        eq("topics: all words must be present", java.util.Arrays.asList("tidymodels"), Ranker.matchedTopics("A post on tidymodels", java.util.Arrays.asList(new Ranker.Topic("tidymodels", 3), new Ranker.Topic("Power BI", 3))));
+        eq("topics: multi-word match", java.util.Arrays.asList("Power BI"), Ranker.matchedTopics("BI and power users", java.util.Arrays.asList(new Ranker.Topic("Power BI", 1))));
     }
 
     static String msg(String u) {

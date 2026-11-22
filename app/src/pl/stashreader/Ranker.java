@@ -142,6 +142,17 @@ final class Ranker {
         return out;
     }
 
+    /** Topics (any weight) whose words all appear in the text, for tagging an exported note. */
+    static List<String> matchedTopics(String text, List<Topic> topics) {
+        Set<String> have = new HashSet<>(tokens(text));
+        List<String> out = new ArrayList<>();
+        for (Topic t : topics) {
+            List<String> terms = tokens(t.phrase);
+            if (!terms.isEmpty() && have.containsAll(terms)) out.add(t.phrase);
+        }
+        return out;
+    }
+
     private static double topicScore(Topic t, Prepared p, Map<String, Integer> df, int n, double avg) {
         List<String> terms = tokens(t.phrase);
         if (terms.isEmpty()) return 0;

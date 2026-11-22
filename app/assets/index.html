@@ -38,6 +38,13 @@ section{display:none}section.on{display:block}
 .src{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
 .src .t{flex:1;min-width:0;overflow-wrap:anywhere}.src .t div{font-size:12.5px;color:var(--dim)}
 .src .err{color:var(--bad)}.src .good{color:var(--ok)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}.chips .chip{margin:0;border:0}.chips .chip.on{background:var(--accent);color:var(--bg)}
+#hlbar{display:none;padding:8px 16px;border-top:1px solid var(--line);background:var(--bg)}#hlbar .btn{width:100%}
+.mine{margin-top:12px;border-top:1px dashed var(--line);padding-top:8px}
+.mine .hl{border-left:3px solid var(--gold);padding:2px 0 2px 10px;margin:8px 0}.mine .hl p{margin:0 0 4px;font-size:15px;white-space:pre-wrap}
+.mine input,.mine textarea{width:100%;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;font-size:14px;padding:6px 10px}
+.mine textarea{min-height:64px;margin-top:4px}.mine .row{display:flex;gap:6px;align-items:center}.mine .row .btn{padding:2px 10px}
 .wt{min-width:18px;text-align:center;font-weight:700;margin-top:6px}
 .src input{width:22px;height:22px;margin-top:3px}
 .add{display:flex;gap:8px;margin:12px 0}.add input{flex:1;min-width:0;padding:8px 12px;border-radius:18px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit}
@@ -47,7 +54,15 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <header><h1>Stash Reader</h1><small id="stat"></small><button class="btn" id="refresh">Refresh</button></header>
 <main>
 <section id="feed" class="on"></section>
-<section id="kept"></section>
+<section id="kept">
+  <div class="panel">
+    <div class="meta">Export folder: <b id="folder">not set</b></div>
+    <div class="acts"><button class="btn" id="choose">Choose folder</button><button class="btn" id="exportall">Export all</button><button class="btn" id="clearfolder">Stop exporting</button></div>
+    <div class="meta" id="exportMsg"></div>
+  </div>
+  <div id="chips" class="chips"></div>
+  <div id="keptlist"></div>
+</section>
 <section id="topics">
   <div class="add"><input id="topic" type="text" placeholder="Add a topic, e.g. causal inference" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="addtopic">Add</button></div>
   <p class="meta">Weight 0 switches a topic off, 5 is the strongest. The feed is ordered by these topics, by what you keep, and by freshness.</p>
@@ -62,11 +77,12 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <p class="meta" id="ver"></p>
 </section>
 </main>
-<nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Kept</button><button data-t="topics">Topics</button><button data-t="sources">Sources</button></nav>
+<div id="hlbar"><button class="btn main" id="hlbtn">Highlight selection</button></div>
+<nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Stash</button><button data-t="topics">Topics</button><button data-t="sources">Sources</button></nav>
 <script src="Readability.js"></script>
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
-var tab='feed',wasBusy=false,lastSig='';
+var tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
 function J(s){try{return JSON.parse(s)}catch(e){return []}}
@@ -77,16 +93,19 @@ function ago(ms){var m=Math.round((Date.now()-ms)/60000);if(m<60)return Math.max
 function fontSize(){var v=17;try{v=parseInt(localStorage.getItem('fs'))||17}catch(e){}return Math.max(13,Math.min(28,v))}
 function setFont(d){var v=Math.max(13,Math.min(28,fontSize()+d));try{localStorage.setItem('fs',v)}catch(e){}document.documentElement.style.setProperty('--fs',v+'px')}
 document.documentElement.style.setProperty('--fs',fontSize()+'px');
-function card(it,kept){
+var selNow={card:null,text:'',t:0};
+function card(it,mode){
+  var kept=(mode==='stash');
   var c=el('div','card');
   var m=el('div','meta');m.appendChild(el('b',null,it.source));m.appendChild(el('span',null,ago(it.pub)));m.appendChild(el('span',null,it.mins+' min'));
+  if(it.hl)m.appendChild(el('span',null,it.hl+' highlight'+(it.hl>1?'s':'')));
   c.appendChild(m);
   var h=el('h3',null,it.title);c.appendChild(h);
   c.appendChild(el('p','ex',it.excerpt));
   if(it.why)c.appendChild(el('div','why','Why this: '+it.why));
   if(it.topic)c.appendChild(el('span','chip',it.topic));
   var b=el('div','body');c.appendChild(b);
-  var loaded=false,d={},failed=false,label,text,note,readBtn;
+  var loaded=false,d={},failed=false,label,text,note,readBtn,acts,mine;
   function paint(){
     if(d.article){label.textContent='Full article, reader mode (saved on this phone)';text.innerHTML=d.article}
     else{
@@ -112,6 +131,43 @@ function card(it,kept){
     else if(r.indexOf('err:')===0)fail('Could not load the page: '+r.slice(4)+'.');
     else extract(r.slice(3));
   }
+  function buildActs(){
+    acts.textContent='';
+    if(!kept){
+      var k=el('button','btn main','Keep');k.onclick=function(e){e.stopPropagation();A.keep(it.id);gone(c)};acts.appendChild(k);
+      var dn=el('button','btn','Done');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};acts.appendChild(dn);
+      var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};acts.appendChild(ls);
+    }else{
+      var u=el('button','btn','Remove from Stash');u.onclick=function(e){e.stopPropagation();A.unkeep(it.id);gone(c)};acts.appendChild(u);
+    }
+    if(d.link&&!d.article)acts.appendChild(readBtn);
+    if(d.link){var o=el('button','btn','Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(o)}
+  }
+  function renderMine(){
+    mine.textContent='';
+    if(!kept)return;
+    var hs=J(A.highlights(it.id));
+    mine.appendChild(el('div','label','Highlights ('+hs.length+')'));
+    if(!hs.length)mine.appendChild(el('div','meta','Select text above, then press Highlight selection.'));
+    hs.forEach(function(x){
+      var w=el('div','hl');w.appendChild(el('p',null,x.text));
+      var row=el('div','row');
+      var inp=el('input');inp.type='text';inp.placeholder='Add a note';inp.value=x.note||'';
+      inp.onchange=function(){A.setHighlightNote(x.id,inp.value)};
+      var rm=el('button','btn','x');rm.onclick=function(){A.removeHighlight(x.id);renderMine()};
+      row.appendChild(inp);row.appendChild(rm);w.appendChild(row);mine.appendChild(w);
+    });
+    mine.appendChild(el('div','label','My note'));
+    var ta=el('textarea');ta.placeholder='What did you learn, what will you try?';ta.value=d.note||'';
+    ta.onchange=function(){A.setNote(it.id,ta.value)};ta.onblur=function(){A.setNote(it.id,ta.value)};
+    mine.appendChild(ta);
+    var row2=el('div','acts');
+    var sh=el('button','btn main','Share as Markdown');sh.onclick=function(e){e.stopPropagation();A.setNote(it.id,ta.value);A.share(it.id)};
+    row2.appendChild(sh);mine.appendChild(row2);
+  }
+  c.addHighlight=function(t){
+    if(A.addHighlight(it.id,t)){kept=true;d=J(A.item(it.id));buildActs();renderMine();var s=window.getSelection();if(s)s.removeAllRanges();$('hlbar').style.display='none'}
+  };
   function toggle(){
     var open=c.classList.toggle('open');
     if(open&&!loaded){loaded=true;
@@ -121,28 +177,29 @@ function card(it,kept){
       var lg=el('button','btn','A+');lg.onclick=function(e){e.stopPropagation();setFont(1)};
       tools.appendChild(sm);tools.appendChild(lg);b.appendChild(tools);
       label=el('div','label');b.appendChild(label);
-      text=el('div','text');b.appendChild(text);
+      text=el('div','text');text.__card=c;b.appendChild(text);
       text.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href)A.openUrl(a.href)}});
       note=el('div','note');b.appendChild(note);
       paint();
-      var acts=el('div','acts');
-      if(!kept){
-        var k=el('button','btn main','Keep');k.onclick=function(e){e.stopPropagation();A.keep(it.id);gone(c)};acts.appendChild(k);
-        var dn=el('button','btn','Done');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};acts.appendChild(dn);
-        var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};acts.appendChild(ls);
-      }else{
-        var u=el('button','btn','Remove from Kept');u.onclick=function(e){e.stopPropagation();A.unkeep(it.id);gone(c)};acts.appendChild(u);
-      }
+      mine=el('div','mine');b.appendChild(mine);
+      acts=el('div','acts');b.appendChild(acts);
       readBtn=el('button','btn','Read full article');
       readBtn.onclick=function(e){e.stopPropagation();readBtn.disabled=true;readBtn.textContent='Loading page...';note.textContent='';A.fetchPage(it.id);poll(0)};
-      if(d.link&&!d.article)acts.appendChild(readBtn);
-      if(d.link){var o=el('button','btn','Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(o)}
-      b.appendChild(acts);
+      buildActs();renderMine();
     }
   }
   c.addEventListener('click',function(e){if(!c.classList.contains('open')||e.target===h||e.target.closest('.meta'))toggle()});
   return c;
 }
+document.addEventListener('selectionchange',function(){
+  var s=window.getSelection();var t=s?s.toString().trim():'';
+  var n=s&&s.anchorNode;var box=n&&(n.nodeType===1?n:n.parentNode);var tx=box&&box.closest?box.closest('.text'):null;
+  if(t&&tx&&tx.__card){selNow={card:tx.__card,text:t,t:Date.now()};$('hlbar').style.display='block'}
+  else setTimeout(function(){if(Date.now()-selNow.t>1500)$('hlbar').style.display='none'},1600);
+});
+$('hlbtn').addEventListener('touchstart',function(e){e.preventDefault()},{passive:false});
+$('hlbtn').addEventListener('mousedown',function(e){e.preventDefault()});
+$('hlbtn').onclick=function(){if(selNow.card&&selNow.text){selNow.card.addHighlight(selNow.text);selNow={card:null,text:'',t:0}}};
 function gone(c){var p=c.parentNode;p.removeChild(c);if(!p.querySelector('.card'))render()}
 
 function render(){
@@ -150,14 +207,23 @@ function render(){
   if(tab==='feed'){
     var box=$('feed');box.textContent='';
     var items=J(A.feed());
-    items.forEach(function(it){box.appendChild(card(it,false))});
+    items.forEach(function(it){box.appendChild(card(it,'feed'))});
     if(!items.length)box.appendChild(el('div','empty',s.refreshing?'Loading your sources...':'You have read everything new. Press Refresh later for more.'));
     else if(items.length>=300)box.appendChild(el('div','empty','Showing the newest 300. Mark some as Done to see older ones.'));
   }else if(tab==='kept'){
-    var kb=$('kept');kb.textContent='';
+    $('folder').textContent=(A.exportFolder&&A.exportFolder())||'not set';
+    var kb=$('keptlist');kb.textContent='';
     var ki=J(A.kept());
-    ki.forEach(function(it){kb.appendChild(card(it,true))});
-    if(!ki.length)kb.appendChild(el('div','empty','Nothing kept yet. Open a card in the Feed and press Keep.'));
+    var tp={};ki.forEach(function(it){(it.topics||[]).forEach(function(x){tp[x]=(tp[x]||0)+1})});
+    var ch=$('chips');ch.textContent='';
+    var names=Object.keys(tp).sort();
+    if(names.length){
+      var all=el('button','chip'+(!topicFilter?' on':''),'All');all.onclick=function(){topicFilter='';render()};ch.appendChild(all);
+      names.forEach(function(n){var b=el('button','chip'+(topicFilter===n?' on':''),n+' ('+tp[n]+')');b.onclick=function(){topicFilter=n;render()};ch.appendChild(b)});
+    }
+    var shown=0;
+    ki.forEach(function(it){if(topicFilter&&(it.topics||[]).indexOf(topicFilter)<0)return;shown++;kb.appendChild(card(it,'stash'))});
+    if(!shown)kb.appendChild(el('div','empty',ki.length?'Nothing kept under this topic.':'Nothing kept yet. Open a card in the Feed and press Keep, or highlight a passage.'));
   }else if(tab==='topics'){
     var tl=$('topiclist');tl.textContent='';
     J(A.topics()).forEach(function(x){
@@ -208,6 +274,11 @@ $('add').onclick=function(){
     if(r.indexOf('done:')===0){$('add').disabled=false;var e=r.slice(5);$('msg').textContent=e;if(!e){$('url').value='';wasBusy=true}render()}
     else setTimeout(wait,600)})();
 };
+$('choose').onclick=function(){A.chooseFolder()};
+$('exportall').onclick=function(){$('exportMsg').textContent='Writing notes...';A.exportAll()};
+$('clearfolder').onclick=function(){A.clearFolder();$('exportMsg').textContent='Export stopped. Existing files stay where they are.';render()};
+window.folderChosen=function(){$('exportMsg').textContent='Folder set. Notes are written when you keep, highlight or change a note. Press Export all to write the ones you already have.';render()};
+window.exportMsg=function(m){$('exportMsg').textContent=m};
 $('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
 $('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
 render();status();setInterval(status,1500);

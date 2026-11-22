@@ -81,6 +81,30 @@ public class MainActivity extends Activity {
         web.evaluateJavascript("window.setTheme&&setTheme(" + dark() + ")", null);
     }
 
+    private static final int PICK_FOLDER = 41;
+
+    /** Rewrites the item's note file when an export folder is set. */
+    private void sync(final long id) {
+        if (id < 0 || Exporter.folder(this) == null) return;
+        new Thread(() -> {
+            String e = Exporter.write(MainActivity.this, db, id);
+            if (!e.isEmpty()) runOnUiThread(() -> web.evaluateJavascript("window.exportMsg&&exportMsg(" + JSONObject.quote(e) + ")", null));
+        }, "export-one").start();
+    }
+
+    @Override protected void onActivityResult(int req, int res, Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != PICK_FOLDER || res != RESULT_OK || data == null || data.getData() == null) return;
+        Uri tree = data.getData();
+        try {
+            getContentResolver().takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            prefs.edit().putString(Exporter.PREF, tree.toString()).apply();
+            web.evaluateJavascript("window.folderChosen&&folderChosen()", null);
+        } catch (RuntimeException e) {
+            web.evaluateJavascript("window.exportMsg&&exportMsg('The folder could not be kept: ' + " + JSONObject.quote(String.valueOf(e.getMessage())) + ")", null);
+        }
+    }
+
     private void refreshInBackground() {
         new Thread(() -> {
             Refresher.all(MainActivity.this);
@@ -108,8 +132,38 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String feed() { try { return db.feedJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public String kept() { try { return db.keptJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public String item(String id) { try { return db.itemJson(Long.parseLong(id)); } catch (Exception e) { return "{}"; } }
-        @JavascriptInterface public void keep(String id) { db.setState(Long.parseLong(id), Db.KEPT); }
+        @JavascriptInterface public void keep(String id) { db.setState(Long.parseLong(id), Db.KEPT); sync(Long.parseLong(id)); }
         @JavascriptInterface public void done(String id) { db.setState(Long.parseLong(id), Db.DONE); }
+        @JavascriptInterface public String highlights(String id) { try { return db.highlightsJson(Long.parseLong(id)); } catch (Exception e) { return "[]"; } }
+        /** Adds a highlight (this keeps the item) and returns true when something was stored. */
+        @JavascriptInterface public boolean addHighlight(String id, String text) { boolean ok = db.addHighlight(Long.parseLong(id), text); if (ok) sync(Long.parseLong(id)); return ok; }
+        @JavascriptInterface public void setHighlightNote(String hid, String note) { long h = Long.parseLong(hid); db.setHighlightNote(h, note); sync(db.highlightItem(h)); }
+        @JavascriptInterface public void removeHighlight(String hid) { long h = Long.parseLong(hid); long item = db.highlightItem(h); db.removeHighlight(h); sync(item); }
+        @JavascriptInterface public void setNote(String id, String note) { db.setNote(Long.parseLong(id), note); sync(Long.parseLong(id)); }
+        @JavascriptInterface public void share(String id) {
+            final String md = Exporter.markdown(db, Long.parseLong(id));
+            if (md == null) return;
+            final MarkdownExport.Note n = db.noteFor(Long.parseLong(id));
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_SEND).setType("text/markdown").putExtra(Intent.EXTRA_TEXT, md).putExtra(Intent.EXTRA_SUBJECT, n.title).putExtra(Intent.EXTRA_TITLE, n.title);
+                startActivity(Intent.createChooser(i, "Share note"));
+            });
+        }
+        @JavascriptInterface public String exportFolder() { return Exporter.folderName(MainActivity.this); }
+        @JavascriptInterface public void chooseFolder() {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+                try { startActivityForResult(i, PICK_FOLDER); } catch (RuntimeException e) { web.evaluateJavascript("window.exportMsg&&exportMsg('This phone has no folder picker.')", null); }
+            });
+        }
+        @JavascriptInterface public void clearFolder() { prefs.edit().remove(Exporter.PREF).apply(); }
+        /** Writes every kept item to the folder; the answer comes back through exportMsg(). */
+        @JavascriptInterface public void exportAll() {
+            new Thread(() -> {
+                String m = Exporter.writeAll(MainActivity.this, db);
+                runOnUiThread(() -> web.evaluateJavascript("window.exportMsg&&exportMsg(" + JSONObject.quote(m) + ")", null));
+            }, "export-all").start();
+        }
         @JavascriptInterface public void less(String id) { db.setState(Long.parseLong(id), Db.LESS); }
         @JavascriptInterface public String topics() { try { return db.topicsJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public boolean addTopic(String phrase) { return db.addTopic(phrase); }
