@@ -21,12 +21,16 @@ public class MainActivity extends Activity {
     private WebView web;
     private FrameLayout root;
     private Db db;
+    private android.content.SharedPreferences prefs;
+    private static final int DEFAULT_HOURS = 6;
     private volatile String addState = "";
     private final java.util.concurrent.ConcurrentHashMap<String, String> pages = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         db = Db.get(this);
+        prefs = getSharedPreferences("stash", MODE_PRIVATE);
+        RefreshJob.schedule(this, prefs.getInt("refreshHours", DEFAULT_HOURS));
         web = new WebView(this);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
@@ -106,6 +110,16 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String item(String id) { try { return db.itemJson(Long.parseLong(id)); } catch (Exception e) { return "{}"; } }
         @JavascriptInterface public void keep(String id) { db.setState(Long.parseLong(id), Db.KEPT); }
         @JavascriptInterface public void done(String id) { db.setState(Long.parseLong(id), Db.DONE); }
+        @JavascriptInterface public void less(String id) { db.setState(Long.parseLong(id), Db.LESS); }
+        @JavascriptInterface public String topics() { try { return db.topicsJson(); } catch (Exception e) { return "[]"; } }
+        @JavascriptInterface public boolean addTopic(String phrase) { return db.addTopic(phrase); }
+        @JavascriptInterface public void setTopicWeight(String id, int w) { db.setTopicWeight(Long.parseLong(id), w); }
+        @JavascriptInterface public void removeTopic(String id) { db.removeTopic(Long.parseLong(id)); }
+        @JavascriptInterface public int refreshHours() { return prefs.getInt("refreshHours", DEFAULT_HOURS); }
+        @JavascriptInterface public void setRefreshHours(int h) {
+            prefs.edit().putInt("refreshHours", h).apply();
+            RefreshJob.schedule(MainActivity.this, h);
+        }
         @JavascriptInterface public void unkeep(String id) { db.setState(Long.parseLong(id), Db.NEW); }
         @JavascriptInterface public String sources() { try { return db.sourcesJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public void refresh() { refreshInBackground(); }

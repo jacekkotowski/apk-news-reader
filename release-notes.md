@@ -1,16 +1,15 @@
-## Stash Reader 0.2: reader mode and add-by-page
+## Stash Reader 0.3: topics and ranking
 
 **New**
-- **Read full article** on every opened card: the app downloads the page and extracts the article text with Mozilla Readability (the code behind Firefox Reader View). The cleaned text is saved on the phone, so it opens again offline. Scripts, styles, frames and images are removed.
-- If reader mode cannot find the article (paywall, a site that refuses the download, a JavaScript-only page, no network), the card falls back to the feed text labelled **Excerpt**, with the reason and the Open in browser button. An excerpt is never shown as the full article.
-- **A- / A+** change the reading size; the choice is remembered.
-- **Add a source from any page address** (Sources tab): paste a blog address such as `example.com/blog`. The app reads the feed the page announces (`<link rel="alternate">`), then tries `/feed`, `/rss`, `/index.xml`, `/atom.xml`, `/feed.xml`. At most nine requests per attempt.
-- Reading time is corrected once the full article is saved.
+- **Topics tab**: words or phrases you care about, each with a weight from 0 (off) to 5. Starter topics: tidymodels, Power BI, DAX, Claude Code, machine learning, LLM, data science, causal inference, duckdb. Add your own, change weights with - and +, remove with x.
+- **The Feed is now ordered by a plain score you can read**: how well the title and summary match your topics (BM25, a standard text-search formula, times the weight), plus a boost for words that appear in items you kept, minus a penalty for words in items you marked "Less like this", plus a small freshness term. No hidden model.
+- **"Why this"** under every card says what put it there: the topics it matched, "Like items you kept (words)", "New today", or "No topic matched; shown by date".
+- **Less like this** button on an opened card: hides it and lowers similar items from then on. **Done** just hides it.
+- **Background refresh** (Sources tab): off, every 3, 6, 12 hours or daily; default every 6 hours. Android picks the exact time and needs a network. A server that answers HTTP 429 is left alone for the time it asks (at least a minute, at most a day).
 
-**Try on the phone:** open a card and press Read full article on ten different blogs (Julia Silge, SQLBI, Simon Willison, Prokulski...). Turn on aeroplane mode and open one of them again. Add a blog by its plain address in Sources.
+**Try on the phone:** change the weight of Power BI from 3 to 5 and see the Feed order change. Keep two items about one subject and look for "Like items you kept". Press Less like this on something off-topic.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The emulator smoke test presses Read full article on three cards; it shows that the flow runs, not that ten blogs read well.
-- Some sites answer the download with an error (Towards Data Science gave HTTP 403 in the emulator); those cards show the excerpt.
-- Images in articles are not shown or saved.
-- Topics and ranking come in step 3; the feed is still newest first.
+- Nothing here has been tested on a real phone. The emulator smoke test only shows that the app starts, opens cards and draws the Topics and Sources tabs. I did not wait for a background refresh to fire.
+- The score is only as good as the words in the title and feed summary. A feed with empty summaries ranks by title and freshness alone.
+- The ranking looks at the newest 600 unread items.

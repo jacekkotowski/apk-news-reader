@@ -7,13 +7,18 @@ import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** Sources and cached items. Items: state 0 new, 1 kept, 2 done. */
+/** Sources, topics and cached items. Items: state 0 new, 1 kept, 2 done, 3 "less like this". */
 final class Db extends SQLiteOpenHelper {
-    static final int NEW = 0, KEPT = 1, DONE = 2;
-    static final int MAX_ITEMS = 2000, FEED_LIMIT = 300;
+    static final int NEW = 0, KEPT = 1, DONE = 2, LESS = 3;
+    static final int MAX_ITEMS = 2000, FEED_LIMIT = 300, RANK_POOL = 600;
+    private static final String[][] DEFAULT_TOPICS = {{"tidymodels", "3"}, {"Power BI", "3"}, {"DAX", "2"}, {"Claude Code", "3"}, {"machine learning", "2"}, {"LLM", "2"}, {"data science", "2"}, {"causal inference", "2"}, {"duckdb", "2"}};
     private static final String WHEN = "CASE WHEN i.pub>0 THEN i.pub ELSE i.fetched END";
     private static Db instance;
     private final Context ctx;
@@ -22,13 +27,14 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 2); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 3); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0)");
         d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE INDEX items_state ON items(state)");
+        createTopics(d);
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
             for (int k = 0; k < a.length(); k++) {
@@ -41,6 +47,15 @@ final class Db extends SQLiteOpenHelper {
     }
     @Override public void onUpgrade(SQLiteDatabase d, int o, int n) {
         if (o < 2) d.execSQL("ALTER TABLE items ADD COLUMN article TEXT NOT NULL DEFAULT ''");
+        if (o < 3) createTopics(d);
+    }
+
+    private void createTopics(SQLiteDatabase d) {
+        d.execSQL("CREATE TABLE topics(id INTEGER PRIMARY KEY, phrase TEXT UNIQUE NOT NULL, weight INTEGER NOT NULL DEFAULT 3)");
+        for (String[] t : DEFAULT_TOPICS) {
+            ContentValues v = new ContentValues(); v.put("phrase", t[0]); v.put("weight", Integer.parseInt(t[1]));
+            d.insertWithOnConflict("topics", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        }
     }
 
     private String readAsset(String name) throws Exception {
@@ -134,7 +149,7 @@ final class Db extends SQLiteOpenHelper {
     void setState(long id, int state) {
         ContentValues v = new ContentValues(); v.put("state", state);
         // a finished item no longer needs its text; the row stays so the item is not offered again
-        if (state == DONE) { v.put("html", ""); v.put("article", ""); }
+        if (state == DONE || state == LESS) { v.put("html", ""); v.put("article", ""); }
         getWritableDatabase().update("items", v, "id=?", new String[]{"" + id});
     }
 
@@ -146,13 +161,68 @@ final class Db extends SQLiteOpenHelper {
     }
     private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state FROM items i JOIN sources s ON s.id=i.source_id";
 
+    /** The newest unread items, ordered by the explainable score. Each card carries a "why" sentence. */
     String feedJson() throws Exception {
+        List<Ranker.Doc> docs = new ArrayList<>();
+        Map<Long, JSONObject> cards = new HashMap<>();
+        try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + NEW + " AND s.enabled=1 ORDER BY " + WHEN + " DESC, i.id DESC LIMIT " + RANK_POOL, null)) {
+            while (c.moveToNext()) {
+                JSONObject o = card(c);
+                long id = c.getLong(0);
+                cards.put(id, o);
+                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3)));
+            }
+        }
+        List<Ranker.Scored> ranked = Ranker.rank(docs, topicList(), texts(KEPT), texts(LESS), System.currentTimeMillis());
         JSONArray a = new JSONArray();
-        try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + NEW + " AND s.enabled=1 ORDER BY " + WHEN + " DESC, i.id DESC LIMIT " + FEED_LIMIT, null)) {
-            while (c.moveToNext()) a.put(card(c));
+        for (Ranker.Scored r : ranked) {
+            if (a.length() >= FEED_LIMIT) break;
+            JSONObject o = cards.get(r.id);
+            o.put("why", r.why);
+            a.put(o);
         }
         return a.toString();
     }
+
+    private List<String> texts(int state) {
+        List<String> out = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT title || ' ' || excerpt FROM items WHERE state=" + state + " ORDER BY id DESC LIMIT 200", null)) {
+            while (c.moveToNext()) out.add(c.getString(0));
+        }
+        return out;
+    }
+
+    private List<Ranker.Topic> topicList() {
+        List<Ranker.Topic> out = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT phrase, weight FROM topics", null)) {
+            while (c.moveToNext()) out.add(new Ranker.Topic(c.getString(0), c.getInt(1)));
+        }
+        return out;
+    }
+
+    String topicsJson() throws Exception {
+        JSONArray a = new JSONArray();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT id, phrase, weight FROM topics ORDER BY weight DESC, phrase COLLATE NOCASE", null)) {
+            while (c.moveToNext()) {
+                JSONObject o = new JSONObject();
+                o.put("id", "" + c.getLong(0)); o.put("phrase", c.getString(1)); o.put("weight", c.getInt(2));
+                a.put(o);
+            }
+        }
+        return a.toString();
+    }
+    boolean addTopic(String phrase) {
+        String p = Sanitizer.collapse(phrase == null ? "" : phrase);
+        if (p.isEmpty() || p.length() > 60) return false;
+        ContentValues v = new ContentValues(); v.put("phrase", p); v.put("weight", 3);
+        return getWritableDatabase().insertWithOnConflict("topics", null, v, SQLiteDatabase.CONFLICT_IGNORE) != -1;
+    }
+    void setTopicWeight(long id, int weight) {
+        ContentValues v = new ContentValues(); v.put("weight", Math.max(0, Math.min(5, weight)));
+        getWritableDatabase().update("topics", v, "id=?", new String[]{"" + id});
+    }
+    void removeTopic(long id) { getWritableDatabase().delete("topics", "id=?", new String[]{"" + id}); }
+
     String keptJson() throws Exception {
         JSONArray a = new JSONArray();
         try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + KEPT + " ORDER BY i.id DESC", null)) {

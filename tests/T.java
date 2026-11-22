@@ -24,6 +24,7 @@ public final class T {
         starter();
         discovery();
         pageText();
+        ranking();
         System.out.println(runs + " checks, " + fails + " failed");
         if (fails > 0) System.exit(1);
     }
@@ -126,6 +127,59 @@ public final class T {
         eq("page: charset from header", "café", PageText.decode(iso, "text/html; charset=ISO-8859-1"));
         eq("page: charset from meta tag", "café", PageText.decode("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">café".getBytes("ISO-8859-1"), null).substring(PageText.decode("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">café".getBytes("ISO-8859-1"), null).length() - 4));
         eq("page: unknown charset falls back to utf-8", "ok", PageText.decode("ok".getBytes("UTF-8"), "text/html; charset=nonsense-9"));
+    }
+
+    static java.util.List<Ranker.Doc> rankDocs(long now) {
+        long day = 86400000L;
+        java.util.List<Ranker.Doc> d = new java.util.ArrayList<>();
+        d.add(new Ranker.Doc(1, "Tuning tidymodels workflows", "How to tune a workflow with tidymodels and cross validation", now - day / 2));
+        d.add(new Ranker.Doc(2, "Power BI DAX measures explained", "Measures in Power BI use DAX and filter context", now - day / 2));
+        d.add(new Ranker.Doc(3, "Cooking pasta at home", "Boil water, add salt and pasta", now - day / 2));
+        d.add(new Ranker.Doc(4, "Older tidymodels post", "An old note about tidymodels recipes", now - 60 * day));
+        d.add(new Ranker.Doc(5, "DuckDB and Parquet files", "Fast analytics with duckdb on parquet files", now - 20 * day));
+        return d;
+    }
+    static java.util.List<Long> ids(java.util.List<Ranker.Scored> l) { java.util.List<Long> o = new java.util.ArrayList<>(); for (Ranker.Scored s : l) o.add(s.id); return o; }
+    static Ranker.Scored byId(java.util.List<Ranker.Scored> l, long id) { for (Ranker.Scored s : l) if (s.id == id) return s; return null; }
+
+    static void ranking() {
+        long now = 1794700000000L;
+        java.util.List<String> none = new java.util.ArrayList<>();
+        eq("tokens: plural, stop words and case", java.util.Arrays.asList("model", "tidymodel", "workflow"), Ranker.tokens("The Models, TIDYMODELS and a workflows!"));
+        eq("tokens: short words that matter stay", java.util.Arrays.asList("power", "bi"), Ranker.tokens("Power BI"));
+
+        java.util.List<Ranker.Topic> t1 = java.util.Arrays.asList(new Ranker.Topic("tidymodels", 3), new Ranker.Topic("Power BI", 1));
+        java.util.List<Ranker.Scored> r1 = Ranker.rank(rankDocs(now), t1, none, none, now);
+        eq("topics: the tidymodels post comes first", 1L, r1.get(0).id);
+        eq("topics: the unrelated post is last among fresh ones, the 60-day-old match still beats it", true, ids(r1).indexOf(4L) < ids(r1).indexOf(3L));
+        yes("why: names the matched topic", byId(r1, 1).why.contains("Matches your topics: tidymodels"));
+        yes("why: says when nothing matched", byId(r1, 3).why.startsWith("No topic matched") || byId(r1, 3).why.contains("New today"));
+
+        java.util.List<Ranker.Topic> t2 = java.util.Arrays.asList(new Ranker.Topic("tidymodels", 1), new Ranker.Topic("Power BI", 5));
+        eq("weights: raising Power BI puts that post first", 2L, Ranker.rank(rankDocs(now), t2, none, none, now).get(0).id);
+
+        java.util.List<Ranker.Topic> t0 = java.util.Arrays.asList(new Ranker.Topic("tidymodels", 0));
+        yes("weight 0 switches a topic off", !byId(Ranker.rank(rankDocs(now), t0, none, none, now), 1).why.contains("Matches"));
+
+        java.util.List<Ranker.Scored> fresh = Ranker.rank(rankDocs(now), new java.util.ArrayList<Ranker.Topic>(), none, none, now);
+        eq("freshness alone: newest first, ties by date", 5L, fresh.get(fresh.size() - 2).id);
+        eq("freshness alone: the oldest item is last", 4L, fresh.get(fresh.size() - 1).id);
+
+        java.util.List<String> kept = java.util.Arrays.asList("Parquet and duckdb make analytics fast");
+        java.util.List<Ranker.Scored> rk = Ranker.rank(rankDocs(now), new java.util.ArrayList<Ranker.Topic>(), kept, none, now);
+        eq("kept: a similar older item rises above fresher ones", 5L, rk.get(0).id);
+        yes("kept: the reason names the shared words", byId(rk, 5).why.contains("Like items you kept") && byId(rk, 5).why.contains("duckdb"));
+
+        java.util.List<String> less = java.util.Arrays.asList("Cooking pasta with salt", "Pasta recipes at home");
+        java.util.List<Ranker.Scored> rl = Ranker.rank(rankDocs(now), new java.util.ArrayList<Ranker.Topic>(), none, less, now);
+        eq("less like this: the pasta post sinks to the bottom", 3L, rl.get(rl.size() - 1).id);
+        yes("less like this: the reason says so", byId(rl, 3).why.contains("Less like this"));
+
+        java.util.List<Ranker.Scored> ph = Ranker.rank(java.util.Arrays.asList(
+            new Ranker.Doc(10, "Business intelligence", "power plants and a bi weekly meeting", now),
+            new Ranker.Doc(11, "Dashboards", "learning Power BI step by step", now)), java.util.Arrays.asList(new Ranker.Topic("Power BI", 1)), none, none, now);
+        eq("phrase: the exact phrase beats two scattered words", 11L, ph.get(0).id);
+        eq("empty input gives an empty list", 0, Ranker.rank(new java.util.ArrayList<Ranker.Doc>(), t1, none, none, now).size());
     }
 
     static String msg(String u) {

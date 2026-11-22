@@ -23,6 +23,7 @@ section{display:none}section.on{display:block}
 .card h3{font-size:18px;line-height:1.3;margin:6px 0;overflow-wrap:anywhere}
 .ex{color:var(--dim);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .open .ex{display:none}
+.why{font-size:12.5px;color:var(--dim);font-style:italic;margin-top:6px}
 .chip{display:inline-block;background:var(--chip);border-radius:10px;padding:1px 9px;font-size:12px;color:var(--dim);margin-top:8px}
 .body{display:none;margin-top:10px;border-top:1px solid var(--line);padding-top:10px;overflow-wrap:anywhere}
 .open .body{display:block}
@@ -37,6 +38,7 @@ section{display:none}section.on{display:block}
 .src{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
 .src .t{flex:1;min-width:0;overflow-wrap:anywhere}.src .t div{font-size:12.5px;color:var(--dim)}
 .src .err{color:var(--bad)}.src .good{color:var(--ok)}
+.wt{min-width:18px;text-align:center;font-weight:700;margin-top:6px}
 .src input{width:22px;height:22px;margin-top:3px}
 .add{display:flex;gap:8px;margin:12px 0}.add input{flex:1;min-width:0;padding:8px 12px;border-radius:18px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit}
 #msg{color:var(--bad);font-size:13px;min-height:18px}
@@ -46,14 +48,21 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <main>
 <section id="feed" class="on"></section>
 <section id="kept"></section>
+<section id="topics">
+  <div class="add"><input id="topic" type="text" placeholder="Add a topic, e.g. causal inference" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="addtopic">Add</button></div>
+  <p class="meta">Weight 0 switches a topic off, 5 is the strongest. The feed is ordered by these topics, by what you keep, and by freshness.</p>
+  <div id="topiclist"></div>
+</section>
 <section id="sources">
   <div class="add"><input id="url" type="text" placeholder="Blog or feed address, e.g. example.com" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="add">Add</button></div>
   <div id="msg"></div>
+  <h2>Background refresh</h2>
+  <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
   <h2>Sources</h2><div id="srclist"></div>
   <p class="meta" id="ver"></p>
 </section>
 </main>
-<nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Kept</button><button data-t="sources">Sources</button></nav>
+<nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Kept</button><button data-t="topics">Topics</button><button data-t="sources">Sources</button></nav>
 <script src="Readability.js"></script>
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
@@ -74,6 +83,7 @@ function card(it,kept){
   c.appendChild(m);
   var h=el('h3',null,it.title);c.appendChild(h);
   c.appendChild(el('p','ex',it.excerpt));
+  if(it.why)c.appendChild(el('div','why','Why this: '+it.why));
   if(it.topic)c.appendChild(el('span','chip',it.topic));
   var b=el('div','body');c.appendChild(b);
   var loaded=false,d={},failed=false,label,text,note,readBtn;
@@ -119,6 +129,7 @@ function card(it,kept){
       if(!kept){
         var k=el('button','btn main','Keep');k.onclick=function(e){e.stopPropagation();A.keep(it.id);gone(c)};acts.appendChild(k);
         var dn=el('button','btn','Done');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};acts.appendChild(dn);
+        var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};acts.appendChild(ls);
       }else{
         var u=el('button','btn','Remove from Kept');u.onclick=function(e){e.stopPropagation();A.unkeep(it.id);gone(c)};acts.appendChild(u);
       }
@@ -147,6 +158,18 @@ function render(){
     var ki=J(A.kept());
     ki.forEach(function(it){kb.appendChild(card(it,true))});
     if(!ki.length)kb.appendChild(el('div','empty','Nothing kept yet. Open a card in the Feed and press Keep.'));
+  }else if(tab==='topics'){
+    var tl=$('topiclist');tl.textContent='';
+    J(A.topics()).forEach(function(x){
+      var r=el('div','src');
+      var t=el('div','t');t.appendChild(el('span',null,x.phrase));r.appendChild(t);
+      var minus=el('button','btn','-');minus.onclick=function(){A.setTopicWeight(x.id,x.weight-1);render()};
+      var w=el('span','wt',''+x.weight);
+      var plus=el('button','btn','+');plus.onclick=function(){A.setTopicWeight(x.id,x.weight+1);render()};
+      var rm=el('button','btn','x');rm.onclick=function(){A.removeTopic(x.id);render()};
+      r.appendChild(minus);r.appendChild(w);r.appendChild(plus);r.appendChild(rm);
+      tl.appendChild(r);
+    });
   }else{
     var l=$('srclist');l.textContent='';
     J(A.sources()).forEach(function(x){
@@ -161,6 +184,7 @@ function render(){
       l.appendChild(r);
     });
     $('ver').textContent='Stash Reader '+A.version();
+    var sel=$('hours');if(sel&&A.refreshHours)sel.value=''+A.refreshHours();
   }
 }
 function status(){
@@ -171,7 +195,7 @@ function status(){
   wasBusy=!!s.refreshing;
 }
 function show(t){
-  tab=t;['feed','kept','sources'].forEach(function(n){$(n).classList.toggle('on',n===t)});
+  tab=t;['feed','kept','topics','sources'].forEach(function(n){$(n).classList.toggle('on',n===t)});
   document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.t===t)});
   render();document.querySelector('main').scrollTop=0;
 }
@@ -184,6 +208,8 @@ $('add').onclick=function(){
     if(r.indexOf('done:')===0){$('add').disabled=false;var e=r.slice(5);$('msg').textContent=e;if(!e){$('url').value='';wasBusy=true}render()}
     else setTimeout(wait,600)})();
 };
+$('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
+$('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
 render();status();setInterval(status,1500);
 </script>
 </body></html>

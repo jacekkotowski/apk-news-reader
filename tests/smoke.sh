@@ -1,7 +1,7 @@
 #!/bin/bash
 # Runs inside the emulator job: installs the APK, starts it, looks at the result.
 # Pictures: smoke.png (feed), smoke_open.png (a card opened), smoke_reader1.png to smoke_reader3.png (after "Read full article" on three cards),
-# smoke2.png to smoke4.png (Sources tab). logcat.txt is the log.
+# smoke_topics.png (Topics tab), smoke2.png to smoke4.png (Sources tab). logcat.txt is the log.
 cd "$(dirname "$0")/.."
 adb install -r StashReader.apk || exit 1
 adb logcat -c
@@ -50,8 +50,11 @@ for n in 1 2 3; do
   sleep 1
 done
 
-# Sources tab with the status of every source.
-adb shell input tap $((W * 5 / 6)) $((H * 96 / 100))
+# Topics tab, then the Sources tab with the status of every source.
+adb shell input tap $((W * 5 / 8)) $((H * 96 / 100))
+sleep 2
+adb exec-out screencap -p > smoke_topics.png
+adb shell input tap $((W * 7 / 8)) $((H * 96 / 100))
 sleep 3
 adb exec-out screencap -p > smoke2.png
 adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 15 / 100)) 400
