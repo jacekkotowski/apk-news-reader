@@ -173,8 +173,12 @@ summaries, Play Store.
 
 - [x] Step 9 (added 2026-11-22 at Jacek's request): YouTube channels and podcasts, lean form (Watch opens the YouTube app, Listen opens the phone's audio player). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.8 (CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45074079681). Not tested on a phone.
 
+- [x] Steps 10 and 11, 2026-11-22 (Jacek's requests): v0.9 share to Stash and recall cards (https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.9, CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45081607827); v1.0 Gemini notes and learning paths with his own free key (https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.0, CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45082816528). Not tested on a phone.
+
 ## 8. Open problems
 
 See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit and Semantic Scholar could not be checked for real (HTTP 404 and 429 from the build computer); the Stash folder export, share sheet and text selection were not exercised in the emulator; steps 6 to 8 are not started.
 
 Added after steps 6 to 8: the curator's scheduled run has not fired yet; page watch, recommendations, highlights, share and the export folder were not used on a phone.
+
+Added after v1.0: Gemini was called live only from the PC (answers recorded as test fixtures); Make notes and the learning path were never pressed in the app on a real phone. Free-tier limits and terms can change (the YouTube feature is a preview). The key Jacek pasted in chat is in the private keys repo (apk-news-reader/gemini.env); it is also in this session's transcript, so he may want to make a new key after testing.

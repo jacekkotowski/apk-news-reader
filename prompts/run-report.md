@@ -1,7 +1,7 @@
 # Run report: Stash Reader, autonomous run of 2026-11-22
 
 **Download (always the latest release):** https://github.com/jacekkotowski/apk-news-reader/releases/latest/download/StashReader.apk
-**Latest release tag:** `v0.7` (steps 6 to 8 were added later the same day at Jacek's request, see "Second part" below). The link was checked with `curl -sIL` and ends in HTTP 200; the file is about 87 KB.
+**Latest release tag:** `v1.0` (steps 6 to 8 were added later the same day at Jacek's request, see "Second part" below). The link was checked with `curl -sIL` and ends in HTTP 200; the file is about 87 KB.
 
 Steps 0 to 5 are done (first part). Steps 6 to 8 were done in a second part after Jacek said "do 6 through 8". Every step has a GitHub Release whose build was green in CI (PC tests, signed build, emulator smoke test).
 
@@ -57,3 +57,16 @@ Also in v0.5.1/v0.6 (Jacek's corrections): **Keep** is a single toggle (Keep / "
 - **Step 8:** `curator/curate.py` (Python standard library only), `.github/workflows/curator.yml` (daily 05:17 UTC), output on branch `curator-data` as Atom and JSON Feed; the app source is `https://raw.githubusercontent.com/jacekkotowski/apk-news-reader/curator-data/curator.xml`. Served on a branch instead of GitHub Pages so no repository setting was touched. Free: public repo, key-less APIs, no LLM, no Firecrawl.
 - **Tests:** 246 Java checks plus 11 Python tests (CI runs both). Smoke run of v0.7: feed with 689 items, Keep toggle shows "✓ Kept" and the card lands in the Stash, Sources shows the Recommendations note.
 - **Open problems added:** the curator's scheduled run has not yet fired; Semantic Scholar recommendations depend on an unauthenticated API that often answers 429; the page-watch link finder is a heuristic; page watch, recommendations, highlights, share and the export folder have not been used on a phone.
+
+## Third part: v0.8 to v1.0 (same day, Jacek's requests)
+
+| Release | What | CI run of the tagged commit |
+|---|---|---|
+| [v0.8](https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.8) | YouTube channels (Watch on YouTube) and podcasts (Listen, opens the phone's audio player); 7 starter sources | [45074079681](https://github.com/jacekkotowski/apk-news-reader/actions/runs/45074079681) |
+| [v0.9](https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.9) | Share to Stash (Android share target); Recall cards from highlights, 1/3/7/21/60 days, 5 a day | [45081607827](https://github.com/jacekkotowski/apk-news-reader/actions/runs/45081607827) |
+| [v1.0](https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.0) | Gemini (free tier, Jacek's own key): Make notes for videos and articles, questions become Recall cards, learning path per Stash topic, AI notes in the Markdown export | [45082816528](https://github.com/jacekkotowski/apk-news-reader/actions/runs/45082816528) |
+
+- **Tested:** 326 PC checks. The Gemini request builder was run against the live API from the PC (video link, article, path, wrong key) and the answers are saved in `tests/fixtures/gemini-*.json`; the parser is tested on those real answers. The emulator smoke test now also sends a shared link and the Stash shows it. The new buttons (Make notes, Recall, learning path) were driven in a browser pane against a stubbed bridge, not in the app.
+- **Not tested:** anything on a real phone; Make notes and the path inside the Android app; the real YouTube and Chrome Share buttons; Listen and Watch opening the other apps; Gemini's free limits over time.
+- **Gemini key:** Jacek pasted it in chat and asked to keep it in the private keys repo: `apk-signing-keys/apk-news-reader/gemini.env` (private repo, pushed). It is not in this repo, not in CI, not in any note. He types or pastes it into Sources on the phone. Because it appeared in the chat transcript, a new key after testing would be tidy.
+- **Free tier and privacy:** Google's pricing page says free-tier content may be used to improve its products. The app sends only public links, article text, titles and highlights, never the user's own notes, and says so next to the key field.
