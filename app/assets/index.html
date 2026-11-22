@@ -88,7 +88,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
 var KL={};
-var tab='feed',wasBusy=false,lastSig='',topicFilter='';
+var pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
 function J(s){try{return JSON.parse(s)}catch(e){return []}}
@@ -264,11 +264,13 @@ function status(){
   var s=J(A.status());
   $('stat').textContent=s.refreshing?'Refreshing...':(s.fresh!=null?s.fresh+' new'+(s.failed?', '+s.failed+' source(s) with errors':''):'');
   $('refresh').disabled=!!s.refreshing;
-  if(wasBusy&&!s.refreshing)render();
+  if(wasBusy&&!s.refreshing)pending=true;
   wasBusy=!!s.refreshing;
+  // never redraw under a card that is open: the reader would lose their place, a highlight or a note
+  if(pending){if(document.querySelector('.card.open')){if(!s.refreshing)$('stat').textContent='New items are ready; close the open card to show them'}else{pending=false;render()}}
 }
 function show(t){
-  tab=t;['feed','kept','topics','sources'].forEach(function(n){$(n).classList.toggle('on',n===t)});
+  tab=t;pending=false;['feed','kept','topics','sources'].forEach(function(n){$(n).classList.toggle('on',n===t)});
   document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.t===t)});
   render();document.querySelector('main').scrollTop=0;
 }
