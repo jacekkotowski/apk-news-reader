@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<channel>
+  <title>Sample &amp; Blog</title>
+  <link>https://example.com/</link>
+  <item>
+    <title>First post about tidymodels</title>
+    <link>https://www.example.com/p/first/?utm_source=rss#top</link>
+    <guid isPermaLink="false">abc-1</guid>
+    <pubDate>Mon, 10 Nov 2026 09:30:00 +0000</pubDate>
+    <description><![CDATA[<p>Short <b>summary</b> &amp; more.</p><script>alert(1)</script>]]></description>
+    <content:encoded><![CDATA[<h2>Intro</h2><p onclick="evil()">Full text with a <a href="https://example.com/x" onclick="bad()">link</a> and <a href="javascript:alert(1)">bad link</a>.</p><iframe src="https://evil.example"></iframe><style>p{color:red}</style><p>Second paragraph.</p>]]></content:encoded>
+  </item>
+  <item>
+    <title>Second post</title>
+    <link>https://example.com/p/second</link>
+    <pubDate>Tue, 11 Nov 2026 10:00:00 GMT</pubDate>
+    <description>Only a description here.</description>
+  </item>
+  <item>
+    <title>First post about tidymodels (again)</title>
+    <link>https://example.com/p/first</link>
+    <pubDate>Mon, 10 Nov 2026 09:30:00 +0000</pubDate>
+    <description>Duplicate of the first by link.</description>
+  </item>
+  <item>
+    <title></title>
+    <link>https://example.com/p/untitled</link>
+  </item>
+</channel>
+</rss>
