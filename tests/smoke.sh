@@ -6,6 +6,12 @@ adb logcat -c
 adb shell am start -n pl.stashreader/.MainActivity
 sleep 30
 adb exec-out screencap -p > smoke.png
+# second picture: the Sources tab, which shows the status or error of every source
+SIZE=$(adb shell wm size | grep -o '[0-9]*x[0-9]*' | tail -1)
+W=${SIZE%x*}; H=${SIZE#*x}
+adb shell input tap $((W * 5 / 6)) $((H * 96 / 100))
+sleep 3
+adb exec-out screencap -p > smoke2.png
 adb logcat -d > logcat.txt
 rc=0
 if grep -q "FATAL EXCEPTION" logcat.txt; then echo "The app crashed (FATAL EXCEPTION in logcat)"; rc=1; fi

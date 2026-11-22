@@ -71,6 +71,7 @@ jobs:
           name: smoke
           path: |
             smoke.png
+            smoke2.png
             logcat.txt
           if-no-files-found: warn
 

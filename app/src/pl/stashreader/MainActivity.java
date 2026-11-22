@@ -75,7 +75,17 @@ public class MainActivity extends Activity {
     }
 
     private void refreshInBackground() {
-        new Thread(() -> Refresher.all(MainActivity.this), "refresh").start();
+        new Thread(() -> {
+            Refresher.all(MainActivity.this);
+            // when everything failed (no network yet at start-up), try once more after a pause
+            try {
+                JSONObject c = db.counts();
+                if (c.optInt("sources") > 0 && c.optInt("failed") >= c.optInt("sources")) {
+                    Thread.sleep(10000);
+                    Refresher.all(MainActivity.this);
+                }
+            } catch (Exception ignored) { }
+        }, "refresh").start();
     }
 
     class Bridge {
