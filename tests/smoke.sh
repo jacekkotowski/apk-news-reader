@@ -34,6 +34,8 @@ adb exec-out screencap -p > smoke_reader1.png
 # Keep it.
 tap_text "Keep"
 sleep 2
+adb exec-out screencap -p > smoke_kept.png
+sleep 2
 
 # Stash tab (the kept item), then the Topics tab, then the Sources tab with the status of every source.
 adb shell input tap $((W * 3 / 8)) $((H * 96 / 100))
