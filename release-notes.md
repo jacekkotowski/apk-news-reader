@@ -1,15 +1,19 @@
-## Stash Reader 0.7: the daily curator
+## Stash Reader 0.8: YouTube channels and podcasts
 
 **New**
-- **A curator that runs off the phone.** Once a day (05:17 UTC) a GitHub Actions job asks Hacker News, arXiv, Hugging Face daily papers and GitHub about your topics, keeps what matches, scores it with a plain rule (topic words found, the title counts double, a little for popularity and freshness) and publishes the best 60 items of the last 21 days as one feed. The app has it as a source called **Curator (daily, from the cloud)**; it appears in Sources like any other feed and its items rank with the rest by your Topics. New items show "Curator: topic (service)" in their text.
-- **It costs nothing.** The repository is public, so GitHub Actions minutes are free, and the job uses only key-less public APIs. No LLM and no Firecrawl are used, because those would cost money.
-- You can change what the curator looks for by editing `curator/topics.json` in the repository and pushing to `main`. Its topics are separate from the Topics on the phone. See `curator/README.md`.
-- The result is an Atom feed (`curator.xml`) on the branch `curator-data`, read by the same parser as every other feed, plus a JSON Feed (`feed.json`) for other readers. It is published on a branch, not on GitHub Pages, so no repository setting was changed.
+- **YouTube channels as sources.** Every channel has a free feed, so no key and no account are needed. A video card shows the title and the description, and **Watch on YouTube** opens the video in the YouTube app. Reader mode is not offered for videos. In Sources, paste a channel address such as `youtube.com/@statquest` and the app finds the feed itself, like it does for any site.
+- **Podcasts as sources.** An episode card shows the show notes, and **Listen** opens the episode in the audio player on your phone (your podcast app, or whatever answers). The app has no player of its own, on purpose: your player already remembers the position, speed and background play.
+- **Starter list:** channels StatQuest, 3Blue1Brown, Two Minute Papers, Andrej Karpathy, Anthropic; podcasts Data Skeptic and Practical AI. Latent Space (already a source) now gets a Listen button. Remove any you do not want in Sources.
+- Cards of videos and episodes say "video" or "podcast" instead of a reading time. Keep, Done and Less like this work on them like on any card, and the Markdown export works too (it links the video or episode page).
 
-**Try on the phone:** open Sources and find the Curator line (status OK, up to 60 items). Look in the Feed for items whose text ends with "Curator: ...". Check that nothing in it looks off-topic, and tell me what to change in `topics.json`.
+**Try on the phone**
+1. Refresh, scroll to a StatQuest or 3Blue1Brown card, open it, press **Watch on YouTube**: the YouTube app should open on that video.
+2. Open a Data Skeptic or Practical AI card, press **Listen**: a player should start the episode. If your phone asks which app to use, choose one.
+3. In Sources, add `youtube.com/@` plus a channel you like. Tell me if it fails.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The curator ran once on GitHub (manual start) and its output was read by the app's own feed parser on the PC; the emulator only shows that the app starts. The scheduled daily run has not yet happened.
-- The curator sees only what the four services return for the queries in `topics.json`; it will miss anything else. Semantic Scholar and Reddit are not used there because they refuse most automated requests.
-- If a service fails, the others still run; if all fail, the job fails and the last published feed stays in place.
+- Nothing here has been tested on a real phone. On the PC the parser reads a saved YouTube feed and a saved podcast feed, and the emulator only shows that the app starts. Whether the YouTube app and the audio player open on your phone is not yet known.
+- Podcast episodes that were already in the Feed before this update get their Listen button after the next refresh.
+- Pasting a channel address may fail where YouTube shows a consent page first (it did not on the build computer). Then use the feed address `youtube.com/feeds/videos.xml?channel_id=...`.
+- No transcripts, no thumbnails and no playback inside the app.
 - Earlier limits still apply: text selection, the share sheet, the export folder, page watch and recommendations are untested on a phone.

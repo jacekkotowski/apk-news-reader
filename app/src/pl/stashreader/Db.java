@@ -35,12 +35,12 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 7); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 8); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '')");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '')");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
         createHighlights(d);
@@ -87,6 +87,18 @@ final class Db extends SQLiteOpenHelper {
             ContentValues v = new ContentValues();
             v.put("url", CURATOR_URL); v.put("name", "Curator (daily, from the cloud)");
             d.insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        }
+        if (o < 8) { // podcast audio, and the new starter channels and podcasts
+            d.execSQL("ALTER TABLE items ADD COLUMN audio TEXT NOT NULL DEFAULT ''");
+            try {
+                JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
+                for (int k = 0; k < a.length(); k++) {
+                    JSONObject x = a.getJSONObject(k);
+                    ContentValues v = new ContentValues();
+                    v.put("url", x.getString("url")); v.put("name", x.getString("name")); v.put("topic", x.optString("topic", ""));
+                    d.insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+                }
+            } catch (Exception e) { /* the Sources screen can still add them */ }
         }
     }
 
@@ -199,11 +211,12 @@ final class Db extends SQLiteOpenHelper {
                 ContentValues v = new ContentValues();
                 v.put("source_id", sourceId); v.put("key", i.uid); v.put("title", i.title);
                 v.put("excerpt", Sanitizer.shorten(plain, 300)); v.put("html", html);
-                v.put("because", i.because);
+                v.put("because", i.because); v.put("audio", i.audio == null ? "" : i.audio);
                 v.put("full", i.fromContent && Sanitizer.words(plain) >= 250 ? 1 : 0);
                 v.put("link", i.link); v.put("pub", i.published); v.put("fetched", now);
                 v.put("mins", Math.max(1, Math.round(Sanitizer.words(plain) / 220f)));
                 if (d.insertWithOnConflict("items", null, v, SQLiteDatabase.CONFLICT_IGNORE) != -1) added++;
+                else if (i.audio != null && !i.audio.isEmpty()) d.execSQL("UPDATE items SET audio=? WHERE key=? AND audio=''", new Object[]{i.audio, i.uid});
             }
             // never drop kept items; drop the oldest of the rest beyond the cap
             d.execSQL("DELETE FROM items WHERE state<>" + KEPT + " AND id NOT IN (SELECT id FROM items i WHERE state<>" + KEPT + " ORDER BY " + WHEN + " DESC LIMIT " + MAX_ITEMS + ")");
@@ -242,9 +255,10 @@ final class Db extends SQLiteOpenHelper {
         JSONObject o = new JSONObject();
         o.put("id", "" + c.getLong(0)); o.put("title", c.getString(1)); o.put("excerpt", c.getString(2)); o.put("pub", c.getLong(3));
         o.put("mins", c.getInt(4)); o.put("source", c.getString(5)); o.put("topic", c.getString(6)); o.put("state", c.getInt(7));
+        o.put("kind", FeedParser.kindOf(c.getString(9), c.getString(10)));
         return o;
     }
-    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state, i.because FROM items i JOIN sources s ON s.id=i.source_id";
+    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state, i.because, i.link, i.audio FROM items i JOIN sources s ON s.id=i.source_id";
 
     /** The newest unread items, ordered by the explainable score. Each card carries a "why" sentence. */
     String feedJson() throws Exception {
@@ -387,10 +401,14 @@ final class Db extends SQLiteOpenHelper {
         }
     }
 
+    String itemAudio(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT audio FROM items WHERE id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getString(0) : ""; }
+    }
+
     String itemJson(long id) throws Exception {
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt, article, note, state FROM items WHERE id=?", new String[]{"" + id})) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt, article, note, state, audio FROM items WHERE id=?", new String[]{"" + id})) {
             JSONObject o = new JSONObject();
-            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); o.put("article", c.getString(4)); o.put("note", c.getString(5)); o.put("state", c.getInt(6)); }
+            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); o.put("article", c.getString(4)); o.put("note", c.getString(5)); o.put("state", c.getInt(6)); o.put("kind", FeedParser.kindOf(c.getString(2), c.getString(7))); }
             return o.toString();
         }
     }

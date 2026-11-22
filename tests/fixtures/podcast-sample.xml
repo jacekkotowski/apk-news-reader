@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<rss version="2.0"
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:cc="http://web.resource.org/cc/"
+  xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:podcast="https://podcastindex.org/namespace/1.0"
+  xmlns:googleplay="http://www.google.com/schemas/play-podcasts/1.0"
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:libsyn="https://rss.libsyn.com/ns.xml">
+
+  <channel>
+    <atom:link href="https://rss.libsyn.com/shows/54799/destinations/201630.xml" rel="self" type="application/rss+xml"/>
+    <title>Data Skeptic</title>
+    <pubDate>Sat, 21 Nov 2026 16:08:10 +0000</pubDate>
+    <lastBuildDate>Sat, 21 Nov 2026 16:08:10 +0000</lastBuildDate>
+    <generator>Libsyn RSSgen 1.0</generator>
+    <libsyn:show-id>54799</libsyn:show-id>
+    
+    <libsyn:last-updated>2026-05-29T14:39:45Z</libsyn:last-updated>
+    
+    <link>https://dataskeptic.com</link>
+    <language>en</language>
+    <copyright><![CDATA[Creative Commons Attribution License 3.0]]></copyright>
+    <docs>https://dataskeptic.com</docs>
+    <itunes:summary><![CDATA[The Data Skeptic Podcast features interviews and discussion of topics related to data science, statistics, machine learning, artificial intelligence and the like, all from the perspective of applying critical thinking and the scientific method to evaluate the veracity of claims and efficacy of approaches.]]></itunes:summary>
+    <image>
+      <url>https://static.libsyn.com/p/assets/0/e/4/b/0e4bd71bb64c6e45/DS_-_New_Logo_assets_-_JL_DS_Logo_Stacked_-_Color_2.jpg</url>
+      <title>Data Skeptic</title>
+      <link><![CDATA[https://dataskeptic.com]]></link>
+    </image>
+    <itunes:author>Kyle Polich</itunes:author>
+		<itunes:category text="Technology" />
+<itunes:category text="Science">
+  <itunes:category text="Mathematics" />
+</itunes:category>
+    <itunes:image href="https://static.libsyn.com/p/assets/0/e/4/b/0e4bd71bb64c6e45/DS_-_New_Logo_assets_-_JL_DS_Logo_Stacked_-_Color_2.jpg" />
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:owner>
+      <itunes:name>Kyle Polich</itunes:name>
+      <itunes:email>kyle@dataskeptic.com</itunes:email>
+    </itunes:owner>
+    <description><![CDATA[The Data Skeptic Podcast features interviews and discussion of topics related to data science, statistics, machine learning, artificial intelligence and the like, all from the perspective of applying critical thinking and the scientific method to evaluate the veracity of claims and efficacy of approaches.]]></description>
+    
+    <itunes:type>episodic</itunes:type>
+    
+
+    <itunes:keywords />
+
+    
+
+    
+    <podcast:locked owner="kyle@dataskeptic.com">no</podcast:locked>
+    
+    
+    
+    
+    
+    <item>
+      <title>Charts You Can Navigate by Ear</title>
+      <itunes:title>Charts You Can Navigate by Ear</itunes:title>
+      <pubDate>Mon, 16 Nov 2026 21:07:00 +0000</pubDate>
+      <guid isPermaLink="false"><![CDATA[5db77bcd-9b3f-4ca3-a21f-19c541fcbde9]]></guid>
+      <link><![CDATA[https://dataskeptic.com/blog/episodes/2026/Charts-you-can-navigate-by-ear]]></link>
+      <description><![CDATA[<p>Kyle speaks with Jonathan Zong about making data visualizations accessible to blind and low-vision users through screen readers, interactive tools like Olli, and inclusive design approaches that enable independent data exploration.</p>]]></description>
+      
+      <content:encoded><![CDATA[<p>Kyle speaks with Jonathan Zong about making data visualizations accessible to blind and low-vision users through screen readers, interactive tools like Olli, and inclusive design approaches that enable independent data exploration.</p>]]></content:encoded>
+      
+      
+      <enclosure url="https://pscrb.fm/rss/p/mgln.ai/e/35/traffic.libsyn.com/secure/dataskeptic/Jonathan_No_ads_V2.mp3?dest-id=201630" length="67940626" type="audio/mpeg" />
+      <itunes:duration>47:08</itunes:duration>
+      <itunes:explicit>false</itunes:explicit>
+      
+      
+      <itunes:keywords />
+      
+      
+      
+      <itunes:image href="https://static.libsyn.com/p/assets/2/6/7/c/267cf3fe44657a2ea04421dee9605cbd/COVER-Charts_You_Can_Navigate_by_Ear.jpg" />
+      
+      
+      <libsyn:widescreen-image href="https://static.libsyn.com/p/assets/3/6/8/1/368177d293e3b085a04421dee9605cbd/WIDE-Charts_You_Can_Navigate_by_Ear.jpg" />
+      
+      <itunes:episodeType>full</itunes:episodeType>
+      
+      
+      
+
+      <libsyn:item-id>43777364</libsyn:item-id>
+      
+      <libsyn:last-updated>2026-11-21T16:08:06Z</libsyn:last-updated>
+      
+      
+    </item>
+    
+    <item>
+      <title>Working in Extended Reality</title>
+      <itunes:title>Working in Extended Reality</itunes:title>
+      <pubDate>Mon, 09 Nov 2026 20:14:00 +0000</pubDate>
+      <guid isPermaLink="false"><![CDATA[3918ee4c-4815-4e54-9696-718c7f937a9f]]></guid>
+      <link><![CDATA[https://dataskeptic.com/blog/episodes/2026/working-in-extended-reality]]></link>
+      <description><![CDATA[<p>Doug Bowman, Professor of Computer Science at Virginia Tech, joins Kyle to explore how augmented reality, virtual reality, and AI are reshaping the future of human-computer interaction. From wearable virtual workspaces to intelligent interfaces that adapt to our surroundings, they discuss the opportunities, challenges, and privacy concerns of a world where computing extends beyond the screen.</p>]]></description>
+      
+      <content:encoded><![CDATA[<p>Doug Bowman, Professor of Computer Science at Virginia Tech, joins Kyle to explore how augmented reality, virtual reality, and AI are reshaping the future of human-computer interaction. From wearable virtual workspaces to intelligent interfaces that adapt to our surroundings, they discuss the opportunities, challenges, and privacy concerns of a world where computing extends beyond the screen.</p>]]></content:encoded>
+      
+      
+      <enclosure url="https://pscrb.fm/rss/p/mgln.ai/e/35/traffic.libsyn.com/secure/dataskeptic/Doug_No_ads_V1.mp3?dest-id=201630" length="56615846" type="audio/mpeg" />
+      <itunes:duration>39:16</itunes:duration>
+      <itunes:explicit>false</itunes:explicit>
+      
+      
+      <itunes:keywords />
+      
+      
+      
+      <itunes:image href="https://static.libsyn.com/p/assets/2/7/d/a/27da95502a96ffdda04421dee9605cbd/square_Working_in_Extended_Reality.jpg" />
+      
+      
+      <libsyn:widescreen-image href="https://static.libsyn.com/p/assets/5/d/9/1/5d9135e99d787fe9a04421dee9605cbd/wide-Working_in_Extended_Reality.jpg" />
+      
+      <itunes:episodeType>full</itunes:episodeType>
+      
+      
+      
+
+      <libsyn:item-id>43698619</libsyn:item-id>
+      
+      <libsyn:last-updated>2026-11-09T20:15:48Z</libsyn:last-updated>
+      
+      
+    </item>
+</channel></rss>

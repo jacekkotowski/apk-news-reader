@@ -233,6 +233,17 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void saveArticle(String id, String html) { db.saveArticle(Long.parseLong(id), html); }
         @JavascriptInterface public void setSourceEnabled(String id, boolean on) { db.setEnabled(Long.parseLong(id), on); }
         @JavascriptInterface public void removeSource(String id) { db.removeSource(Long.parseLong(id)); }
+        /** Opens the episode in the phone's own audio player; the address comes from the database, never from the page. */
+        @JavascriptInterface public void play(String id) {
+            String u;
+            try { u = db.itemAudio(Long.parseLong(id)); } catch (Exception e) { return; }
+            if (u == null || !u.startsWith("https://")) return;
+            final String url = u;
+            runOnUiThread(() -> {
+                try { startActivity(new Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse(url), "audio/*")); }
+                catch (Exception e) { try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); } catch (Exception e2) { /* no app can play it */ } }
+            });
+        }
         @JavascriptInterface public void openUrl(String url) {
             if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) return;
             runOnUiThread(() -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));

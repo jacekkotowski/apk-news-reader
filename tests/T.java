@@ -74,6 +74,26 @@ public final class T {
         yes("rss: sanitised body keeps text and good link", clean.contains("Full text") && clean.contains("href=\"https://example.com/x\"") && clean.contains("Second paragraph."));
         yes("rss: sanitised body has no script, iframe, style or javascript", !clean.contains("iframe") && !clean.contains("style") && !clean.contains("javascript") && !clean.contains("onclick"));
 
+        FeedParser.Feed yt = FeedParser.parse(file("tests/fixtures/youtube-sample.xml"), "https://www.youtube.com/feeds/videos.xml?channel_id=x");
+        eq("youtube: channel title", "StatQuest with Josh Starmer", yt.title);
+        eq("youtube: two videos", 2, yt.items.size());
+        eq("youtube: video link", "https://www.youtube.com/watch?v=euwIxfkAJMU", yt.items.get(0).link);
+        yes("youtube: description is read from media:group", yt.items.get(0).body.contains("Concepts and Code") || yt.items.get(0).body.length() > 50);
+        eq("youtube: kind is video", "video", FeedParser.kindOf(yt.items.get(0).link, yt.items.get(0).audio));
+        eq("youtube: no audio", "", yt.items.get(0).audio);
+        eq("kind: short link", "video", FeedParser.kindOf("https://youtu.be/abc", ""));
+        eq("kind: ordinary page", "", FeedParser.kindOf("https://example.com/watch?v=1", ""));
+        FeedParser.Feed pod = FeedParser.parse(file("tests/fixtures/podcast-sample.xml"), "https://dataskeptic.libsyn.com/rss");
+        eq("podcast: two episodes", 2, pod.items.size());
+        yes("podcast: audio address is https and ends in mp3 before the query", pod.items.get(0).audio.startsWith("https://") && pod.items.get(0).audio.contains(".mp3"));
+        eq("podcast: kind is audio", "audio", FeedParser.kindOf(pod.items.get(0).link, pod.items.get(0).audio));
+        FeedParser.Item ins = new FeedParser.Item(); ins.title = "Clear text"; ins.link = "https://example.com/e"; ins.audio = "http://example.com/a.mp3";
+        FeedParser.Feed fx = new FeedParser.Feed(); FeedParser.add(fx, ins, "https://example.com/f");
+        eq("audio: http is upgraded to https", "https://example.com/a.mp3", fx.items.get(0).audio);
+        FeedParser.Item bad = new FeedParser.Item(); bad.title = "Bad audio"; bad.link = "https://example.com/b"; bad.audio = "javascript:alert(1)";
+        FeedParser.add(fx, bad, "https://example.com/f");
+        eq("audio: other schemes are dropped", "", fx.items.get(1).audio);
+
         FeedParser.Feed at = FeedParser.parse(file("tests/fixtures/atom-sample.xml"), "https://example.com/atom");
         eq("atom title", "Atom Sample", at.title);
         eq("atom entries", 2, at.items.size());
@@ -396,7 +416,7 @@ public final class T {
             yes("starter url is https: " + m.group(1), m.group(1).startsWith("https://"));
             yes("starter url is unique: " + m.group(1), seen.add(m.group(1)));
         }
-        yes("starter has about 15 to 25 feeds", n >= 15 && n <= 25);
+        yes("starter has about 15 to 35 feeds", n >= 15 && n <= 35);
         yes("starter includes prokulski", s.contains("https://blog.prokulski.science/index.xml"));
         Matcher t = Pattern.compile("\"name\"\\s*:\\s*\"[^\"]+\"").matcher(s);
         int names = 0; while (t.find()) names++;

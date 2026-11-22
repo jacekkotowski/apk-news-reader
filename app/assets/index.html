@@ -103,7 +103,7 @@ var selNow={card:null,text:'',t:0};
 function card(it,mode){
   var kept=(mode==='stash');
   var c=el('div','card');
-  var m=el('div','meta');m.appendChild(el('b',null,it.source));m.appendChild(el('span',null,ago(it.pub)));m.appendChild(el('span',null,it.mins+' min'));
+  var m=el('div','meta');m.appendChild(el('b',null,it.source));m.appendChild(el('span',null,ago(it.pub)));m.appendChild(el('span',null,it.kind==='video'?'video':it.kind==='audio'?'podcast':it.mins+' min'));
   if(it.hl)m.appendChild(el('span',null,it.hl+' highlight'+(it.hl>1?'s':'')));
   c.appendChild(m);
   var h=el('h3',null,it.title);c.appendChild(h);
@@ -146,8 +146,12 @@ function card(it,mode){
       var dn=el('button','btn','Done');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};acts.appendChild(dn);
       var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};acts.appendChild(ls);
     }
-    if(d.link&&!d.article)acts.appendChild(readBtn);
+    if(d.kind==='audio'){var pl=el('button','btn main','\u25B6 Listen');pl.onclick=function(e){e.stopPropagation();A.play(it.id)};acts.appendChild(pl)}
+    if(d.kind==='video'&&d.link){var wt=el('button','btn main','\u25B6 Watch on YouTube');wt.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(wt)}
+    else{
+    if(d.link&&!d.article&&!d.kind)acts.appendChild(readBtn);
     if(d.link){var o=el('button','btn','Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(o)}
+    }
   }
   function renderMine(){
     mine.textContent='';

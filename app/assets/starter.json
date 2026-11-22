@@ -19,5 +19,12 @@
   {"name": "Claude Code releases", "url": "https://github.com/anthropics/claude-code/releases.atom", "topic": "Claude Code"},
   {"name": "Hacker News: Claude Code (30+ points)", "url": "https://hnrss.org/newest?q=%22claude+code%22&points=30", "topic": "Claude Code"},
   {"name": "Curator (daily, from the cloud)", "url": "https://raw.githubusercontent.com/jacekkotowski/apk-news-reader/curator-data/curator.xml", "topic": ""},
-  {"name": "Claude blog", "url": "https://claude.com/blog/rss.xml", "topic": "Claude Code"}
+  {"name": "Claude blog", "url": "https://claude.com/blog/rss.xml", "topic": "Claude Code"},
+  {"name": "StatQuest (YouTube)", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCtYLUTtgS3k1Fg4y5tAhLbw", "topic": "data science skills"},
+  {"name": "3Blue1Brown (YouTube)", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw", "topic": "data science skills"},
+  {"name": "Two Minute Papers (YouTube)", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg", "topic": "AI for data science"},
+  {"name": "Andrej Karpathy (YouTube)", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCXUPKJO5MZQN11PqgIvyuvQ", "topic": "AI for data science"},
+  {"name": "Anthropic (YouTube)", "url": "https://www.youtube.com/feeds/videos.xml?channel_id=UCrDwWp7EBBv4NwvScIpBDOA", "topic": "Claude Code"},
+  {"name": "Data Skeptic (podcast)", "url": "https://dataskeptic.libsyn.com/rss", "topic": "data science skills"},
+  {"name": "Practical AI (podcast)", "url": "https://feeds.transistor.fm/practical-ai-machine-learning-data-science-llm", "topic": "AI for data science"}
 ]}

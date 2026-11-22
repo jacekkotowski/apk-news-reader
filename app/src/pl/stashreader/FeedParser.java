@@ -34,6 +34,8 @@ final class FeedParser {
         long published;
         /** Why a search or recommendation brought this item, for the "why this" line; empty for ordinary feeds. */
         String because = "";
+        /** Podcast audio address from an RSS enclosure, https only; empty otherwise. */
+        String audio = "";
     }
     static final class Feed { String title = ""; final List<Item> items = new ArrayList<>(); }
     static final class FeedException extends Exception { FeedException(String m) { super(m); } }
@@ -130,6 +132,10 @@ final class FeedParser {
         i.body = content.isEmpty() ? text(e, "description") : content;
         i.published = date(text(e, "pubDate"));
         if (i.published == 0) i.published = date(text(e, "date"));
+        for (Element en : children(e, "enclosure")) {
+            String u = en.getAttribute("url").trim(), t = en.getAttribute("type").toLowerCase(Locale.ROOT);
+            if (!u.isEmpty() && (t.startsWith("audio/") || u.toLowerCase(Locale.ROOT).matches("[^?#]*\\.(mp3|m4a|aac|ogg|opus)([?#].*)?"))) { i.audio = u; break; }
+        }
         return i;
     }
 
@@ -140,6 +146,10 @@ final class FeedParser {
         String content = text(e, "content");
         i.fromContent = !content.isEmpty();
         i.body = content.isEmpty() ? text(e, "summary") : content;
+        if (i.body.isEmpty()) { // YouTube keeps the description in media:group
+            Element g = first(e, "group");
+            if (g != null) i.body = text(g, "description");
+        }
         i.link = "";
         for (Element l : children(e, "link")) {
             String rel = l.getAttribute("rel");
@@ -158,9 +168,19 @@ final class FeedParser {
         i.link = i.link.trim();
         if (!Sanitizer.isHttp(i.link)) i.link = "";
         if (i.link.regionMatches(true, 0, "http://", 0, 7)) i.link = "https://" + i.link.substring(7); // the app allows no clear-text traffic
+        if (i.audio == null) i.audio = "";
+        if (i.audio.regionMatches(true, 0, "http://", 0, 7)) i.audio = "https://" + i.audio.substring(7);
+        if (!i.audio.regionMatches(true, 0, "https://", 0, 8)) i.audio = "";
         i.uid = uid(i, feedUrl);
         for (Item o : f.items) if (o.uid.equals(i.uid)) return;
         f.items.add(i);
+    }
+
+    /** "audio" for a podcast episode, "video" for a YouTube video, otherwise "". Decides which button a card gets. */
+    static String kindOf(String link, String audio) {
+        if (audio != null && !audio.isEmpty()) return "audio";
+        if (link != null && link.matches("(?i)^https://(www\\.|m\\.)?(youtube\\.com|youtu\\.be)/.*")) return "video";
+        return "";
     }
 
     /** Normalised link when present (so the same page from two feeds is one item), then GUID, then feed and headline. */

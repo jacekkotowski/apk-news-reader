@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UCtYLUTtgS3k1Fg4y5tAhLbw"/>
+ <id>yt:channel:tYLUTtgS3k1Fg4y5tAhLbw</id>
+ <yt:channelId>tYLUTtgS3k1Fg4y5tAhLbw</yt:channelId>
+ <title>StatQuest with Josh Starmer</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UCtYLUTtgS3k1Fg4y5tAhLbw"/>
+ <author>
+  <name>StatQuest with Josh Starmer</name>
+  <uri>https://www.youtube.com/channel/UCtYLUTtgS3k1Fg4y5tAhLbw</uri>
+ </author>
+ <published>2011-05-24T01:52:48+00:00</published>
+ <entry>
+  <id>yt:video:euwIxfkAJMU</id>
+  <yt:videoId>euwIxfkAJMU</yt:videoId>
+  <yt:channelId>UCtYLUTtgS3k1Fg4y5tAhLbw</yt:channelId>
+  <title>Principal Component Analysis (PCA): Concepts and Code</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=euwIxfkAJMU"/>
+  <author>
+   <name>StatQuest with Josh Starmer</name>
+   <uri>https://www.youtube.com/channel/UCtYLUTtgS3k1Fg4y5tAhLbw</uri>
+  </author>
+  <published>2026-11-18T05:02:49+00:00</published>
+  <updated>2026-11-20T22:01:46+00:00</updated>
+  <media:group>
+   <media:title>Principal Component Analysis (PCA): Concepts and Code</media:title>
+   <media:content url="https://www.youtube.com/v/euwIxfkAJMU?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/euwIxfkAJMU/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Sign up for FREE Concepts and Code Livestreams at: https://live.statquest.org/masterclasses
+
+You can play with the PCA code here: https://github.com/StatQuest/concepts_and_code_pca
+
+If you'd like to support StatQuest, please consider...
+Patreon: https://www.patreon.com/statquest
+...or...
+YouTube Membership: https://www.youtube.com/channel/UCtYLUTtgS3k1Fg4y5tAhLbw/join
+
+...buying a book, a study guide, a t-shirt or hoodie, or a song from the StatQuest store...
+https://statquest.org/statquest-store/
+
+...or just donating to StatQuest!
+paypal: https://www.paypal.me/statquest
+venmo: @JoshStarmer
+
+Lastly, if you want to keep up with me as I research and create new StatQuests, follow me on twitter:
+https://twitter.com/joshuastarmer
+
+0:00 Awesome song and introduction
+0:36 Support Vector Machines: Concepts!
+32:06 Shameless self promotion
+34:25 Using SVMs in Python
+44:39 Visualizing the SVC classifier
+
+#StatQuest</media:description>
+   <media:community>
+    <media:starRating count="222" average="5.00" min="1" max="5"/>
+    <media:statistics views="28184"/>
+   </media:community>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:4XqexiQSx_Y</id>
+  <yt:videoId>4XqexiQSx_Y</yt:videoId>
+  <yt:channelId>UCtYLUTtgS3k1Fg4y5tAhLbw</yt:channelId>
+  <title>Reinforcement Learning with GRPO, Clearly Explained!!!</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=4XqexiQSx_Y"/>
+  <author>
+   <name>StatQuest with Josh Starmer</name>
+   <uri>https://www.youtube.com/channel/UCtYLUTtgS3k1Fg4y5tAhLbw</uri>
+  </author>
+  <published>2026-11-16T05:00:36+00:00</published>
+  <updated>2026-11-18T23:44:52+00:00</updated>
+  <media:group>
+   <media:title>Reinforcement Learning with GRPO, Clearly Explained!!!</media:title>
+   <media:content url="https://www.youtube.com/v/4XqexiQSx_Y?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/4XqexiQSx_Y/hqdefault.jpg" width="480" height="360"/>
+   <media:description>In 2024, the GRPO method for training Reasoning Models took the world by storm by simplifying the Reinforcement Learning stage of aligning a Large Language Model. In this StatQuest, we go through the GRPO loss function one step at at time, learning exactly what it does and how it does it. BAM!
+
+NOTE: This StatQuest assumes that you are already familiar with...
+The Main Ideas of Neural Networks: https://youtu.be/CqOfi41LfDw
+Backpropagation: https://youtu.be/IN2XmBhILt4
+Decoder-Only Transformers: https://youtu.be/bQ5BoolX9Ag
+
+If you'd like to support StatQuest, please consider...
+Patreon: https://www.patreon.com/statquest
+...or...
+YouTube Membership: https://www.youtube.com/channel/UCtYLUTtgS3k1Fg4y5tAhLbw/join
+
+...buying a book, a study guide, a t-shirt or hoodie, or a song from the StatQuest store...
+https://statquest.org/statquest-store/
+
+...or just donating to StatQuest!
+paypal: https://www.paypal.me/statquest
+venmo: @JoshStarmer
+
+Lastly, if you want to keep up with me as I research and create new StatQuests, follow me on twitter:
+https://twitter.com/joshuastarmer
+
+0:00 Awesome song and introduction
+1:00 The main ideas of GRPO
+6:18 A few details about GRPO
+8:15 GRPO, one step at a time
+23:28 Summary
+24:20 The KL Divergence term
+
+#StatQuest</media:description>
+   <media:community>
+    <media:starRating count="217" average="5.00" min="1" max="5"/>
+    <media:statistics views="23339"/>
+   </media:community>
+  </media:group>
+ </entry>
+</feed>
