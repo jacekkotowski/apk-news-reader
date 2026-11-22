@@ -1,0 +1,33 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "parts": [
+     {
+      "text": "{\n  \"notes_md\": \"## Key ideas\\n- Gemini 2.0 enables real-time multimodal live streaming and applications.\\n- Key features include native audio, image, tool use, spatial and video understanding.\\n- The Multimodal Live API allows building apps powered by Gemini 2.0 Flash.\\n- Tools like Google Search and code execution can be integrated.\\n- Features demonstrated include real-time interruptions and memory summaries.\\n\\n## Quotes\\n- \\\"The Multimodal Live API lets you build real-time multimodal applications powered by Gemini 2.0 Flash.\\\" (00:37)\\n- \\\"Multimodal refers to the ability to process and understand different types of data, like text, images, and audio all together.\\\" (01:00)\\n\\n## Why it matters for me\\nLearning about Gemini 2.0's real-time multimodal live streaming capabilities introduces advanced tool use patterns that could eventually interface with data tools. Exploring these real-time AI agents expands understanding of interactive model deployments.\\n\\n## Try next\\n- Explore the Multimodal Live API in AI Studio to build custom applications.\\n- Test real-time interruption and memory features in your own prototypes.\",\n  \"questions\": [\n    {\n      \"q\": \"What model powers the Multimodal Live API in the demo?\",\n      \"a\": \"Gemini 2.0 Flash.\"\n    },\n    {\n      \"q\": \"What two demonstration features were listed under 'Remember to show'?\",\n      \"a\": \"Interruptions and Memory.\"\n    },\n    {\n      \"q\": \"Where can users start building with Gemini 2.0?\",\n      \"a\": \"aistudio.google.com\"\n    }\n  ]\n}"
+     }
+    ],
+    "role": "model"
+   },
+   "finishReason": "STOP",
+   "index": 0
+  }
+ ],
+ "usageMetadata": {
+  "promptTokenCount": 13704,
+  "candidatesTokenCount": 380,
+  "totalTokenCount": 14084,
+  "promptTokensDetails": [
+   {
+    "modality": "TEXT",
+    "tokenCount": 137
+   },
+   {
+    "modality": "VIDEO",
+    "tokenCount": 13567
+   }
+  ],
+  "serviceTier": "standard"
+ },
+ "modelVersion": "gemini-3.5-flash-lite"
+}

@@ -63,6 +63,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   </div>
   <div id="recall"></div>
   <div id="chips" class="chips"></div>
+  <div id="pathbox"></div>
   <div id="keptlist"></div>
 </section>
 <section id="topics">
@@ -79,6 +80,14 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <p class="meta">Searches ask an open service for new items about your words, at most once every 3 hours each. Watching a page lists the new article links on it, at most once a day, and skips pages that robots.txt closes to robots. A watched page that builds its list with JavaScript shows nothing.</p>
   <h2>Background refresh</h2>
   <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
+  <h2>Gemini (optional)</h2>
+  <div class="panel">
+    <div class="meta" id="gstate"></div>
+    <div class="add"><input id="gkey" type="password" placeholder="Paste your Gemini API key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="gsave">Save</button></div>
+    <div class="acts"><button class="btn" id="gtest">Test key</button><button class="btn" id="gclear">Remove key</button></div>
+    <div id="gmsg" class="note"></div>
+    <p class="meta">With a free key from aistudio.google.com, cards get a Make notes button and the Stash can make a learning path. Free tier: Google may use what you send to improve its products. Only public links, article text, titles and highlighted passages are sent. Your own notes are never sent. The key stays on this phone.</p>
+  </div>
   <h2>Sources</h2><div id="srclist"></div>
   <p class="meta" id="ver"></p>
 </section>
@@ -89,7 +98,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
 var KL={};
-var recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
+var aiBusy=0,recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
 function J(s){try{return JSON.parse(s)}catch(e){return []}}
@@ -112,7 +121,7 @@ function card(it,mode){
   if(it.why)c.appendChild(el('div','why','Why this: '+it.why));
   if(it.topic)c.appendChild(el('span','chip',it.topic));
   var b=el('div','body');c.appendChild(b);
-  var loaded=false,d={},failed=false,label,text,note,readBtn,acts,mine;
+  var loaded=false,d={},failed=false,label,text,note,readBtn,acts,mine,aiBox;
   function paint(){
     if(d.article){label.textContent='Full article, reader mode (saved on this phone)';text.innerHTML=d.article}
     else{
@@ -147,12 +156,24 @@ function card(it,mode){
       var dn=el('button','btn','Done');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};acts.appendChild(dn);
       var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();A.less(it.id);gone(c)};acts.appendChild(ls);
     }
+    if(A.geminiKeySet&&A.geminiKeySet()&&d.kind!=='audio'&&!d.ai){
+      var mk=el('button','btn','Make notes');
+      mk.onclick=function(e){e.stopPropagation();mk.disabled=true;mk.textContent='Asking Gemini...';note.textContent='';A.makeNotes(it.id);
+        gstart('notes:'+it.id,function(ok,m){if(ok){d=J(A.item(it.id));buildActs();renderAi()}else{mk.disabled=false;mk.textContent='Make notes';note.textContent=m}})};
+      acts.appendChild(mk);
+    }
     if(d.kind==='audio'){var pl=el('button','btn main','\u25B6 Listen');pl.onclick=function(e){e.stopPropagation();A.play(it.id)};acts.appendChild(pl)}
     if(d.kind==='video'&&d.link){var wt=el('button','btn main','\u25B6 Watch on YouTube');wt.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(wt)}
     else{
     if(d.link&&!d.article&&!d.kind)acts.appendChild(readBtn);
     if(d.link){var o=el('button','btn','Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(o)}
     }
+  }
+  function renderAi(){
+    aiBox.textContent='';
+    if(!d.ai)return;
+    aiBox.appendChild(el('div','label','AI notes (Gemini), not the article'));
+    aiBox.appendChild(mdBlock(d.ai));
   }
   function renderMine(){
     mine.textContent='';
@@ -193,10 +214,11 @@ function card(it,mode){
       text.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href)A.openUrl(a.href)}});
       note=el('div','note');b.appendChild(note);
       paint();
+      aiBox=el('div','mine');b.appendChild(aiBox);
       mine=el('div','mine');b.appendChild(mine);
       readBtn=el('button','btn','Read full article');
       readBtn.onclick=function(e){e.stopPropagation();readBtn.disabled=true;readBtn.textContent='Loading page...';note.textContent='';A.fetchPage(it.id);poll(0)};
-      buildActs();renderMine();
+      buildActs();renderMine();renderAi();
     }
   }
   c.addEventListener('click',function(e){if(!c.classList.contains('open')||e.target===h||e.target.closest('.meta'))toggle()});
@@ -223,7 +245,7 @@ function render(){
     else if(items.length>=300)box.appendChild(el('div','empty','Showing the newest 300. Mark some as Done to see older ones.'));
   }else if(tab==='kept'){
     $('folder').textContent=(A.exportFolder&&A.exportFolder())||'not set';
-    renderRecall();
+    renderRecall();renderPath();
     var kb=$('keptlist');kb.textContent='';
     var ki=J(A.kept());
     var tp={};ki.forEach(function(it){(it.topics||[]).forEach(function(x){tp[x]=(tp[x]||0)+1})});
@@ -262,9 +284,65 @@ function render(){
       if(x.custom||q){var rm=el('button','btn','Remove');rm.onclick=function(){A.removeSource(x.id);render()};r.appendChild(rm)}
       l.appendChild(r);
     });
-    $('ver').textContent='Stash Reader '+A.version();
+    $('ver').textContent='Stash Reader '+A.version();renderGemini();
     var sel=$('hours');if(sel&&A.refreshHours)sel.value=''+A.refreshHours();
   }
+}
+function gstart(key,done){
+  aiBusy++;var n=0;
+  (function poll(){
+    var r=A.geminiResult(key);
+    if(!r&&n++<300){setTimeout(poll,700);return}
+    aiBusy=Math.max(0,aiBusy-1);
+    if(!r)r='err:Gemini took too long.';
+    done(r.indexOf('ok:')===0,r.slice(r.indexOf(':')+1));
+  })();
+}
+function mdBlock(md){
+  var w=el('div','aimd');
+  String(md).split('\n').forEach(function(line){
+    var t=line.trim().replace(/\*\*/g,'');if(!t)return;
+    if(t.indexOf('### ')===0){var h4=el('div','label',t.slice(4));h4.style.marginTop='8px';w.appendChild(h4)}
+    else if(t.indexOf('## ')===0){var h=el('div','label',t.slice(3));h.style.marginTop='10px';w.appendChild(h)}
+    else if(/^[-*] /.test(t)){var li=el('p',null,'\u2022 '+t.slice(2));li.style.margin='2px 0 2px 8px';w.appendChild(li)}
+    else if(/^\*[^*].*\*$/.test(t)){w.appendChild(el('div','meta',t.slice(1,-1)))}
+    else{var p=el('p',null,t);p.style.margin='2px 0';w.appendChild(p)}
+  });
+  return w;
+}
+function renderPath(){
+  var box=$('pathbox');box.textContent='';
+  if(!topicFilter)return;
+  var has=!!(A.geminiKeySet&&A.geminiKeySet());
+  var p=J(A.pathJson?A.pathJson(topicFilter):'{}');
+  var panel=el('div','panel');
+  if(p&&p.md){
+    panel.appendChild(el('div','label','Learning path: '+topicFilter+' (Gemini, from what you kept)'));
+    panel.appendChild(mdBlock(p.md));
+    if((p.searches||[]).length){
+      panel.appendChild(el('div','label','Fill the gaps'));
+      p.searches.forEach(function(s){
+        var b=el('button','btn',(s.kind==='hn'?'Hacker News: ':'arXiv: ')+s.query);b.style.margin='0 6px 6px 0';
+        b.onclick=function(){var m=A.addQuerySource(s.kind,s.query);b.disabled=true;b.textContent=m?m:'Added: '+s.query;wasBusy=true};
+        panel.appendChild(b);
+      });
+    }
+  }
+  var msg=el('div','note');
+  if(has){
+    var mk=el('button',p&&p.md?'btn':'btn main',p&&p.md?'Make it again':'Make a learning path for '+topicFilter);
+    mk.style.marginTop='8px';
+    mk.onclick=function(){
+      mk.disabled=true;mk.textContent='Asking Gemini...';msg.textContent='';
+      var t=topicFilter;A.makePath(t);
+      gstart('path:'+t,function(ok,m){if(ok&&topicFilter===t)renderPath();else{mk.disabled=false;mk.textContent='Make a learning path for '+t;if(!ok)msg.textContent=m}});
+    };
+    panel.appendChild(mk);
+  }else if(!(p&&p.md)){panel.appendChild(el('div','meta','Add a free Gemini key in Sources to make a learning path from what you kept under this topic.'))}
+  panel.appendChild(msg);box.appendChild(panel);
+}
+function renderGemini(){
+  $('gstate').textContent=(A.geminiKeySet&&A.geminiKeySet())?'A key is saved on this phone.':'No key yet.';
 }
 function renderRecall(){
   var box=$('recall');box.textContent='';recallOn=false;
@@ -313,7 +391,7 @@ function status(){
   if(wasBusy&&!s.refreshing)pending=true;
   wasBusy=!!s.refreshing;
   // never redraw under a card that is open: the reader would lose their place, a highlight or a note
-  if(pending){if(recallOn){}else if(document.querySelector('.card.open')){if(!s.refreshing)$('stat').textContent='New items are ready; close the open card to show them'}else{pending=false;render()}}
+  if(pending){if(recallOn||aiBusy){}else if(document.querySelector('.card.open')){if(!s.refreshing)$('stat').textContent='New items are ready; close the open card to show them'}else{pending=false;render()}}
 }
 function show(t){
   tab=t;pending=false;['feed','kept','topics','sources'].forEach(function(n){$(n).classList.toggle('on',n===t)});
@@ -339,6 +417,13 @@ window.exportMsg=function(m){$('exportMsg').textContent=m};
   function ph(){var w=sel.value==='watch'||sel.value==='sitemap';$('qtext').placeholder=w?'Page address, e.g. example.org/blog':(sel.value==='hf'?'Optional word filter':'What to search for')}
   sel.onchange=ph;ph()})();
 $('qadd').onclick=function(){var m=A.addQuerySource($('qkind').value,$('qtext').value);$('qmsg').textContent=m;if(!m){$('qtext').value='';wasBusy=true}render()};
+$('gsave').onclick=function(){var m=A.setGeminiKey?A.setGeminiKey($('gkey').value):'';$('gmsg').textContent=m||'Saved on this phone.';if(!m)$('gkey').value='';renderGemini()};
+$('gclear').onclick=function(){A.setGeminiKey('');$('gmsg').textContent='Key removed.';renderGemini()};
+$('gtest').onclick=function(){
+  if(!(A.geminiKeySet&&A.geminiKeySet())){$('gmsg').textContent='Save a key first.';return}
+  $('gtest').disabled=true;$('gmsg').textContent='Asking Gemini...';A.testGemini();
+  gstart('test',function(ok,m){$('gtest').disabled=false;$('gmsg').textContent=m;$('gmsg').style.color=ok?'var(--ok)':''});
+};
 $('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
 $('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
 render();status();setInterval(status,1500);

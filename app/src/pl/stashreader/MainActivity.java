@@ -24,6 +24,30 @@ public class MainActivity extends Activity {
     private android.content.SharedPreferences prefs;
     private static final int DEFAULT_HOURS = 6;
     private volatile String addState = "";
+    private final java.util.concurrent.ExecutorService gemExec = java.util.concurrent.Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.ConcurrentHashMap<String, String> gemResults = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private interface Job { String run() throws Exception; }
+
+    /** Runs one Gemini job at a time in the background; the result is read later with geminiResult(). */
+    private void gem(final String key, final Job job) {
+        gemResults.remove(key);
+        gemExec.execute(() -> {
+            String out;
+            try { out = "ok:" + job.run(); }
+            catch (Gemini.GeminiException e) { out = "err:" + e.getMessage(); }
+            catch (java.net.UnknownHostException e) { out = "err:No network, so Gemini could not be reached."; }
+            catch (java.net.SocketTimeoutException e) { out = "err:Gemini took too long to answer."; }
+            catch (Exception e) { out = "err:" + e.getMessage(); }
+            gemResults.put(key, out);
+        });
+    }
+
+    private String apiKey() throws Gemini.GeminiException {
+        String k = prefs.getString("geminiKey", "");
+        if (k.isEmpty()) throw new Gemini.GeminiException("Add your Gemini key in Sources first.");
+        return k;
+    }
     private final java.util.concurrent.ConcurrentHashMap<String, String> pages = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override protected void onCreate(Bundle b) {
@@ -276,6 +300,56 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public String recall() { try { return db.recallJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public void recallAnswer(String id, boolean ok) { db.recallAnswer(Long.parseLong(id), ok); }
+        @JavascriptInterface public boolean geminiKeySet() { return !prefs.getString("geminiKey", "").isEmpty(); }
+        @JavascriptInterface public String setGeminiKey(String k) {
+            String v = k == null ? "" : k.trim();
+            if (!v.isEmpty() && (v.length() < 20 || v.length() > 200 || v.matches(".*\\s.*"))) return "That does not look like an API key.";
+            prefs.edit().putString("geminiKey", v).apply();
+            return "";
+        }
+        @JavascriptInterface public void testGemini() {
+            gem("test", () -> "Gemini accepted the key (" + Gemini.MODEL + " answered: " + Gemini.ask(apiKey(), Gemini.pingRequest(), Refresher.AGENT).trim() + ").");
+        }
+        /** "" while the job runs, then "ok:..." or "err:..." once. */
+        @JavascriptInterface public String geminiResult(String key) { String v = gemResults.remove(key); return v == null ? "" : v; }
+        @JavascriptInterface public String pathJson(String topic) { return db.pathJson(topic); }
+        @JavascriptInterface public void makeNotes(final String id) {
+            gem("notes:" + id, () -> {
+                long item = Long.parseLong(id);
+                String[] in = db.notesInput(item);
+                if (in == null) throw new Gemini.GeminiException("That item is gone.");
+                String kind = FeedParser.kindOf(in[1], in[4]);
+                if (kind.equals("audio")) throw new Gemini.GeminiException("Notes are not made for podcast episodes.");
+                String topics = db.topicNames(), request, basis;
+                if (kind.equals("video")) {
+                    request = Gemini.notesRequest(topics, in[0], in[1], "");
+                    basis = "the video";
+                } else {
+                    String text = Sanitizer.text(in[2]);
+                    basis = "the saved article";
+                    if (text.length() < 400 && !in[1].isEmpty()) {
+                        try { text = Sanitizer.text(Sanitizer.clean(Refresher.fetchPage(in[1]), 400000)); basis = "the page text"; } catch (Exception e) { text = ""; }
+                    }
+                    if (text.length() < 400) { text = Sanitizer.text(in[3]); basis = "the feed excerpt only"; }
+                    if (text.length() < 200) throw new Gemini.GeminiException("There is not enough text to make notes from. Try Read full article first.");
+                    request = Gemini.notesRequest(topics, in[0], "", text);
+                }
+                Gemini.Notes n = Gemini.parseNotes(Gemini.ask(apiKey(), request, Refresher.AGENT));
+                db.saveAi(item, "*Based on " + basis + ".*\n\n" + n.md, n.questions);
+                sync(item);
+                return "Notes saved.";
+            });
+        }
+        @JavascriptInterface public void makePath(final String topic) {
+            gem("path:" + topic, () -> {
+                String material = db.pathMaterial(topic);
+                if (material.isEmpty()) throw new Gemini.GeminiException("Nothing is kept under this topic yet.");
+                Gemini.Path p = Gemini.parsePath(Gemini.ask(apiKey(), Gemini.pathRequest(topic, db.topicNames(), material), Refresher.AGENT));
+                db.savePath(topic, p.md, p.searches);
+                String e = Exporter.writeText(MainActivity.this, MarkdownExport.pathFileName(topic), MarkdownExport.pathNote(topic, p.md, System.currentTimeMillis(), java.util.TimeZone.getDefault()));
+                return e.isEmpty() ? "Learning path saved." : "Learning path saved. " + e;
+            });
+        }
         @JavascriptInterface public void openUrl(String url) {
             if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) return;
             runOnUiThread(() -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));

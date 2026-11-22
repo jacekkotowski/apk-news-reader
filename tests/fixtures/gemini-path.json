@@ -1,0 +1,29 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "parts": [
+     {
+      "text": "{\n  \"path_md\": \"## Order to learn\\n\\n### Basics\\n1. Getting started with tidymodels\\n   - This is the foundation for understanding how recipes and modeling steps work together in tidymodels.\\n\\n### Core\\n2. Tuning a random forest with tidymodels\\n   - Building upon the basics, this covers model optimization and cross-validation performance estimation.\\n\\n## Gaps\\n- Lack of advanced hyperparameter tuning strategies like Bayesian optimization.\\n- Absence of practical deployment workflows for trained tidymodels.\\n- No coverage of handling missing data specifically within recipes.\\n- Missing integration techniques between tidymodels and causal inference frameworks.\",\n  \"searches\": [\n    {\n      \"kind\": \"arxiv\",\n      \"query\": \"bayesian hyperparameter tuning\"\n    },\n    {\n      \"kind\": \"hn\",\n      \"query\": \"tidymodels machine learning\"\n    },\n    {\n      \"kind\": \"arxiv\",\n      \"query\": \"causal inference machine learning\"\n    }\n  ]\n}"
+     }
+    ],
+    "role": "model"
+   },
+   "finishReason": "STOP",
+   "index": 0
+  }
+ ],
+ "usageMetadata": {
+  "promptTokenCount": 257,
+  "candidatesTokenCount": 243,
+  "totalTokenCount": 500,
+  "promptTokensDetails": [
+   {
+    "modality": "TEXT",
+    "tokenCount": 257
+   }
+  ],
+  "serviceTier": "standard"
+ },
+ "modelVersion": "gemini-3.5-flash-lite"
+}

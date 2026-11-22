@@ -22,6 +22,7 @@ public final class T {
         sanitizer();
         feeds();
         shareAndRecall();
+        gemini();
         starter();
         discovery();
         pageText();
@@ -57,6 +58,73 @@ public final class T {
         eq("word count", 3, Sanitizer.words("one two  three"));
         eq("attr unquoted", "https://a.b", Sanitizer.attr(" href=https://a.b class=x", "href"));
         eq("attr not fooled by data-href", null, Sanitizer.attr(" data-href=\"https://a.b\"", "href"));
+    }
+
+    static String text(String p) throws Exception { return new String(file(p), java.nio.charset.StandardCharsets.UTF_8); }
+
+    static String thrown(java.util.concurrent.Callable<Object> c) {
+        try { c.call(); return ""; } catch (Exception e) { return String.valueOf(e.getMessage()); }
+    }
+
+    static void gemini() throws Exception {
+        eq("gemini esc: quotes, newline, backslash", "a\\\"b\\nc\\\\d", Gemini.esc("a\"b\nc\\d"));
+        eq("gemini esc: control character", "\\u0001", Gemini.esc("\u0001"));
+
+        // requests must be valid JSON of the right shape
+        Object vid = Json.parse(Gemini.notesRequest("tidymodels, Power BI", "A talk \"quoted\"", "https://www.youtube.com/watch?v=9hE5-98ZeCg", ""));
+        String vj = Gemini.notesRequest("tidymodels", "T", "https://www.youtube.com/watch?v=9hE5-98ZeCg", "");
+        yes("gemini: video request is JSON", Json.obj(vid) != null);
+        yes("gemini: video request carries the YouTube address as fileData", vj.contains("\"fileData\":{\"fileUri\":\"https://www.youtube.com/watch?v=9hE5-98ZeCg\"}"));
+        String aj = Gemini.notesRequest("tidymodels", "T", "", "Line one\nLine \"two\"");
+        yes("gemini: article request is JSON", Json.obj(Json.parse(aj)) != null);
+        yes("gemini: article request has no video part and sends the text", !aj.contains("fileData") && aj.contains("Line one\\nLine \\\"two\\\""));
+        yes("gemini: structured output is asked for", aj.contains("\"responseMimeType\":\"application/json\"") && aj.contains("\"responseSchema\""));
+        StringBuilder big = new StringBuilder(); for (int i = 0; i < 50000; i++) big.append('x');
+        yes("gemini: article text is capped", Gemini.notesRequest("", "T", "", big.toString()).length() < Gemini.MAX_TEXT + 3000);
+        String pj = Gemini.pathRequest("tidymodels", "Power BI", "- A (S)\n  highlight: \"x\"\n");
+        yes("gemini: path request is JSON and never mentions notes", Json.obj(Json.parse(pj)) != null && !pj.toLowerCase().contains("my note"));
+        yes("gemini: ping request is JSON", Json.obj(Json.parse(Gemini.pingRequest())) != null);
+
+        // real answers recorded from the live API
+        eq("gemini: ping answer", "OK", Gemini.replyText(200, text("tests/fixtures/gemini-ping.json")).trim());
+        Gemini.Notes nv = Gemini.parseNotes(Gemini.replyText(200, text("tests/fixtures/gemini-video.json")));
+        yes("gemini: video notes have the sections", nv.md.contains("## Key ideas") && nv.md.contains("## Quotes") && nv.md.contains("## Try next"));
+        yes("gemini: video notes have questions with answers", nv.questions.size() == 3 && !nv.questions.get(0)[0].isEmpty() && !nv.questions.get(0)[1].isEmpty());
+        Gemini.Notes na = Gemini.parseNotes(Gemini.replyText(200, text("tests/fixtures/gemini-article.json")));
+        yes("gemini: article notes read", na.md.contains("## Key ideas") && na.questions.size() == 3);
+        Gemini.Path gp = Gemini.parsePath(Gemini.replyText(200, text("tests/fixtures/gemini-path.json")));
+        yes("gemini: path has order and gaps", gp.md.contains("## Order to learn") && gp.md.contains("## Gaps"));
+        yes("gemini: path searches are arxiv or hn", gp.searches.size() == 3 && gp.searches.get(0)[0].equals("arxiv") && gp.searches.get(1)[0].equals("hn"));
+
+        // errors: the wrong-key answer was recorded; the others are written by hand
+        String bad = thrown(() -> Gemini.replyText(400, text("tests/fixtures/gemini-badkey.json")));
+        yes("gemini: wrong key says so", bad.startsWith("Gemini did not accept the key") && bad.contains("API key not valid"));
+        String quota = thrown(() -> Gemini.replyText(429, "{\"error\":{\"code\":429,\"message\":\"Quota exceeded\",\"status\":\"RESOURCE_EXHAUSTED\"}}"));
+        yes("gemini: quota error is a calm sentence", quota.contains("free limit"));
+        yes("gemini: unknown model", thrown(() -> Gemini.replyText(404, "{\"error\":{\"code\":404,\"message\":\"not found\"}}")).contains("needs an update"));
+        yes("gemini: private video", thrown(() -> Gemini.replyText(400, "{\"error\":{\"code\":400,\"message\":\"Failed to process YouTube video\"}}")).contains("must be public"));
+        yes("gemini: html error page", thrown(() -> Gemini.replyText(502, "<html>Bad gateway</html>")).startsWith("Gemini answered HTTP 502"));
+        yes("gemini: blocked prompt", thrown(() -> Gemini.replyText(200, "{\"promptFeedback\":{\"blockReason\":\"SAFETY\"}}")).contains("SAFETY"));
+        yes("gemini: no candidates", thrown(() -> Gemini.replyText(200, "{\"candidates\":[]}")).contains("no text"));
+
+        // tolerant parsing
+        eq("gemini: code fences around the JSON are stripped", "x", Gemini.parseNotes("```json\n{\"notes_md\":\"x\",\"questions\":[]}\n```").md);
+        yes("gemini: empty notes are refused", thrown(() -> Gemini.parseNotes("{\"notes_md\":\"\",\"questions\":[]}")).contains("empty"));
+        yes("gemini: not JSON is refused", thrown(() -> Gemini.parseNotes("Sure! Here are your notes")).contains("could not be read"));
+        Gemini.Path odd = Gemini.parsePath("{\"path_md\":\"## Order to learn\",\"searches\":[{\"kind\":\"google\",\"query\":\"x\"},{\"kind\":\"HN\",\"query\":\"duckdb\"},{\"kind\":\"arxiv\",\"query\":\"\"}]}");
+        yes("gemini: unknown kinds and empty queries are dropped, kind is lower-cased", odd.searches.size() == 1 && odd.searches.get(0)[0].equals("hn") && odd.searches.get(0)[1].equals("duckdb"));
+
+        // export
+        MarkdownExport.Note n = new MarkdownExport.Note();
+        n.title = "T"; n.source = "S"; n.url = "https://example.com/t"; n.ai = "*Based on the video.*\n\n## Key ideas\n- one";
+        String md = MarkdownExport.note(n, java.util.TimeZone.getTimeZone("UTC"));
+        yes("export: AI notes are labelled and their headings demoted", md.contains("## AI notes (Gemini, not the article)") && md.contains("### Key ideas") && !md.contains("\n## Key ideas"));
+        MarkdownExport.Note plain = new MarkdownExport.Note(); plain.title = "T"; plain.source = "S";
+        yes("export: no AI section when there are no AI notes", !MarkdownExport.note(plain, java.util.TimeZone.getTimeZone("UTC")).contains("AI notes"));
+        String pn = MarkdownExport.pathNote("tidymodels", "## Order to learn\n1. A", 1794303000000L, java.util.TimeZone.getTimeZone("UTC"));
+        yes("export: path note has front matter and the path", pn.startsWith("---\ntitle: ") && pn.contains("# Learning path: tidymodels") && pn.contains("## Order to learn"));
+        eq("export: path file name", "Path - Power BI DAX.md", MarkdownExport.pathFileName("Power BI / DAX"));
+        eq("export: path file name for an empty topic", "Path - topic.md", MarkdownExport.pathFileName("///"));
     }
 
     static void shareAndRecall() {

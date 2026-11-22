@@ -35,16 +35,17 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 9); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 10); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '')");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '')");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
         createHighlights(d);
         createCards(d);
+        createPaths(d);
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
             for (int k = 0; k < a.length(); k++) {
@@ -105,6 +106,14 @@ final class Db extends SQLiteOpenHelper {
             createCards(d);
             d.execSQL("INSERT INTO cards(item_id, hl_id, due) SELECT item_id, id, created + " + Recall.DAY + " FROM highlights");
         }
+        if (o < 10) { // AI notes on items, and learning paths per topic
+            d.execSQL("ALTER TABLE items ADD COLUMN ai TEXT NOT NULL DEFAULT ''");
+            createPaths(d);
+        }
+    }
+
+    private void createPaths(SQLiteDatabase d) {
+        d.execSQL("CREATE TABLE paths(topic TEXT PRIMARY KEY, md TEXT NOT NULL, searches TEXT NOT NULL DEFAULT '[]', created INTEGER NOT NULL)");
     }
 
     private void createCards(SQLiteDatabase d) {
@@ -463,10 +472,10 @@ final class Db extends SQLiteOpenHelper {
 
     /** Everything the Markdown note needs, or null when the item is gone or not kept. */
     MarkdownExport.Note noteFor(long id) {
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.link, i.pub, i.kept_at, i.note, s.topic, i.excerpt, i.state FROM items i JOIN sources s ON s.id=i.source_id WHERE i.id=?", new String[]{"" + id})) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.link, i.pub, i.kept_at, i.note, s.topic, i.excerpt, i.state, i.ai FROM items i JOIN sources s ON s.id=i.source_id WHERE i.id=?", new String[]{"" + id})) {
             if (!c.moveToFirst() || c.getInt(8) != KEPT) return null;
             MarkdownExport.Note n = new MarkdownExport.Note();
-            n.title = c.getString(0); n.source = c.getString(1); n.url = c.getString(2); n.published = c.getLong(3); n.keptAt = c.getLong(4); n.note = c.getString(5);
+            n.title = c.getString(0); n.source = c.getString(1); n.url = c.getString(2); n.published = c.getLong(3); n.keptAt = c.getLong(4); n.note = c.getString(5); n.ai = c.getString(9);
             java.util.Set<String> seen = new java.util.HashSet<>();
             if (!c.getString(6).isEmpty() && seen.add(c.getString(6).toLowerCase(java.util.Locale.ROOT))) n.topics.add(c.getString(6));
             for (String t : Ranker.matchedTopics(n.title + " " + c.getString(7), topicList())) if (seen.add(t.toLowerCase(java.util.Locale.ROOT))) n.topics.add(t);
@@ -484,14 +493,96 @@ final class Db extends SQLiteOpenHelper {
         }
     }
 
+    private static String oneLine(String s) { return s == null ? "" : s.replaceAll("\\s+", " ").trim(); }
+
+    /** What the notes request needs for one item: title, link, saved article (HTML), feed text (HTML), audio address; null when gone. */
+    String[] notesInput(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT title, link, article, html, audio FROM items WHERE id=?", new String[]{"" + id})) {
+            if (!c.moveToFirst()) return null;
+            return new String[]{c.getString(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4)};
+        }
+    }
+
+    /** The topics you follow, strongest first, as one line for a prompt. */
+    String topicNames() {
+        StringBuilder b = new StringBuilder();
+        int n = 0;
+        for (Ranker.Topic t : topicList()) {
+            if (t.weight <= 0 || n >= 12) continue;
+            if (b.length() > 0) b.append(", ");
+            b.append(t.phrase); n++;
+        }
+        return b.toString();
+    }
+
+    /** Saves the AI notes and turns the questions into recall cards (the earlier ones for this item are replaced). */
+    void saveAi(long id, String md, List<String[]> questions) {
+        SQLiteDatabase d = getWritableDatabase();
+        d.beginTransaction();
+        try {
+            ContentValues v = new ContentValues(); v.put("ai", md);
+            d.update("items", v, "id=?", new String[]{"" + id});
+            d.delete("cards", "item_id=? AND hl_id IS NULL", new String[]{"" + id});
+            long due = System.currentTimeMillis() + Recall.DAY;
+            for (String[] q : questions) {
+                ContentValues cv = new ContentValues();
+                cv.put("item_id", id); cv.put("front", q[0]); cv.put("back", q[1]); cv.put("due", due);
+                d.insert("cards", null, cv);
+            }
+            d.setTransactionSuccessful();
+        } finally { d.endTransaction(); }
+    }
+
+    /** Titles, sources and highlighted passages of the kept items on one topic, for the learning path. Never your own notes. */
+    String pathMaterial(String topic) {
+        StringBuilder b = new StringBuilder();
+        String want = topic.toLowerCase(java.util.Locale.ROOT);
+        List<Ranker.Topic> topics = topicList();
+        SQLiteDatabase d = getReadableDatabase();
+        int n = 0;
+        try (Cursor c = d.rawQuery("SELECT i.id, i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.excerpt, s.topic FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + KEPT + " ORDER BY i.kept_at DESC, i.id DESC LIMIT 300", null)) {
+            while (c.moveToNext() && n < 40 && b.length() < 15000) {
+                boolean hit = c.getString(4).toLowerCase(java.util.Locale.ROOT).equals(want);
+                if (!hit) for (String t : Ranker.matchedTopics(c.getString(1) + " " + c.getString(3), topics)) if (t.toLowerCase(java.util.Locale.ROOT).equals(want)) { hit = true; break; }
+                if (!hit) continue;
+                n++;
+                b.append("- ").append(oneLine(c.getString(1))).append(" (").append(oneLine(c.getString(2))).append(")\n");
+                try (Cursor h = d.rawQuery("SELECT text FROM highlights WHERE item_id=? ORDER BY id LIMIT 3", new String[]{"" + c.getLong(0)})) {
+                    while (h.moveToNext()) {
+                        String t = oneLine(h.getString(0));
+                        if (t.length() > 300) t = t.substring(0, 300);
+                        b.append("  highlight: \"").append(t).append("\"\n");
+                    }
+                }
+            }
+        }
+        return b.toString();
+    }
+
+    void savePath(String topic, String md, List<String[]> searches) {
+        JSONArray a = new JSONArray();
+        try { for (String[] s : searches) { JSONObject o = new JSONObject(); o.put("kind", s[0]); o.put("query", s[1]); a.put(o); } } catch (Exception ignored) { }
+        ContentValues v = new ContentValues();
+        v.put("topic", topic); v.put("md", md); v.put("searches", a.toString()); v.put("created", System.currentTimeMillis());
+        getWritableDatabase().insertWithOnConflict("paths", null, v, SQLiteDatabase.CONFLICT_REPLACE);
+    }
+
+    String pathJson(String topic) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT md, searches, created FROM paths WHERE topic=?", new String[]{topic})) {
+            JSONObject o = new JSONObject();
+            if (c.moveToFirst()) { o.put("md", c.getString(0)); o.put("searches", new JSONArray(c.getString(1))); o.put("created", c.getLong(2)); }
+            return o.toString();
+        } catch (Exception e) { return "{}"; }
+    }
+
     String itemAudio(long id) {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT audio FROM items WHERE id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getString(0) : ""; }
     }
 
     String itemJson(long id) throws Exception {
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt, article, note, state, audio FROM items WHERE id=?", new String[]{"" + id})) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT html, full, link, excerpt, article, note, state, audio, ai FROM items WHERE id=?", new String[]{"" + id})) {
             JSONObject o = new JSONObject();
-            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); o.put("article", c.getString(4)); o.put("note", c.getString(5)); o.put("state", c.getInt(6)); o.put("kind", FeedParser.kindOf(c.getString(2), c.getString(7))); }
+            if (c.moveToFirst()) { o.put("html", c.getString(0)); o.put("full", c.getInt(1) != 0); o.put("link", c.getString(2)); o.put("excerpt", c.getString(3)); o.put("article", c.getString(4)); o.put("note", c.getString(5)); o.put("state", c.getInt(6)); o.put("kind", FeedParser.kindOf(c.getString(2), c.getString(7))); o.put("ai", c.getString(8)); }
             return o.toString();
         }
     }

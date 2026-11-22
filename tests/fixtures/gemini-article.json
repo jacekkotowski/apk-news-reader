@@ -1,0 +1,29 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "parts": [
+     {
+      "text": "{\n  \"notes_md\": \"## Key ideas\\n- Body\\n- Body\\n- Body\\n- Body\\n- Body\\n\\n## Quotes\\n- \\\"Body\\\"\\n\\n## Why it matters for me\\nThis content is minimal and serves as a placeholder for the study notes. It provides a foundation for organizing future machine learning and data analysis concepts.\\n\\n## Try next\\n- Review additional source material.\\n- Summarize the main topics.\",\n  \"questions\": [\n    {\n      \"q\": \"What is the content of the article?\",\n      \"a\": \"Body\"\n    },\n    {\n      \"q\": \"How many key ideas are listed?\",\n      \"a\": \"Five\"\n    },\n    {\n      \"q\": \"What is the title of the article?\",\n      \"a\": \"Sample article\"\n    }\n  ]\n}"
+     }
+    ],
+    "role": "model"
+   },
+   "finishReason": "STOP",
+   "index": 0
+  }
+ ],
+ "usageMetadata": {
+  "promptTokenCount": 138,
+  "candidatesTokenCount": 200,
+  "totalTokenCount": 338,
+  "promptTokensDetails": [
+   {
+    "modality": "TEXT",
+    "tokenCount": 138
+   }
+  ],
+  "serviceTier": "standard"
+ },
+ "modelVersion": "gemini-3.5-flash-lite"
+}

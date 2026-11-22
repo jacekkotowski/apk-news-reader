@@ -14,6 +14,8 @@ final class MarkdownExport {
     static final class Highlight { final String text, note; Highlight(String t, String n) { text = t; note = n == null ? "" : n; } }
     static final class Note {
         String title = "", source = "", url = "", note = "";
+        /** Gemini notes (Markdown), shown in the note as AI text, never as the article. */
+        String ai = "";
         long published, keptAt;
         final List<String> topics = new ArrayList<>();
         final List<Highlight> highlights = new ArrayList<>();
@@ -41,11 +43,25 @@ final class MarkdownExport {
                 b.append('\n');
             }
         }
+        if (!n.ai.trim().isEmpty()) {
+            b.append("## AI notes (Gemini, not the article)\n\n").append(n.ai.trim().replaceAll("(?m)^## ", "### ")).append("\n\n");
+        }
         if (!n.note.trim().isEmpty()) {
             b.append("## My note\n\n").append(n.note.trim()).append("\n");
         }
         String out = b.toString();
         return out.endsWith("\n\n") ? out.substring(0, out.length() - 1) : out;
+    }
+
+    /** A learning path as a note: front matter, then the Markdown Gemini made from what was kept. */
+    static String pathNote(String topic, String md, long now, TimeZone tz) {
+        return "---\ntitle: " + yaml("Learning path: " + topic) + "\ntopic: " + yaml(topic) + "\ncreated: " + day(now, tz) + "\n---\n\n# Learning path: " + oneLine(topic) + "\n\n" + md.trim() + "\n";
+    }
+
+    static String pathFileName(String topic) {
+        String t = topic.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", " ").replaceAll("\\s+", " ").trim();
+        if (t.length() > 80) t = t.substring(0, 80).trim();
+        return "Path - " + (t.isEmpty() ? "topic" : t) + ".md";
     }
 
     /** "YYYY-MM-DD title.md": the day the item was kept, then a file-name-safe title. */

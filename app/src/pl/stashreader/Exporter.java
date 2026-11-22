@@ -41,13 +41,17 @@ final class Exporter {
 
     /** Writes or rewrites the note's file. Returns "" on success, "" when no folder is set, else a message. */
     static String write(Context c, Db db, long id) {
+        MarkdownExport.Note n = db.noteFor(id);
+        if (n == null || folder(c) == null) return "";
+        return writeText(c, MarkdownExport.fileName(n, TimeZone.getDefault()), MarkdownExport.note(n, TimeZone.getDefault()));
+    }
+
+    /** Writes or rewrites one Markdown file in the chosen folder. "" on success or when no folder is set, else a message. */
+    static String writeText(Context c, String name, String text) {
         Uri tree = folder(c);
         if (tree == null) return "";
-        MarkdownExport.Note n = db.noteFor(id);
-        if (n == null) return "";
         try {
-            String name = MarkdownExport.fileName(n, TimeZone.getDefault());
-            byte[] bytes = MarkdownExport.note(n, TimeZone.getDefault()).getBytes(StandardCharsets.UTF_8);
+            byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
             Uri parent = DocumentsContract.buildDocumentUriUsingTree(tree, DocumentsContract.getTreeDocumentId(tree));
             Uri existing = find(c, tree, name);
             Uri target = existing != null ? existing : DocumentsContract.createDocument(c.getContentResolver(), parent, "text/markdown", name);
