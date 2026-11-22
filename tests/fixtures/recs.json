@@ -1,0 +1,5 @@
+{"recommendedPapers": [
+  {"paperId": "r1", "title": "Conformal prediction for treatment effects", "abstract": "We build intervals for individual effects.", "year": 2026, "url": "https://www.semanticscholar.org/paper/r1", "publicationDate": "2026-05-01", "citationCount": 3},
+  {"paperId": "r2", "title": "Another recommended paper", "abstract": null, "year": 2025, "url": "https://www.semanticscholar.org/paper/r2", "publicationDate": null, "citationCount": 40},
+  {"paperId": "", "title": "A paper without an id is skipped", "abstract": "x", "year": 2026, "url": "u", "publicationDate": null, "citationCount": 0}
+]}

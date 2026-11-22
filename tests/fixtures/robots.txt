@@ -1,0 +1,14 @@
+# Example robots.txt
+User-agent: *
+Disallow: /private/
+Disallow: /search
+Allow: /private/public-note
+Disallow: /*.json$
+Crawl-delay: 5
+
+User-agent: BadBot
+Disallow: /
+
+User-agent: StashReader
+User-agent: OtherReader
+Disallow: /members/

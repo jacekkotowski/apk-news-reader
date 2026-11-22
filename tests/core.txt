@@ -6,3 +6,5 @@ Ranker.java
 MarkdownExport.java
 Json.java
 QuerySource.java
+Robots.java
+PageWatch.java

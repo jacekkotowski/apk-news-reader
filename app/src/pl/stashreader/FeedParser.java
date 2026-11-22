@@ -32,6 +32,8 @@ final class FeedParser {
         /** True when the body came from content:encoded or Atom content, which is usually the whole article. */
         boolean fromContent;
         long published;
+        /** Why a search or recommendation brought this item, for the "why this" line; empty for ordinary feeds. */
+        String because = "";
     }
     static final class Feed { String title = ""; final List<Item> items = new ArrayList<>(); }
     static final class FeedException extends Exception { FeedException(String m) { super(m); } }

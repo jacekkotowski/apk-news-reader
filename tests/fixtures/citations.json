@@ -1,0 +1,5 @@
+{"offset": 0, "data": [
+  {"citingPaper": {"paperId": "c1", "title": "A fresh paper that cites the seed", "abstract": "Uses the seed method.", "year": 2026, "url": "https://www.semanticscholar.org/paper/c1", "publicationDate": "2026-09-09", "citationCount": 1}},
+  {"citingPaper": {"paperId": "c2", "title": "An old citing paper", "abstract": "Too old.", "year": 2019, "url": "https://www.semanticscholar.org/paper/c2", "publicationDate": "2019-01-01", "citationCount": 100}},
+  {"citingPaper": {"paperId": "c3", "title": "Last year citing paper", "abstract": "OK.", "year": 2025, "url": "https://www.semanticscholar.org/paper/c3", "publicationDate": null, "citationCount": 5}}
+]}

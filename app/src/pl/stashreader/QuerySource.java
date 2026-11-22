@@ -18,9 +18,15 @@ final class QuerySource {
     private QuerySource() {}
 
     static final String ARXIV = "arxiv", HN = "hn", HF = "hf", REDDIT = "reddit", GITHUB = "github", S2 = "s2";
-    static final String[] KINDS = {ARXIV, HN, HF, REDDIT, GITHUB, S2};
+    /** Page watch, sitemap watch and the recommendations source are handled by their own classes. */
+    static final String WATCH = "watch", SITEMAP = "sitemap", RECS = "recs";
+    static final String[] KINDS = {ARXIV, HN, HF, REDDIT, GITHUB, S2, WATCH, SITEMAP, RECS};
     /** Query sources are fetched at most this often; the stored items are the cache in between. */
-    static final long MIN_INTERVAL_MS = 3 * 3600000L;
+    static final long MIN_INTERVAL_MS = 3 * 3600000L, WATCH_INTERVAL_MS = 24 * 3600000L;
+
+    /** How often a source of this kind may be asked: a watched page at most daily, searches every three hours. */
+    static long minInterval(String kind) { return kind.equals(WATCH) || kind.equals(SITEMAP) ? WATCH_INTERVAL_MS : MIN_INTERVAL_MS; }
+    static boolean watches(String kind) { return kind.equals(WATCH) || kind.equals(SITEMAP); }
 
     static boolean valid(String kind) { for (String k : KINDS) if (k.equals(kind)) return true; return false; }
 
@@ -32,12 +38,15 @@ final class QuerySource {
             case REDDIT: return "Reddit";
             case GITHUB: return "GitHub";
             case S2: return "Semantic Scholar";
+            case WATCH: return "Watch a page (new links)";
+            case SITEMAP: return "Watch a sitemap";
+            case RECS: return "Recommendations from papers you kept";
             default: return kind;
         }
     }
 
     /** Hugging Face daily papers is a list, so it works with an empty query; every other kind needs one. */
-    static boolean needsQuery(String kind) { return !HF.equals(kind); }
+    static boolean needsQuery(String kind) { return !HF.equals(kind) && !RECS.equals(kind); }
 
     /** A stable text used as the unique address of the source in the database. */
     static String key(String kind, String query) { return "query:" + kind + ":" + Sanitizer.collapse(query == null ? "" : query).toLowerCase(Locale.ROOT); }
@@ -74,8 +83,44 @@ final class QuerySource {
                 return "https://api.semanticscholar.org/graph/v1/paper/search?query=" + enc(q) + "&limit=25&year=" + (year - 1) + "-" + year
                     + "&fields=title,abstract,year,url,publicationDate,citationCount";
             }
+            case WATCH: case SITEMAP: return q;
+            case RECS: return "https://api.semanticscholar.org/recommendations/v1/papers/?limit=30&fields=" + S2_FIELDS;
             default: throw new IllegalArgumentException("Unknown source kind " + kind);
         }
+    }
+
+    static final String S2_FIELDS = "title,abstract,year,url,publicationDate,citationCount";
+
+    /** Citations of one paper (newest first is not offered by the API, so the caller keeps recent ones). */
+    static String citationsUrl(String paperId) {
+        return "https://api.semanticscholar.org/graph/v1/paper/" + enc(paperId) + "/citations?limit=30&fields=" + S2_FIELDS;
+    }
+
+    /** JSON body for the recommendations request: papers you kept as positive examples, papers you marked "less" as negative. */
+    static String recsBody(List<String> positive, List<String> negative) {
+        StringBuilder b = new StringBuilder("{\"positivePaperIds\":[");
+        for (int i = 0; i < positive.size(); i++) { if (i > 0) b.append(','); b.append('"').append(jsonEscape(positive.get(i))).append('"'); }
+        b.append("],\"negativePaperIds\":[");
+        for (int i = 0; i < negative.size(); i++) { if (i > 0) b.append(','); b.append('"').append(jsonEscape(negative.get(i))).append('"'); }
+        return b.append("]}").toString();
+    }
+
+    static String jsonEscape(String s) { return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ").replace("\r", " "); }
+
+    private static final java.util.regex.Pattern ARXIV_ID = java.util.regex.Pattern.compile("(?:arxiv\\.org/(?:abs|pdf)/|huggingface\\.co/papers/)((?:\\d{4}\\.\\d{4,5})|(?:[a-z-]+(?:\\.[A-Z]{2})?/\\d{7}))(?:v\\d+)?(?:\\.pdf)?(?:[/?#].*)?$", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern S2_ID = java.util.regex.Pattern.compile("semanticscholar\\.org/paper/(?:[^/]+/)?([0-9a-f]{40})(?:[/?#].*)?$", java.util.regex.Pattern.CASE_INSENSITIVE);
+    private static final java.util.regex.Pattern DOI = java.util.regex.Pattern.compile("(?:doi\\.org/)(10\\.\\d{4,9}/[^\\s?#]+)", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** Semantic Scholar paper id for a link to a paper (arXiv, Hugging Face papers, Semantic Scholar, DOI), or "" for anything else. */
+    static String paperId(String link) {
+        if (link == null) return "";
+        java.util.regex.Matcher m = ARXIV_ID.matcher(link.trim());
+        if (m.find()) return "ARXIV:" + m.group(1);
+        m = S2_ID.matcher(link.trim());
+        if (m.find()) return m.group(1).toLowerCase(Locale.ROOT);
+        m = DOI.matcher(link.trim());
+        if (m.find()) return "DOI:" + m.group(1);
+        return "";
     }
 
     static String accept(String kind) {
@@ -108,6 +153,53 @@ final class QuerySource {
         }
         FeedParser.finish(f);
         return f;
+    }
+
+    /** Answer of the recommendations request ({"recommendedPapers": [...]}). Each item says what it was recommended from. */
+    static FeedParser.Feed parseRecommendations(byte[] body, String because) throws FeedParser.FeedException {
+        Object root;
+        try { root = Json.parse(new String(body, StandardCharsets.UTF_8)); }
+        catch (IllegalArgumentException e) { throw new FeedParser.FeedException("The answer was not valid JSON"); }
+        Map<String, Object> o = Json.obj(root);
+        List<Object> l = o == null ? null : Json.list(o.get("recommendedPapers"));
+        if (l == null) throw new FeedParser.FeedException(o != null && !Json.str(o, "message").isEmpty() ? "Semantic Scholar says: " + Json.str(o, "message") : "Semantic Scholar answered in an unexpected shape");
+        FeedParser.Feed f = new FeedParser.Feed();
+        f.title = "Recommendations from papers you kept";
+        for (Object x : l) paper(f, Json.obj(x), because, "query:recs:");
+        return f;
+    }
+
+    /** Papers that cite one of your kept papers, from the last two years. */
+    static FeedParser.Feed parseCitations(byte[] body, String because, long now) throws FeedParser.FeedException {
+        Object root;
+        try { root = Json.parse(new String(body, StandardCharsets.UTF_8)); }
+        catch (IllegalArgumentException e) { throw new FeedParser.FeedException("The answer was not valid JSON"); }
+        Map<String, Object> o = Json.obj(root);
+        List<Object> l = o == null ? null : Json.list(o.get("data"));
+        if (l == null) throw new FeedParser.FeedException(o != null && !Json.str(o, "message").isEmpty() ? "Semantic Scholar says: " + Json.str(o, "message") : "Semantic Scholar answered in an unexpected shape");
+        int thisYear = Integer.parseInt(day(now).substring(0, 4));
+        FeedParser.Feed f = new FeedParser.Feed();
+        for (Object x : l) {
+            Map<String, Object> m = Json.obj(x);
+            Map<String, Object> p = m == null ? null : Json.obj(m.get("citingPaper"));
+            if (p == null || Json.num(p, "year") < thisYear - 1) continue;
+            paper(f, p, because, "query:recs:");
+        }
+        return f;
+    }
+
+    private static void paper(FeedParser.Feed f, Map<String, Object> m, String because, String address) {
+        if (m == null || Json.str(m, "paperId").isEmpty() || Json.str(m, "title").isEmpty()) return;
+        String abs = Json.str(m, "abstract");
+        FeedParser.Item i = new FeedParser.Item();
+        i.uid = "s2:" + Json.str(m, "paperId");
+        i.title = Json.str(m, "title");
+        i.link = Json.str(m, "url");
+        i.published = FeedParser.date(Json.str(m, "publicationDate"));
+        if (i.published == 0 && !Json.str(m, "year").isEmpty()) i.published = FeedParser.date(Json.str(m, "year") + "-01-01");
+        i.body = "<p>" + html(abs.isEmpty() ? "(no abstract available)" : abs) + "</p><p>" + Json.num(m, "citationCount") + " citations.</p>";
+        i.because = because;
+        FeedParser.add(f, i, address);
     }
 
     private static String html(String text) {

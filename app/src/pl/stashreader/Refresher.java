@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "0.5.1";
+    static final String VERSION = "0.6";
     static final String AGENT = "StashReader/" + VERSION;
     private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
@@ -50,11 +50,15 @@ final class Refresher {
             long now = System.currentTimeMillis();
             if (!force && src.retryAfter > now) return; // told to wait (HTTP 429), or a failed search that is not retried yet
             // the stored items are the cache: a search source is not asked again within three hours
-            if (!force && query && src.lastOk > 0 && now - src.lastOk < QuerySource.MIN_INTERVAL_MS) return;
+            if (!force && query && src.lastOk > 0 && now - src.lastOk < QuerySource.minInterval(src.kind)) return;
             long failRetry = query ? now + QuerySource.MIN_INTERVAL_MS : 0;
             try {
                 FeedParser.Feed f;
-                if (query) {
+                if (QuerySource.watches(src.kind)) {
+                    f = Watcher.fetch(db, src, now);
+                } else if (src.kind.equals(QuerySource.RECS)) {
+                    f = Recommender.fetch(db, now);
+                } else if (query) {
                     byte[] body = fetch(QuerySource.requestUrl(src.kind, src.query, now), MAX_BYTES, QuerySource.accept(src.kind), new String[1]);
                     f = QuerySource.parse(src.kind, src.query, body, now);
                 } else {
@@ -85,12 +89,21 @@ final class Refresher {
 
     static byte[] fetch(String address, int max, String accept) throws IOException { return fetch(address, max, accept, new String[1]); }
 
-    static byte[] fetch(String address, int max, String accept, String[] contentType) throws IOException {
+    static byte[] fetch(String address, int max, String accept, String[] contentType) throws IOException { return request(address, null, max, accept, contentType); }
+
+    /** One HTTP request. With a body it is a POST of JSON; without, a GET. HTTP 429 becomes RateLimited. */
+    static byte[] request(String address, byte[] body, int max, String accept, String[] contentType) throws IOException {
         HttpURLConnection h = (HttpURLConnection) new URL(address).openConnection();
         try {
             h.setConnectTimeout(CONNECT_MS); h.setReadTimeout(READ_MS);
             h.setRequestProperty("User-Agent", AGENT + " (personal reader; Android)");
             h.setRequestProperty("Accept", accept);
+            if (body != null) {
+                h.setRequestMethod("POST");
+                h.setDoOutput(true);
+                h.setRequestProperty("Content-Type", "application/json");
+                try (java.io.OutputStream o = h.getOutputStream()) { o.write(body); }
+            }
             int code = h.getResponseCode();
             if (code == 429) {
                 long wait = 3600000L;

@@ -198,7 +198,11 @@ public class MainActivity extends Activity {
             if (!QuerySource.valid(kind)) return "Choose where to search";
             String q = QuerySource.clean(query);
             if (q.isEmpty() && QuerySource.needsQuery(kind)) return "Type what to search for";
-            if (q.length() > 80) return "Keep the search under 80 characters";
+            if (QuerySource.watches(kind)) {
+                q = FeedDiscovery.normalizeInput(q);
+                if (q.isEmpty()) return "That is not a web address. Try something like example.org/blog";
+            }
+            if (q.length() > 200) return "Keep it under 200 characters";
             final long id = db.addQuerySource(kind, q, "");
             if (id == -1) return "That search is already in the list";
             new Thread(() -> Refresher.single(MainActivity.this, id), "add-search").start();
@@ -206,9 +210,12 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public String queryKinds() {
             StringBuilder b = new StringBuilder("[");
+            boolean first = true;
             for (int i = 0; i < QuerySource.KINDS.length; i++) {
-                if (i > 0) b.append(',');
                 String k = QuerySource.KINDS[i];
+                if (k.equals(QuerySource.RECS)) continue; // added by the app, not by hand
+                if (!first) b.append(',');
+                first = false;
                 b.append("{\"kind\":\"").append(k).append("\",\"label\":\"").append(QuerySource.label(k)).append("\",\"needsQuery\":").append(QuerySource.needsQuery(k)).append('}');
             }
             return b.append(']').toString();

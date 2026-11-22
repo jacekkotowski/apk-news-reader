@@ -22,6 +22,7 @@ final class Db extends SQLiteOpenHelper {
     private static final String[][] DEFAULT_QUERIES = {
         {QuerySource.ARXIV, "causal inference", "causal inference"}, {QuerySource.HN, "claude code", "Claude Code"},
         {QuerySource.HN, "duckdb", "duckdb"}, {QuerySource.HF, "", "AI for data science"},
+        {QuerySource.RECS, "", "AI for data science"},
         {QuerySource.REDDIT, "r/datascience", "data science"}, {QuerySource.GITHUB, "tidymodels", "tidymodels"},
         {QuerySource.S2, "causal machine learning", "causal inference"}};
     private static final String[][] DEFAULT_TOPICS = {{"tidymodels", "3"}, {"Power BI", "3"}, {"DAX", "2"}, {"Claude Code", "3"}, {"machine learning", "2"}, {"LLM", "2"}, {"data science", "2"}, {"causal inference", "2"}, {"duckdb", "2"}};
@@ -33,12 +34,12 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 5); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 6); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '')");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0)");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
         createHighlights(d);
@@ -74,6 +75,12 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("ALTER TABLE sources ADD COLUMN kind TEXT NOT NULL DEFAULT 'rss'");
             d.execSQL("ALTER TABLE sources ADD COLUMN query TEXT NOT NULL DEFAULT ''");
             seedQueries(d);
+        }
+        if (o < 6) {
+            d.execSQL("ALTER TABLE items ADD COLUMN because TEXT NOT NULL DEFAULT ''");
+            ContentValues v = new ContentValues();
+            v.put("url", QuerySource.key(QuerySource.RECS, "")); v.put("kind", QuerySource.RECS); v.put("query", ""); v.put("topic", "AI for data science");
+            d.insertWithOnConflict("sources", null, v, SQLiteDatabase.CONFLICT_IGNORE);
         }
     }
 
@@ -118,6 +125,22 @@ final class Db extends SQLiteOpenHelper {
             s.url = c.getString(0); s.kind = c.getString(1); s.query = c.getString(2); s.lastOk = c.getLong(3); s.retryAfter = c.getLong(4);
             return s;
         }
+    }
+
+    boolean hasKey(String key) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT 1 FROM items WHERE key=?", new String[]{key})) { return c.moveToFirst(); }
+    }
+
+    /** Papers among the items in this state: {Semantic Scholar id, title}, newest first. */
+    List<String[]> paperSeeds(int state, int limit) {
+        List<String[]> out = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT link, title FROM items WHERE state=" + state + " AND link<>'' ORDER BY kept_at DESC, id DESC LIMIT 200", null)) {
+            while (c.moveToNext() && out.size() < limit) {
+                String id = QuerySource.paperId(c.getString(0));
+                if (!id.isEmpty()) out.add(new String[]{id, c.getString(1)});
+            }
+        }
+        return out;
     }
 
     void setEnabled(long id, boolean on) {
@@ -170,6 +193,7 @@ final class Db extends SQLiteOpenHelper {
                 ContentValues v = new ContentValues();
                 v.put("source_id", sourceId); v.put("key", i.uid); v.put("title", i.title);
                 v.put("excerpt", Sanitizer.shorten(plain, 300)); v.put("html", html);
+                v.put("because", i.because);
                 v.put("full", i.fromContent && Sanitizer.words(plain) >= 250 ? 1 : 0);
                 v.put("link", i.link); v.put("pub", i.published); v.put("fetched", now);
                 v.put("mins", Math.max(1, Math.round(Sanitizer.words(plain) / 220f)));
@@ -214,7 +238,7 @@ final class Db extends SQLiteOpenHelper {
         o.put("mins", c.getInt(4)); o.put("source", c.getString(5)); o.put("topic", c.getString(6)); o.put("state", c.getInt(7));
         return o;
     }
-    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state FROM items i JOIN sources s ON s.id=i.source_id";
+    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state, i.because FROM items i JOIN sources s ON s.id=i.source_id";
 
     /** The newest unread items, ordered by the explainable score. Each card carries a "why" sentence. */
     String feedJson() throws Exception {
@@ -225,7 +249,7 @@ final class Db extends SQLiteOpenHelper {
                 JSONObject o = card(c);
                 long id = c.getLong(0);
                 cards.put(id, o);
-                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3)));
+                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3), c.getString(8)));
             }
         }
         List<Ranker.Scored> ranked = Ranker.rank(docs, topicList(), texts(KEPT), texts(LESS), System.currentTimeMillis());
@@ -373,7 +397,7 @@ final class Db extends SQLiteOpenHelper {
         o.put("fresh", count("SELECT COUNT(*) FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + NEW + " AND s.enabled=1"));
         o.put("kept", count("SELECT COUNT(*) FROM items WHERE state=" + KEPT));
         o.put("sources", count("SELECT COUNT(*) FROM sources WHERE enabled=1"));
-        o.put("failed", count("SELECT COUNT(*) FROM sources WHERE enabled=1 AND last_error<>''"));
+        o.put("failed", count("SELECT COUNT(*) FROM sources WHERE enabled=1 AND last_error<>'' AND last_error NOT LIKE 'Note:%'"));
         return o;
     }
 

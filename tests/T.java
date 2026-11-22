@@ -28,6 +28,8 @@ public final class T {
         markdown();
         json();
         querySources();
+        watching();
+        recommendations();
         System.out.println(runs + " checks, " + fails + " failed");
         if (fails > 0) System.exit(1);
     }
@@ -292,6 +294,91 @@ public final class T {
         try { QuerySource.parse("hn", "x", "<html>".getBytes(StandardCharsets.UTF_8), now); yes("hn: not json", false); }
         catch (FeedParser.FeedException e) { eq("hn: not json", "The answer was not valid JSON", e.getMessage()); }
         eq("s2: no matches is an empty list, not an error", 0, QuerySource.parse("s2", "x", "{\"total\": 0, \"offset\": 0}".getBytes(StandardCharsets.UTF_8), now).items.size());
+    }
+
+    static void watching() throws Exception {
+        String robots = new String(file("tests/fixtures/robots.txt"), StandardCharsets.UTF_8);
+        yes("robots: StashReader has its own group, so the * rules do not apply", Robots.allowed(robots, "StashReader/0.6", "/private/x"));
+        yes("robots: its own Disallow applies", !Robots.allowed(robots, "StashReader/0.6", "/members/area"));
+        yes("robots: a shared group reaches both agents", !Robots.allowed(robots, "OtherReader", "/members/"));
+        yes("robots: an agent with no group uses *", !Robots.allowed(robots, "Somebody", "/private/x"));
+        yes("robots: longest rule wins, Allow beats a shorter Disallow", Robots.allowed(robots, "Somebody", "/private/public-note"));
+        yes("robots: prefix match", !Robots.allowed(robots, "Somebody", "/search?q=x"));
+        yes("robots: wildcard with end anchor", !Robots.allowed(robots, "Somebody", "/data/a.json") && Robots.allowed(robots, "Somebody", "/data/a.json5"));
+        yes("robots: a blocked bot does not block others", Robots.allowed(robots, "Somebody", "/blog/post"));
+        yes("robots: the blocked agent is blocked everywhere", !Robots.allowed(robots, "BadBot/1", "/blog/post"));
+        yes("robots: empty file allows everything", Robots.allowed("", "x", "/a") && Robots.allowed(null, "x", "/a"));
+        yes("robots: empty Disallow allows", Robots.allowed("User-agent: *\nDisallow:\n", "x", "/a"));
+        yes("robots: comments and spacing", !Robots.allowed("User-agent: *  # all\n  Disallow : /x # no\n", "x", "/x/y"));
+
+        String listing = new String(file("tests/fixtures/listing.html"), StandardCharsets.UTF_8);
+        java.util.List<PageWatch.Link> ls = PageWatch.links(listing, "https://example.org/blog/");
+        eq("links: article links only", 3, ls.size());
+        eq("links: first is the new method post", "https://example.org/posts/2026/new-method-for-uplift/", ls.get(0).url);
+        eq("links: title", "A new method for uplift modelling", ls.get(0).title);
+        eq("links: www host is the same site, fragment cut, query kept", "https://www.example.org/posts/2026/older-post-on-trees?utm_source=x", ls.get(1).url);
+        yes("links: markup in a title is stripped", ls.get(2).title.equals("Third post, with markup in its title"));
+        eq("links: nothing on a page with no anchors", 0, PageWatch.links("<p>none</p>", "https://example.org/").size());
+
+        PageWatch.Meta mt = PageWatch.meta(new String(file("tests/fixtures/article-page.html"), StandardCharsets.UTF_8));
+        eq("meta: Open Graph title wins", "A new method for uplift & response modelling", mt.title);
+        eq("meta: Open Graph description wins", "We compare two uplift learners on a retail campaign.", mt.description);
+        eq("meta: published time", FeedParser.date("2026-11-12T08:30:00+00:00"), mt.published);
+        PageWatch.Meta plain = PageWatch.meta("<html><head><title>Only a title</title><meta name=\"description\" content=\"A plain one\"></head><time datetime=\"2026-01-05\"></time></html>");
+        eq("meta: fallback title", "Only a title", plain.title);
+        eq("meta: fallback description", "A plain one", plain.description);
+        eq("meta: time element date", FeedParser.date("2026-01-05"), plain.published);
+
+        java.util.List<PageWatch.Link> sm = PageWatch.sitemap(file("tests/fixtures/sitemap.xml"));
+        eq("sitemap: pages that look like articles", 3, sm.size());
+        eq("sitemap: newest first, http upgraded", "https://example.org/blog/newest-post-on-causal-forests", sm.get(0).url);
+        yes("sitemap: dates read", sm.get(0).date > sm.get(1).date && sm.get(1).date > sm.get(2).date);
+        try { PageWatch.sitemap(file("tests/fixtures/sitemap-index.xml")); yes("sitemap index refused", false); }
+        catch (FeedParser.FeedException e) { yes("sitemap index refused with advice", e.getMessage().startsWith("This is a sitemap index")); }
+        try { PageWatch.sitemap(file("tests/fixtures/doctype.xml")); yes("sitemap doctype refused", false); }
+        catch (FeedParser.FeedException e) { yes("sitemap doctype refused", e.getMessage().startsWith("Refused")); }
+        eq("title from url", "newest post on causal forests", PageWatch.titleFromUrl("https://example.org/blog/newest-post-on-causal-forests/"));
+        eq("title from url with extension", "middle post", PageWatch.titleFromUrl("https://example.org/blog/middle-post.html"));
+    }
+
+    static void recommendations() throws Exception {
+        long now = 1794700000000L;
+        eq("paper id: arxiv abs", "ARXIV:2611.12345", QuerySource.paperId("https://arxiv.org/abs/2611.12345v2"));
+        eq("paper id: arxiv pdf", "ARXIV:2611.1234", QuerySource.paperId("https://arxiv.org/pdf/2611.1234.pdf"));
+        eq("paper id: old arxiv id", "ARXIV:stat.ML/0601001", QuerySource.paperId("https://arxiv.org/abs/stat.ML/0601001"));
+        eq("paper id: hugging face papers", "ARXIV:2611.26232", QuerySource.paperId("https://huggingface.co/papers/2611.26232"));
+        eq("paper id: semantic scholar", "0123456789abcdef0123456789abcdef01234567", QuerySource.paperId("https://www.semanticscholar.org/paper/Some-Title/0123456789ABCDEF0123456789ABCDEF01234567"));
+        eq("paper id: doi", "DOI:10.1000/xyz123", QuerySource.paperId("https://doi.org/10.1000/xyz123"));
+        eq("paper id: an ordinary blog is not a paper", "", QuerySource.paperId("https://juliasilge.com/blog/tune/"));
+        eq("paper id: empty", "", QuerySource.paperId(null));
+        String body = QuerySource.recsBody(java.util.Arrays.asList("ARXIV:2611.1", "abc"), java.util.Arrays.asList("DOI:10.1/a\"b"));
+        java.util.Map<String, Object> parsed = Json.obj(Json.parse(body));
+        eq("recs body: positives", java.util.Arrays.asList("ARXIV:2611.1", "abc"), Json.list(parsed.get("positivePaperIds")));
+        eq("recs body: negatives escaped", java.util.Arrays.asList("DOI:10.1/a\"b"), Json.list(parsed.get("negativePaperIds")));
+        eq("recs url", "https://api.semanticscholar.org/recommendations/v1/papers/?limit=30&fields=title,abstract,year,url,publicationDate,citationCount", QuerySource.requestUrl("recs", "", now));
+        eq("citations url", "https://api.semanticscholar.org/graph/v1/paper/ARXIV%3A2611.1/citations?limit=30&fields=title,abstract,year,url,publicationDate,citationCount", QuerySource.citationsUrl("ARXIV:2611.1"));
+        eq("watch url is the page itself", "https://example.org/blog/", QuerySource.requestUrl("watch", " https://example.org/blog/ ", now));
+        eq("intervals", 24 * 3600000L, QuerySource.minInterval("sitemap"));
+        eq("intervals: searches", 3 * 3600000L, QuerySource.minInterval("hn"));
+        yes("recs needs no query, watch does", !QuerySource.needsQuery("recs") && QuerySource.needsQuery("watch"));
+
+        FeedParser.Feed r = QuerySource.parseRecommendations(file("tests/fixtures/recs.json"), "Recommended from papers you kept: A, B");
+        eq("recs: two papers, the one without an id skipped", 2, r.items.size());
+        yes("recs: because is stored on each item", r.items.get(0).because.startsWith("Recommended from papers you kept"));
+        eq("recs: title", "Conformal prediction for treatment effects", r.items.get(0).title);
+        FeedParser.Feed c = QuerySource.parseCitations(file("tests/fixtures/citations.json"), "Cites \"Seed\"", now);
+        eq("citations: only this and last year", 2, c.items.size());
+        yes("citations: reason", c.items.get(0).because.equals("Cites \"Seed\""));
+        try { QuerySource.parseRecommendations("{\"message\":\"Too Many Requests\"}".getBytes(StandardCharsets.UTF_8), "x"); yes("recs rate limit", false); }
+        catch (FeedParser.FeedException e) { eq("recs rate limit", "Semantic Scholar says: Too Many Requests", e.getMessage()); }
+
+        long day = 86400000L;
+        java.util.List<Ranker.Doc> docs = new java.util.ArrayList<>();
+        docs.add(new Ranker.Doc(1, "Plain item", "nothing special", now - day));
+        docs.add(new Ranker.Doc(2, "Recommended paper", "nothing special", now - 5 * day, "Recommended from papers you kept: Seed"));
+        java.util.List<Ranker.Scored> rs = Ranker.rank(docs, new java.util.ArrayList<Ranker.Topic>(), new java.util.ArrayList<String>(), new java.util.ArrayList<String>(), now);
+        eq("because: a recommendation beats a slightly fresher plain item", 2L, rs.get(0).id);
+        yes("because: the reason leads the why line", byId(rs, 2).why.startsWith("Recommended from papers you kept: Seed"));
     }
 
     static String msg(String u) {

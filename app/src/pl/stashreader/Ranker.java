@@ -25,11 +25,14 @@ final class Ranker {
     static final double K1 = 1.2, B = 0.75, TITLE_TIMES = 3, PHRASE_BONUS = 0.75;
     static final double KEPT_WEIGHT = 3.0, LESS_WEIGHT = 4.0, FRESH_WEIGHT = 1.5, FRESH_DAYS = 3.0;
     static final int PROFILE_TERMS = 40;
+    /** Items recommended from papers you kept get this much extra, and their reason comes first. */
+    static final double BECAUSE_BONUS = 1.5;
 
     static final class Topic { final String phrase; final double weight; Topic(String p, double w) { phrase = p; weight = w; } }
     static final class Doc {
-        final long id; final String title, text; final long pub;
-        Doc(long id, String title, String text, long pub) { this.id = id; this.title = title; this.text = text; this.pub = pub; }
+        final long id; final String title, text, because; final long pub;
+        Doc(long id, String title, String text, long pub) { this(id, title, text, pub, ""); }
+        Doc(long id, String title, String text, long pub, String because) { this.id = id; this.title = title; this.text = text; this.pub = pub; this.because = because == null ? "" : because; }
     }
     static final class Scored { long id; double score; String why; }
 
@@ -93,6 +96,7 @@ final class Ranker {
             double score = 0;
             List<String> why = new ArrayList<>();
 
+            if (!p.doc.because.isEmpty()) { score += BECAUSE_BONUS; why.add(p.doc.because); }
             List<Object[]> hits = new ArrayList<>(); // {score, phrase}
             for (Topic t : topics) {
                 if (t.weight <= 0) continue;
