@@ -181,8 +181,8 @@ summaries, Play Store.
 
 Four releases planned 2026-11-23 (approved by Jacek): v1.3 notes anywhere and a Notes view; v1.4 Fit My Time and Surprise Me; v1.5 One Story Many Sources and Ask My Stash; v1.6 Listen to Anything.
 
-- [x] v1.3, 2026-11-23: links open inside Stash as reader pages, one pencil button keeps the page and makes Gemini notes, Notes chip in the Stash with a Markdown view. Not tested on a phone.
-- [ ] v1.4: Fit My Time (5 / 15 / 30 min) and Surprise Me in the Feed.
+- [x] v1.3, 2026-11-23: links open inside Stash as reader pages, one pencil button keeps the page and makes Gemini notes, Notes chip in the Stash with a Markdown view. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.3 (CI run 45160827183). Not tested on a phone.
+- [x] v1.4, 2026-11-23: Fit My Time (5 / 15 / 30 min, one plan a day, Done for today) and Surprise Me in the Feed. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.4. Not tested on a phone.
 - [ ] v1.5: One Story Many Sources (`Clusters`) and Ask My Stash (FTS4, optional Gemini answer).
 - [ ] v1.6: Listen to Anything (TextToSpeech foreground service, play queue).
 

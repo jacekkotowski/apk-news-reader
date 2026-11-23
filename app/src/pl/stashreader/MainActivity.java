@@ -93,6 +93,40 @@ public class MainActivity extends Activity {
         else super.onBackPressed();
     }
 
+    private static final String PLAN = "plan";
+    private static String today() { return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date()); }
+
+    /** Makes a new plan for the chosen minutes and stores it (ids, why lines, surprises) for the rest of the day. */
+    private synchronized JSONObject makePlan(int mins) {
+        try {
+            Ranker.Plan pl = db.plan(mins);
+            JSONObject p = new JSONObject();
+            org.json.JSONArray ids = new org.json.JSONArray(), sur = new org.json.JSONArray(); JSONObject why = new JSONObject();
+            for (Ranker.Pick k : pl.picks) { ids.put(k.id); if (k.surprise) sur.put(k.id); why.put("" + k.id, k.why == null ? "" : k.why); }
+            p.put("day", today()); p.put("mins", mins); p.put("ids", ids); p.put("sur", sur); p.put("why", why);
+            prefs.edit().putString(PLAN, p.toString()).apply();
+            return p;
+        } catch (Exception e) { return null; }
+    }
+    private synchronized JSONObject currentPlan() throws Exception {
+        String s = prefs.getString(PLAN, "");
+        if (!s.isEmpty()) {
+            JSONObject p = new JSONObject(s);
+            if (today().equals(p.optString("day"))) return p;
+        }
+        JSONObject p = makePlan(prefs.getInt("planMins", 15));
+        if (p == null) throw new Exception("no plan");
+        return p;
+    }
+    private java.util.Set<Long> planSurprises() {
+        java.util.Set<Long> out = new java.util.HashSet<>();
+        try {
+            org.json.JSONArray a = new JSONObject(prefs.getString(PLAN, "{}")).optJSONArray("sur");
+            if (a != null) for (int i = 0; i < a.length(); i++) out.add(a.getLong(i));
+        } catch (Exception ignored) { }
+        return out;
+    }
+
     @Override protected void onNewIntent(Intent in) {
         super.onNewIntent(in);
         setIntent(in);
@@ -243,7 +277,32 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> web.evaluateJavascript("window.exportMsg&&exportMsg(" + JSONObject.quote(m) + ")", null));
             }, "export-all").start();
         }
-        @JavascriptInterface public void less(String id) { db.setState(Long.parseLong(id), Db.LESS); }
+        @JavascriptInterface public void less(String id) {
+            long item = Long.parseLong(id);
+            if (planSurprises().contains(item)) db.surpriseLess(item);
+            db.setState(item, Db.LESS);
+        }
+        /** Today's Fit My Time list: {mins, used, total, items}. Made on the first call of the day, and again when a time is chosen. */
+        @JavascriptInterface public String feedPlan() {
+            try {
+                JSONObject p = currentPlan();
+                java.util.List<Long> ids = new java.util.ArrayList<>(); java.util.Map<Long, String> why = new java.util.HashMap<>();
+                org.json.JSONArray ia = p.getJSONArray("ids"); JSONObject wj = p.getJSONObject("why");
+                for (int i = 0; i < ia.length(); i++) { long id = ia.getLong(i); ids.add(id); why.put(id, wj.optString("" + id, "")); }
+                org.json.JSONArray items = db.planCards(ids, why, planSurprises());
+                JSONObject o = new JSONObject();
+                o.put("mins", p.getInt("mins")); o.put("total", ia.length()); o.put("items", items);
+                int used = 0;
+                for (int i = 0; i < items.length(); i++) used += Ranker.minutes(items.getJSONObject(i).getString("kind"), items.getJSONObject(i).getInt("mins"));
+                o.put("used", used);
+                return o.toString();
+            } catch (Exception e) { return "{\"mins\":15,\"total\":0,\"used\":0,\"items\":[]}"; }
+        }
+        @JavascriptInterface public void setPlanMins(int mins) {
+            int m = mins == 5 || mins == 30 ? mins : 15;
+            prefs.edit().putInt("planMins", m).apply();
+            makePlan(m);
+        }
         @JavascriptInterface public String topics() { try { return db.topicsJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public boolean addTopic(String phrase) { return db.addTopic(phrase); }
         @JavascriptInterface public void setTopicWeight(String id, int w) { db.setTopicWeight(Long.parseLong(id), w); }

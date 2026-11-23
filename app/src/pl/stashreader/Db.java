@@ -35,11 +35,11 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 10); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 11); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
-        d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '')");
+        d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '', surprise_less INTEGER NOT NULL DEFAULT 0)");
         d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
@@ -110,6 +110,7 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("ALTER TABLE items ADD COLUMN ai TEXT NOT NULL DEFAULT ''");
             createPaths(d);
         }
+        if (o < 11) d.execSQL("ALTER TABLE sources ADD COLUMN surprise_less INTEGER NOT NULL DEFAULT 0");
     }
 
     private void createPaths(SQLiteDatabase d) {
@@ -338,6 +339,53 @@ final class Db extends SQLiteOpenHelper {
             a.put(o);
         }
         return a.toString();
+    }
+
+    /** A plan that fills the given minutes (see Ranker.fit), from the unread items. */
+    Ranker.Plan plan(int budget) {
+        List<Ranker.Topic> topics = topicList();
+        List<Ranker.Doc> docs = new ArrayList<>();
+        Map<Long, Ranker.Cand> info = new HashMap<>();
+        try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + NEW + " AND s.enabled=1 ORDER BY " + WHEN + " DESC, i.id DESC LIMIT " + RANK_POOL, null)) {
+            while (c.moveToNext()) {
+                long id = c.getLong(0);
+                String kind = FeedParser.kindOf(c.getString(9), c.getString(10));
+                info.put(id, new Ranker.Cand(Ranker.minutes(kind, c.getInt(4)), c.getLong(11), c.getString(5)));
+                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3), c.getString(8)));
+            }
+        }
+        List<Ranker.Scored> ranked = Ranker.rank(docs, topics, texts(KEPT), texts(LESS), System.currentTimeMillis());
+        Map<Long, Integer> pen = new HashMap<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT id, surprise_less FROM sources WHERE surprise_less>0", null)) {
+            while (c.moveToNext()) pen.put(c.getLong(0), c.getInt(1));
+        }
+        return Ranker.fit(ranked, info, pen, budget);
+    }
+
+    /** The cards of a stored plan that are still unread, in plan order; each carries its why line and whether it is a surprise. */
+    JSONArray planCards(List<Long> ids, Map<Long, String> why, java.util.Set<Long> surprise) throws Exception {
+        Map<Long, JSONObject> byId = new HashMap<>();
+        if (!ids.isEmpty()) {
+            StringBuilder in = new StringBuilder();
+            for (long id : ids) { if (in.length() > 0) in.append(','); in.append(id); }
+            try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + NEW + " AND s.enabled=1 AND i.id IN (" + in + ")", null)) {
+                while (c.moveToNext()) byId.put(c.getLong(0), card(c));
+            }
+        }
+        JSONArray a = new JSONArray();
+        for (long id : ids) {
+            JSONObject o = byId.get(id);
+            if (o == null) continue;
+            o.put("why", why.containsKey(id) ? why.get(id) : "");
+            o.put("surprise", surprise.contains(id));
+            a.put(o);
+        }
+        return a;
+    }
+
+    /** "Less like this" on a surprise: surprises from that source become rarer, and stop after three. */
+    void surpriseLess(long item) {
+        getWritableDatabase().execSQL("UPDATE sources SET surprise_less=surprise_less+1 WHERE id=(SELECT source_id FROM items WHERE id=?)", new Object[]{item});
     }
 
     private List<String> texts(int state) {
