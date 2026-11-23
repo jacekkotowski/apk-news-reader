@@ -401,6 +401,26 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> web.getSettings().setTextZoom(z));
             return z;
         }
+        /** The note as Markdown, the same text as its .md file; "" when the item is not kept. */
+        @JavascriptInterface public String noteMarkdown(String id) {
+            try { String m = Exporter.markdown(db, Long.parseLong(id)); return m == null ? "" : m; } catch (RuntimeException e) { return ""; }
+        }
+        /** Opens the note's .md file in an app the reader picks (Obsidian, an editor ...). */
+        @JavascriptInterface public void openNoteFile(final String id) {
+            new Thread(() -> {
+                long item;
+                try { item = Long.parseLong(id); } catch (RuntimeException e) { return; }
+                Uri u = Exporter.fileUri(MainActivity.this, db, item);
+                if (u == null) { Exporter.write(MainActivity.this, db, item); u = Exporter.fileUri(MainActivity.this, db, item); }
+                final Uri file = u;
+                runOnUiThread(() -> {
+                    if (file == null) { android.widget.Toast.makeText(MainActivity.this, "The note file was not found. Check the export folder in Stash, Options.", android.widget.Toast.LENGTH_LONG).show(); return; }
+                    Intent v = new Intent(Intent.ACTION_VIEW).setDataAndType(file, "text/markdown").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    try { startActivity(Intent.createChooser(v, "Open note")); }
+                    catch (RuntimeException e) { android.widget.Toast.makeText(MainActivity.this, "No app on this phone can open a Markdown file.", android.widget.Toast.LENGTH_LONG).show(); }
+                });
+            }, "open-note").start();
+        }
         @JavascriptInterface public void setBack(boolean open) { backOpen = open; }
         @JavascriptInterface public String notesJson() { try { return db.notesJson(); } catch (Exception e) { return "{\"items\":[],\"paths\":[]}"; } }
         @JavascriptInterface public void saveArticle(String id, String html) { db.saveArticle(Long.parseLong(id), html); }

@@ -485,6 +485,7 @@ function md2html(md){
   endAll();
   return out.join('\n');
 }
+function stripFront(md){return String(md).replace(/^\s*---\n[\s\S]*?\n---\n/,'')}
 //MD-END
 function hostOf(u){var m=/^https?:\/\/([^\/?#]+)/i.exec(u||'');return m?m[1].replace(/^www\./,''):''}
 function backState(){if(A.setBack)A.setBack(pgStack.length>0||noteOpen!==null)}
@@ -541,15 +542,17 @@ function renderNotes(kb){
   var n=J(A.notesJson?A.notesJson():'{}');
   if(noteOpen){
     var o=noteOpen,back=el('button','btn','‹ Notes');back.onclick=function(){pageBack()};kb.appendChild(back);
-    var md='',title='',link='';
+    var md='',title='',link='',kept=false;
     if(o.kind==='path'){var pp=J(A.pathJson(o.topic));md=pp.md||'';title='Learning path: '+o.topic}
-    else{var d=J(A.item(o.id));md=d.ai||'';title=o.title;link=d.link||''}
-    var h=el('h3',null,title);h.style.margin='12px 0 4px';kb.appendChild(h);
-    kb.appendChild(el('div','label',o.kind==='path'?'Gemini, from what you kept':'AI notes (Gemini), not the article'));
-    var t=el('div','text');t.innerHTML=md2html(md);
+    else{var d=J(A.item(o.id));var nm=A.noteMarkdown?A.noteMarkdown(o.id):'';md=nm?stripFront(nm):(d.ai||'');title=o.title;link=d.link||'';kept=!!nm}
+    if(o.kind==='path'){var h=el('h3',null,title);h.style.margin='12px 0 4px';kb.appendChild(h);kb.appendChild(el('div','label','Gemini, from what you kept'))}
+    var t=el('div','text');t.style.marginTop='10px';t.innerHTML=md2html(md);
     t.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();if(a.href&&/^https?:/i.test(a.href))openPage(a.href)}});
     kb.appendChild(t);
-    if(link){var ob=el('button','btn','Read the page');ob.style.marginTop='12px';ob.onclick=function(){openPage(link)};kb.appendChild(ob)}
+    var row=el('div','acts');
+    if(kept&&A.openNoteFile){var of=el('button','btn main','Open the .md file');of.onclick=function(){A.openNoteFile(o.id)};row.appendChild(of)}
+    if(link){var ob=el('button','btn','Read the page');ob.onclick=function(){openPage(link)};row.appendChild(ob)}
+    kb.appendChild(row);
     backState();return;
   }
   backState();
@@ -560,8 +563,10 @@ function renderNotes(kb){
   (n.items||[]).forEach(function(x){any=true;
     var c=el('div','card');var m=el('div','meta');m.appendChild(el('b',null,x.source));m.appendChild(el('span',null,ago(x.pub)));c.appendChild(m);
     c.appendChild(el('h3',null,x.title));c.appendChild(el('p','ex',x.snippet));
+    var bits=[];if(x.hl)bits.push(x.hl+(x.hl===1?' highlight':' highlights'));if(x.note)bits.push('my note');if(x.ai)bits.push('AI notes');
+    c.appendChild(el('span','chip',bits.join(' | ')));
     c.onclick=function(){noteOpen={kind:'item',id:x.id,title:x.title};render();document.querySelector('main').scrollTop=0};kb.appendChild(c)});
-  if(!any)kb.appendChild(el('div','empty','No notes yet. Open a card, press the three dots, then Make notes. Or open a link inside an article and press the pencil.'));
+  if(!any)kb.appendChild(el('div','empty','No notes yet. Keep an article and highlight a passage or write a note, or press the three dots on a card, then Make notes.'));
 }
 
 var KINDS={text:'article',hl:'highlight',note:'my note',ai:'AI notes'};

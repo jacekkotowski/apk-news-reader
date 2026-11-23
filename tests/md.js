@@ -3,6 +3,7 @@ const fs = require('fs');
 const src = fs.readFileSync(__dirname + '/../app/assets/index.html', 'utf8');
 const code = src.split('//MD-START')[1].split('//MD-END')[0];
 const md2html = new Function(code + '; return md2html;')();
+const stripFront = new Function(code + '; return stripFront;')();
 let fails = 0, runs = 0;
 function has(name, cond) { runs++; if (!cond) { fails++; console.log('FAIL md: ' + name); } }
 const h = md2html('*Based on the saved article.*\n\n## Key ideas\n- one **bold**\n- two [a link](https://example.org/x?a=1&b=2)\n\n1. first\n2. second\n\n> a quote\n\nPlain `code` text.');
@@ -19,5 +20,8 @@ has('no javascript link', !bad.includes('href="javascript'));
 has('quote in url cannot leave the attribute', !/href="[^"]*"onmouseover/.test(bad) && !bad.includes('"onmouseover'));
 has('code block is escaped', md2html('```\n<b>x</b>\n```').includes('<pre><code>&lt;b&gt;x&lt;/b&gt;</code></pre>'));
 has('empty input', md2html('') === '');
+has('front matter is removed', stripFront('---\ntitle: "A"\ntopics: []\n---\n\n# A\n\n## Highlights\n\n> q').startsWith('\n# A'));
+has('no front matter, text unchanged', stripFront('# A\n\ntext') === '# A\n\ntext');
+has('a note renders: quote', md2html(stripFront('---\ntitle: x\n---\n\n# A\n\n## Highlights\n\n> q\n')).includes('<blockquote>q</blockquote>'));
 console.log(runs + ' markdown checks, ' + fails + ' failed');
 if (fails) process.exit(1);

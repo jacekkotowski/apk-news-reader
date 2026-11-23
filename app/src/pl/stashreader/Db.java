@@ -431,11 +431,14 @@ final class Db extends SQLiteOpenHelper {
     String notesJson() throws Exception {
         JSONObject out = new JSONObject();
         JSONArray items = new JSONArray(), paths = new JSONArray();
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, " + WHEN + ", i.ai FROM items i JOIN sources s ON s.id=i.source_id WHERE i.ai<>'' ORDER BY i.kept_at DESC, i.id DESC", null)) {
+        String has = "(i.ai<>'' OR i.note<>'' OR EXISTS (SELECT 1 FROM highlights h WHERE h.item_id=i.id))";
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, " + WHEN + ", i.ai, i.note, (SELECT text FROM highlights h WHERE h.item_id=i.id ORDER BY h.id LIMIT 1), (SELECT COUNT(*) FROM highlights h WHERE h.item_id=i.id), i.state FROM items i JOIN sources s ON s.id=i.source_id WHERE " + has + " AND (i.state=" + KEPT + " OR i.ai<>'') ORDER BY i.kept_at DESC, i.id DESC", null)) {
             while (c.moveToNext()) {
                 JSONObject o = new JSONObject();
                 o.put("id", "" + c.getLong(0)); o.put("title", c.getString(1)); o.put("source", c.getString(2)); o.put("pub", c.getLong(3));
-                o.put("snippet", Sanitizer.shorten(c.getString(4).replaceAll("[#*_>`\\-]+", " ").replaceAll("\\s+", " ").trim(), 160));
+                String first = !c.getString(5).isEmpty() ? c.getString(5) : (c.getString(6) != null ? c.getString(6) : c.getString(4));
+                o.put("snippet", Sanitizer.shorten(first.replaceAll("[#*_>`\\-]+", " ").replaceAll("\\s+", " ").trim(), 160));
+                o.put("hl", c.getInt(7)); o.put("note", !c.getString(5).isEmpty()); o.put("ai", !c.getString(4).isEmpty()); o.put("kept", c.getInt(8) == KEPT);
                 items.put(o);
             }
         }

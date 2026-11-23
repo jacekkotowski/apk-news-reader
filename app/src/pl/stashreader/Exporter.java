@@ -123,6 +123,23 @@ final class Exporter {
         return null;
     }
 
+    /** The address of the note's file in the notes folder (so another app can open it), or null when it is not there. */
+    static Uri fileUri(Context c, Db db, long id) {
+        MarkdownExport.Note n = db.noteFor(id);
+        if (n == null) return null;
+        String name = MarkdownExport.fileName(n, TimeZone.getDefault());
+        try {
+            Uri tree = folder(c);
+            if (tree != null) return find(c, tree, name);
+            if (!auto(c)) return null;
+            Uri files = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY);
+            try (Cursor q = c.getContentResolver().query(files, new String[]{MediaStore.MediaColumns._ID}, MediaStore.MediaColumns.DISPLAY_NAME + "=? AND " + MediaStore.MediaColumns.RELATIVE_PATH + "=?", new String[]{name, AUTO_DIR}, null)) {
+                if (q != null && q.moveToFirst()) return ContentUris.withAppendedId(files, q.getLong(0));
+            }
+        } catch (Exception ignored) { }
+        return null;
+    }
+
     /** Rewrites every kept item. Returns a sentence for the screen. */
     static String writeAll(Context c, Db db) {
         if (!enabled(c)) return "Exporting is off. Open Options and choose a folder, or use the automatic one.";
