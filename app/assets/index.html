@@ -93,7 +93,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <h2>Sources</h2><div id="srclist"></div>
   <h2>Settings</h2>
   <div class="panel">
-    <div class="label">Reading text size</div>
+    <div class="label">Text size <span id="zoomval" style="text-transform:none"></span></div>
     <div class="acts" style="margin:0 0 14px"><button class="btn" id="fsm">A− smaller</button><button class="btn" id="flg">A+ larger</button></div>
     <div class="label">Background refresh</div>
     <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
@@ -705,8 +705,10 @@ $('gtest').onclick=function(){
   $('gtest').disabled=true;$('gmsg').textContent='Asking Gemini...';A.testGemini();
   gstart('test',function(ok,m){$('gtest').disabled=false;$('gmsg').textContent=m;$('gmsg').style.color=ok?'var(--ok)':''});
 };
-$('fsm').onclick=function(){setFont(-1)};
-$('flg').onclick=function(){setFont(1)};
+function zoomShow(z){$('zoomval').textContent=z+'%'}
+$('fsm').onclick=function(){zoomShow(A.setTextZoom?A.setTextZoom(A.textZoom()-10):100)};
+$('flg').onclick=function(){zoomShow(A.setTextZoom?A.setTextZoom(A.textZoom()+10):100)};
+zoomShow(A.textZoom?A.textZoom():100);
 $('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
 $('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
 buildBar();render();status();listenPoll(0);setInterval(status,1500);

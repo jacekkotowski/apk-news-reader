@@ -60,6 +60,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setBlockNetworkLoads(true);
+        s.setTextZoom(prefs.getInt("textZoom", 100));
         web.addJavascriptInterface(new Bridge(), "Android");
         // A WebView ignores its own padding, so the system-bar insets go on a parent layout.
         root = new FrameLayout(this);
@@ -391,6 +392,14 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void setListenRate(int pct) {
             prefs.edit().putInt("ttsRate", Listen.rate(pct)).apply();
             if (Speaker.isActive()) sendToSpeaker(Speaker.RATE, -1);
+        }
+        /** Text size of the whole app in percent (70 to 170); the WebView scales every text, not only the reader's. */
+        @JavascriptInterface public int textZoom() { return prefs.getInt("textZoom", 100); }
+        @JavascriptInterface public int setTextZoom(int pct) {
+            final int z = Math.max(70, Math.min(170, pct));
+            prefs.edit().putInt("textZoom", z).apply();
+            runOnUiThread(() -> web.getSettings().setTextZoom(z));
+            return z;
         }
         @JavascriptInterface public void setBack(boolean open) { backOpen = open; }
         @JavascriptInterface public String notesJson() { try { return db.notesJson(); } catch (Exception e) { return "{\"items\":[],\"paths\":[]}"; } }
