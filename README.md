@@ -1,18 +1,43 @@
 # Stash Reader
 
-A personal Android reader for learning, in the spirit of Deepstash: one vertical feed of things worth reading. You choose the sources and topics, the app ranks the items, you read, keep and export what you learned.
+A personal Android app for learning, in the spirit of Deepstash: one vertical feed of things worth reading, watching and listening to, chosen by you instead of an algorithm. You pick the sources and topics, the app ranks the items and says why, and you keep, highlight and export what you learned. It replaces endless scrolling with a feed that ends and a way to make things stick.
 
 **Download the APK (always the latest release):**
 https://github.com/jacekkotowski/apk-news-reader/releases/latest/download/StashReader.apk
 
-Package `pl.stashreader`. The interface is in English; sources in any language are fine. The plan and the step list are in [PLAN.md](PLAN.md); each release has its own notes.
+Package `pl.stashreader`, Android 8.0 or newer. The interface is in English; sources in any language work. Each release has its own notes, with a "Try on the phone" list and the known limits.
+
+## What it does
+
+- **Feed.** About 28 starter sources (data science, Power BI, tidymodels, AI and Claude Code blogs, YouTube channels, podcasts, a daily curated feed). Add any blog or feed by pasting its address; the app finds the feed itself, also for YouTube channels (`youtube.com/@name`).
+- **Search and watch sources.** arXiv, Hacker News, Hugging Face daily papers, Reddit, GitHub and Semantic Scholar searches; pages without a feed (or a sitemap) watched for new articles, with robots.txt honoured; recommendations of new papers from the papers you kept.
+- **Ranking you can read.** Items are ordered by your Topics, by what you keep, by "Less like this", and by freshness. Every card says why it is there.
+- **Reading.** Cards open in place with the feed text, clearly labelled when it is only a summary. **Read full article** loads the page and shows it in reader mode (Mozilla Readability), saved for offline use. Videos open in the YouTube app; podcast episodes open in your phone's audio player.
+- **Keep and learn.** Keep puts an item in the Stash. Highlight passages, add a note, export each kept item as a Markdown note into a folder you choose (for example an Obsidian vault), or share it. **Recall** asks about your highlights again after 1, 3, 7, 21 and 60 days, at most 5 a day, so the session ends.
+- **Share to Stash.** In YouTube, Chrome or any app, press Share and pick Stash Reader to save a link.
+- **Gemini notes and learning paths (optional).** With your own free Gemini key, **Make notes** turns a video (through its YouTube link) or an article into study notes and recall questions, and **Make a learning path** orders what you kept on a topic and lists the gaps. Notes are always labelled AI, never shown as the article. Only public links, article text, titles and your highlighted passages are sent; your own notes never are. On Google's free tier, Google may use what is sent to improve its products.
+- **Daily curator.** A GitHub Actions job searches Hacker News, arXiv, Hugging Face and GitHub for your topics once a day and publishes one feed (branch `curator-data`). It costs nothing and uses no LLM.
+
+Everything lives on the phone: no account, no analytics, no server of mine. The only network traffic is fetching the sources you listed and, if you add a key, the Gemini calls you ask for. The app is polite to servers: a real User-Agent, timeouts, at most one listing page per source per refresh, back-off on HTTP 429, robots.txt for watched pages.
 
 ## Design in short
 
-- No Gradle, no third-party libraries. `build.sh` calls aapt2, javac, d8, zipalign and apksigner.
-- The screen is a WebView showing `app/assets/index.html`. A small Java bridge does everything that touches the network, the database or Android.
-- Classes that must stay free of Android imports are listed in `tests/core.txt` and are tested on the PC with `tests/run.sh`.
-- One vendored JavaScript file is planned for step 2: Mozilla Readability (Apache-2.0), see [THIRD_PARTY.md](THIRD_PARTY.md).
+- No Gradle and no third-party libraries in the app. `build.sh` calls aapt2, javac (Java 11 source level), d8, zipalign and apksigner. minSdk 26.
+- The screen is a WebView showing `app/assets/index.html` (plain JavaScript). A small `@JavascriptInterface` bridge in `MainActivity` does everything that touches the network, the database or Android; the WebView itself may not load anything from the network.
+- Classes that must stay free of Android imports are listed in `tests/core.txt` and are tested on the PC with `bash tests/run.sh` (328 checks), using saved files in `tests/fixtures/`. The curator has its own Python tests (`python3 -m unittest discover -s curator`). No test touches the network.
+- The only vendored file is `app/assets/Readability.js` (Apache-2.0), see [THIRD_PARTY.md](THIRD_PARTY.md).
+
+## Repository map
+
+| Path | What |
+|---|---|
+| `app/src/pl/stashreader/` | Java sources (database, refresh, parsers, ranker, export, Gemini, bridge) |
+| `app/assets/` | the UI, the starter sources, Readability.js |
+| `tests/` | PC tests, fixtures, the emulator smoke script |
+| `curator/` | the daily curator (Python, standard library only) |
+| `.github/workflows/` | CI (`android.yml`) and the curator (`curator.yml`) |
+| [PLAN.md](PLAN.md) | decisions, steps, progress, open problems and future plans |
+| `prompts/` | the run brief and the run report |
 
 ## Build
 
@@ -24,12 +49,12 @@ export ANDROID_SDK_ROOT=/path/to/sdk
 bash build.sh                           # needs signing.env, see below
 ```
 
-`signing.env` holds `KS_FILE` (the keystore file) and `KS_PASS`. Both files are never committed. The real key lives in the private repo `apk-signing-keys`, folder `apk-news-reader/`. GitHub Actions gets it from the secrets `KEYSTORE_B64` and `KS_PASS`; without them CI signs with a throwaway key.
+`signing.env` holds `KS_FILE` (the keystore file) and `KS_PASS`. Both are never committed. The real key lives in the private repo `apk-signing-keys`, folder `apk-news-reader/`. GitHub Actions gets it from the secrets `KEYSTORE_B64` and `KS_PASS`; without them CI signs with a throwaway key. A Gemini key, if you use one, is typed into the app and stays on the phone.
 
-## CI
+## CI and releases
 
-`.github/workflows/android.yml` has three jobs: **build** (PC tests, signed APK), **smoke** (installs the APK in an Android 34 emulator, starts it, takes a screenshot, fails on a crash) and **release** (only for tags `v*`, publishes `StashReader.apk`).
+`.github/workflows/android.yml` has three jobs: **build** (PC tests, signed APK), **smoke** (installs the APK in an Android 34 emulator, starts it, opens a card, keeps it, sends a shared link, takes screenshots, fails on a crash) and **release** (only for tags `v*`, publishes `StashReader.apk` with the notes in `release-notes.md`). A release is made only from a commit whose CI run was green.
 
 ## What was not tested
 
-Nothing has been run on a real phone. The emulator smoke test only shows that the app starts and draws its screen.
+Nothing has been run on a real phone. The emulator smoke test shows that the app starts, the feed loads, Keep works and a shared link reaches the Stash. Not exercised anywhere: text selection and highlighting, the share sheet out, writing into the export folder, the background refresh job, page watching and recommendations in the app, the YouTube and audio hand-offs, and the Gemini buttons inside the app (Gemini itself was called live from a PC, and the app's parser is tested on those real answers).

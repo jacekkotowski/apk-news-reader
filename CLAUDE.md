@@ -13,3 +13,4 @@ Hand-built Android APK, no Gradle: aapt2, javac, d8, zipalign, apksigner (`build
 - Raise `versionCode` and `versionName` with every release; rewrite `release-notes.md`.
 - Don't call anything working unless the CI run for that exact commit is green. State plainly what was not tested on a phone.
 - Plain English in docs and commit messages.
+- Plan first: for any change beyond a tiny fix, write a short plan, ask Jacek the questions that matter, and wait for his yes before building. He wants fewer buttons, not more. Ideas for later are in `PLAN.md` section 9.

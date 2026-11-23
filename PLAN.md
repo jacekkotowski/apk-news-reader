@@ -183,4 +183,24 @@ See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit 
 
 Added after steps 6 to 8: the curator's scheduled run has not fired yet; page watch, recommendations, highlights, share and the export folder were not used on a phone.
 
-Added after v1.0: Gemini was called live only from the PC (answers recorded as test fixtures); Make notes and the learning path were never pressed in the app on a real phone. Free-tier limits and terms can change (the YouTube feature is a preview). The key Jacek pasted in chat is in the private keys repo (apk-news-reader/gemini.env); it is also in this session's transcript, so he may want to make a new key after testing.
+Added after v1.0: Gemini was called live only from the PC (answers recorded as test fixtures); Make notes and the learning path were never pressed in the app on a real phone. Free-tier limits and terms can change (the YouTube feature is a preview). The key Jacek pasted in chat is in the private keys repo (apk-news-reader/gemini.env); it is also in this session's transcript, so he may want to make a new key after testing.
+
+## 9. Future plans (ideas for a new session, not commitments)
+
+How to work: plan first, ask Jacek the questions that matter, wait for his yes, then build in small releases (his rule, 2026-11-23). He wants fewer buttons, not more; propose the smallest version. Nothing has been tested on a real phone yet, so the first job of the next session is to read what he found on the phone.
+
+**First, in this order**
+1. Collect his corrections from testing v1.1 (install, then the "Try on the phone" lists of v0.8 to v1.1), fix them in one small release.
+2. Make a new Gemini key (the old one was pasted in chat) and replace `apk-signing-keys/apk-news-reader/gemini.env`.
+3. Check the curator's first scheduled run (05:17 UTC) on branch `curator-data`.
+
+**Ideas he showed interest in or that follow from his goals**
+- **A finite daily session.** "10 cards today, done", so scrolling ends. Probably the biggest fit for the goal of replacing endless scrolling.
+- **A "follow a person" box in Sources.** Paste a Bluesky handle, a GitHub user, a Substack or blog; the app builds the feed address. Checked 2026-11-22: Bluesky (`bsky.app/profile/<handle>/rss`) and GitHub (`github.com/<user>.atom`) work; X and LinkedIn have no usable feeds; he does not want Mastodon.
+- **Podcast player inside the app** (background play, position, speed) only if the phone's own player turns out to be a pain; it needs a foreground service and is the one piece that may deserve a bigger plan.
+- **Video thumbnails** on YouTube cards.
+- **Recall cards from your own notes**, and notes for podcast episodes from their show notes.
+- **Gemini safety nets:** a second model if `gemini-3.5-flash-lite` goes away, a clear message when the free limit is reached (exists), a daily count shown in Sources.
+
+**Known problems carried over** (see section 8): removing an item from the Stash does not delete its exported file; two items with the same title kept on the same day share a file name; highlights are plain text, not positions; Reddit and Semantic Scholar often answer 429 or 404 to automated requests; Towards Data Science blocks reader mode (HTTP 403); on a YouTube consent page the add-by-address flow may fail (the feed address `youtube.com/feeds/videos.xml?channel_id=...` always works); the page-watch link finder is a heuristic.
+
