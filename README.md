@@ -9,11 +9,11 @@ Package `pl.stashreader`, Android 8.0 or newer. The interface is in English; sou
 
 ## What it does
 
-- **Feed.** About 28 starter sources (data science, Power BI, tidymodels, AI and Claude Code blogs, YouTube channels, podcasts, a daily curated feed). Add any blog or feed by pasting its address; the app finds the feed itself, also for YouTube channels (`youtube.com/@name`).
+- **Feed.** About 28 starter sources (data science, Power BI, tidymodels, AI and Claude Code blogs, YouTube channels, podcasts, a daily curated feed). Add any blog or feed by pasting its address; the app finds the feed itself, also for YouTube channels (`youtube.com/@name`). The Feed starts with a short list (the 15 best, then Show more); the three dots open filters (type, topic, source, sort, search). Cards you neither keep nor hide expire after 30 days.
 - **Search and watch sources.** arXiv, Hacker News, Hugging Face daily papers, Reddit, GitHub and Semantic Scholar searches; pages without a feed (or a sitemap) watched for new articles, with robots.txt honoured; recommendations of new papers from the papers you kept.
 - **Ranking you can read.** Items are ordered by your Topics, by what you keep, by "Less like this", and by freshness. Every card says why it is there.
 - **Reading.** Cards open in place with the feed text, clearly labelled when it is only a summary. **Read full article** loads the page and shows it in reader mode (Mozilla Readability), saved for offline use. Videos open in the YouTube app; podcast episodes open in your phone's audio player.
-- **Keep and learn.** Keep puts an item in the Stash. Highlight passages, add a note, export each kept item as a Markdown note into a folder you choose (for example an Obsidian vault), or share it. **Recall** asks about your highlights again after 1, 3, 7, 21 and 60 days, at most 5 a day, so the session ends.
+- **Keep and learn.** Keep puts an item in the Stash. Highlight passages, add a note, each kept item is saved as a Markdown note, by itself in `Documents/Stash Reader` on Android 10+ (or into a folder you choose, for example an Obsidian vault), or shared. **Recall** asks about your highlights again after 1, 3, 7, 21 and 60 days, at most 5 a day, so the session ends.
 - **Share to Stash.** In YouTube, Chrome or any app, press Share and pick Stash Reader to save a link.
 - **Gemini notes and learning paths (optional).** With your own free Gemini key, **Make notes** turns a video (through its YouTube link) or an article into study notes and recall questions, and **Make a learning path** orders what you kept on a topic and lists the gaps. Notes are always labelled AI, never shown as the article. Only public links, article text, titles and your highlighted passages are sent; your own notes never are. On Google's free tier, Google may use what is sent to improve its products.
 - **Daily curator.** A GitHub Actions job searches Hacker News, arXiv, Hugging Face and GitHub for your topics once a day and publishes one feed (branch `curator-data`). It costs nothing and uses no LLM.
@@ -24,7 +24,7 @@ Everything lives on the phone: no account, no analytics, no server of mine. The 
 
 - No Gradle and no third-party libraries in the app. `build.sh` calls aapt2, javac (Java 11 source level), d8, zipalign and apksigner. minSdk 26.
 - The screen is a WebView showing `app/assets/index.html` (plain JavaScript). A small `@JavascriptInterface` bridge in `MainActivity` does everything that touches the network, the database or Android; the WebView itself may not load anything from the network.
-- Classes that must stay free of Android imports are listed in `tests/core.txt` and are tested on the PC with `bash tests/run.sh` (328 checks), using saved files in `tests/fixtures/`. The curator has its own Python tests (`python3 -m unittest discover -s curator`). No test touches the network.
+- Classes that must stay free of Android imports are listed in `tests/core.txt` and are tested on the PC with `bash tests/run.sh` (342 checks), using saved files in `tests/fixtures/`. The curator has its own Python tests (`python3 -m unittest discover -s curator`). No test touches the network.
 - The only vendored file is `app/assets/Readability.js` (Apache-2.0), see [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Repository map
@@ -57,4 +57,4 @@ bash build.sh                           # needs signing.env, see below
 
 ## What was not tested
 
-Nothing has been run on a real phone. The emulator smoke test shows that the app starts, the feed loads, Keep works and a shared link reaches the Stash. Not exercised anywhere: text selection and highlighting, the share sheet out, writing into the export folder, the background refresh job, page watching and recommendations in the app, the YouTube and audio hand-offs, and the Gemini buttons inside the app (Gemini itself was called live from a PC, and the app's parser is tested on those real answers).
+Nothing has been run on a real phone. The emulator smoke test shows that the app starts, the feed loads, Keep works and a shared link reaches the Stash. Not exercised anywhere: text selection and highlighting, the share sheet out, the expiry after 30 days, writing into a picked export folder (the automatic folder was checked in the emulator), the background refresh job, page watching and recommendations in the app, the YouTube and audio hand-offs, and the Gemini buttons inside the app (Gemini itself was called live from a PC, and the app's parser is tested on those real answers).

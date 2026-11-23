@@ -177,6 +177,8 @@ summaries, Play Store.
 
 - [x] v1.0.1 (YouTube channel address fix) and v1.1 (fewer buttons), 2026-11-22: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.0.1 and https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.1 (CI runs 45085715469 and the v1.1 tag run). Not tested on a phone.
 
+- [x] v1.2, 2026-11-23: Feed with a short list, filters and search behind the three dots, 30-day expiry, automatic notes folder Documents/Stash Reader, Settings group. https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.2 (CI run 45090729772). Emulator: a kept note appears as a .md file in the folder. Not tested on a phone.
+
 ## 8. Open problems
 
 See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit and Semantic Scholar could not be checked for real (HTTP 404 and 429 from the build computer); the Stash folder export, share sheet and text selection were not exercised in the emulator; steps 6 to 8 are not started.
@@ -195,7 +197,7 @@ How to work: plan first, ask Jacek the questions that matter, wait for his yes, 
 3. Check the curator's first scheduled run (05:17 UTC) on branch `curator-data`.
 
 **Ideas he showed interest in or that follow from his goals**
-- **A finite daily session.** "10 cards today, done", so scrolling ends. Probably the biggest fit for the goal of replacing endless scrolling.
+- **A finite daily session.** Done in v1.2 in its simple form (Top 15, then Show more). Possible next step: a real "done for today" end with a daily count.
 - **A "follow a person" box in Sources.** Paste a Bluesky handle, a GitHub user, a Substack or blog; the app builds the feed address. Checked 2026-11-22: Bluesky (`bsky.app/profile/<handle>/rss`) and GitHub (`github.com/<user>.atom`) work; X and LinkedIn have no usable feeds; he does not want Mastodon.
 - **Podcast player inside the app** (background play, position, speed) only if the phone's own player turns out to be a pain; it needs a foreground service and is the one piece that may deserve a bigger plan.
 - **Video thumbnails** on YouTube cards.
