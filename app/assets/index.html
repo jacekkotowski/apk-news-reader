@@ -493,6 +493,7 @@ function md2html(md){
 }
 function stripFront(md){return String(md).replace(/^\s*---\n[\s\S]*?\n---\n/,'')}
 //MD-END
+function isVideoUrl(u){return /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//i.test(u||'')}
 function hostOf(u){var m=/^https?:\/\/([^\/?#]+)/i.exec(u||'');return m?m[1].replace(/^www\./,''):''}
 function backState(){if(A.setBack)A.setBack(pgStack.length>0||noteOpen!==null)}
 function pageBack(){
@@ -506,20 +507,28 @@ function pgPaint(){
   var p=pgStack[pgStack.length-1];if(!p)return;
   $('pg').style.display='flex';pgMsg('');
   $('pgtitle').textContent=(p.title?p.title+' | ':'')+hostOf(p.url);
-  var b=$('pgbody');b.textContent='';$('pgnote').disabled=!p.html;
-  if(p.html){b.innerHTML=p.html;b.scrollTop=0}
+  var b=$('pgbody');b.textContent='';$('pgnote').disabled=!(p.html||p.video);
+  if(p.video){
+    b.appendChild(el('p',null,'This is a YouTube video. Press the pencil to keep it and have Gemini write notes from the video itself (it needs your Gemini key, and the video must be public).'));
+    var wb=el('button','btn main','\u25B6 Watch');wb.onclick=function(){A.openUrl(p.url)};b.appendChild(wb);
+  }
+  else if(p.html){b.innerHTML=p.html;b.scrollTop=0}
   else if(p.err){
     b.appendChild(el('p','note',p.err+' Use Open in browser to read it.'));
     var ob=el('button','btn main','Open in browser');ob.onclick=function(){A.openUrl(p.url)};b.appendChild(ob);
   }else b.appendChild(el('p','meta','Loading the page...'));
 }
 function pgLoad(p){
+  if(isVideoUrl(p.url))p.video=true;
   pgPaint();
   A.fetchUrl(p.url);
   (function poll(n){
     var r=A.pageResult(p.url);
     if(!r){if(n>80){p.err='The page took too long to load.';if(pgStack[pgStack.length-1]===p)pgPaint()}else setTimeout(function(){poll(n+1)},500);return}
-    if(r.indexOf('err:')===0)p.err='Could not load the page: '+r.slice(4)+'.';
+    if(r.indexOf('err:')===0){if(!p.video)p.err='Could not load the page: '+r.slice(4)+'.'}
+    else if(p.video){
+      try{var vd=new DOMParser().parseFromString(r.slice(3),'text/html');p.title=(vd.title||'').replace(/\s*-\s*YouTube\s*$/,'').trim()}catch(e){}
+    }
     else{
       try{
         var doc=new DOMParser().parseFromString(r.slice(3),'text/html');
@@ -535,12 +544,12 @@ function pgLoad(p){
 $('pgback').onclick=function(){pageBack()};
 $('pgbody').addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();if(a.href&&/^https?:/i.test(a.href))openPage(a.href)}});
 $('pgnote').onclick=function(){
-  var p=pgStack[pgStack.length-1];if(!p||!p.html)return;
-  var id=A.keepPage(p.url,p.title,p.html);
+  var p=pgStack[pgStack.length-1];if(!p||!(p.html||p.video))return;
+  var id=A.keepPage(p.url,p.title,p.video?'':p.html);
   if(!id){pgMsg('That page could not be saved.');return}
   p.id=id;
   if(!(A.geminiKeySet&&A.geminiKeySet())){pgMsg('Kept in your Stash. Add a Gemini key in Sources to make notes.');return}
-  $('pgnote').disabled=true;pgMsg('Kept in your Stash. Asking Gemini for notes...');
+  $('pgnote').disabled=true;pgMsg(p.video?'Kept in your Stash. Asking Gemini to watch the video, this can take a minute...':'Kept in your Stash. Asking Gemini for notes...');
   A.makeNotes(id);
   gstart('notes:'+id,function(ok,m){if(pgStack[pgStack.length-1]===p){$('pgnote').disabled=false;pgMsg(ok?'Notes saved. Find them in Stash, Notes.':m)}});
 };
