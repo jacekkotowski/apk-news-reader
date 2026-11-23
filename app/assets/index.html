@@ -303,7 +303,7 @@ function renderFeed(s){
     var more=el('button','btn main','Show '+Math.min(15,items.length-shown)+' more');more.style.width='100%';
     more.onclick=function(){fShown+=15;renderFeed(J(A.status()))};list.appendChild(more);
   }else if(items.length>=300)list.appendChild(el('div','empty','Showing the first 300. Hide some, or add a filter to see others.'));
-  $('fcount').textContent=browse?items.length+(items.length===1?' match':' matches'):'Top '+shown+' of '+items.length;
+  $('fcount').textContent=browse?items.length+(items.length===1?' match':' matches'):'Top '+shown+' of '+items.length+(items.length>=300?'+':'');
   var n=fCount();$('fmore').textContent='\u22EF'+(n?' '+n:'');$('fmore').className=n?'btn icon on':'btn icon';
 }
 function buildBar(){
