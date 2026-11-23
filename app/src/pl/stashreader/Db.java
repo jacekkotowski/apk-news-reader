@@ -234,7 +234,7 @@ final class Db extends SQLiteOpenHelper {
         return out;
     }
 
-    /** A plan that fills the given minutes (see Ranker.fit), from the unread items. */
+    private void createPaths(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE paths(topic TEXT PRIMARY KEY, md TEXT NOT NULL, searches TEXT NOT NULL DEFAULT '[]', created INTEGER NOT NULL)");
     }
 

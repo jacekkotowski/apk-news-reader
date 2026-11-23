@@ -1,4 +1,6 @@
-## Stash Reader 1.5: one card per story, and questions for your Stash
+## Stash Reader 1.5.1: one card per story, and questions for your Stash
+
+This is release 1.5. The tag v1.5 never became a release: the build failed on a misplaced line in the database code (found by the build, fixed here). Use this one.
 
 **One Story, Many Sources**
 - Unread items from the last 3 days that tell the same story become **one card**. They are grouped when they have the same link (tracking parameters, "www" and a trailing slash are ignored) or when their titles share most of their key words. The best-ranked one stays; the card shows **+3 sources on this story**. Tap it to see the other titles and sources, and tap one to read it inside Stash.
