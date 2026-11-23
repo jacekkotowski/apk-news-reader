@@ -182,9 +182,9 @@ summaries, Play Store.
 Four releases planned 2026-11-23 (approved by Jacek): v1.3 notes anywhere and a Notes view; v1.4 Fit My Time and Surprise Me; v1.5 One Story Many Sources and Ask My Stash; v1.6 Listen to Anything.
 
 - [x] v1.3, 2026-11-23: links open inside Stash as reader pages, one pencil button keeps the page and makes Gemini notes, Notes chip in the Stash with a Markdown view. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.3 (CI run 45160827183). Not tested on a phone.
-- [x] v1.4, 2026-11-23: Fit My Time (5 / 15 / 30 min, one plan a day, Done for today) and Surprise Me in the Feed. The tags v1.4 and v1.4.1 failed the emulator test (a plan made before the sources loaded stayed empty; then the smoke script tapped the new time buttons instead of a card); the working build is v1.4.2: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.4.2. Not tested on a phone.
-- [x] v1.5, 2026-11-23: One Story Many Sources (`Clusters`) and Ask My Stash (FTS4, optional Gemini answer). The tag v1.5 failed to compile (a misplaced line in Db.java); the working build is v1.5.1: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.5.1. Not tested on a phone.
-- [x] v1.6, 2026-11-23: Listen to Anything (TextToSpeech foreground service with media notification, play queue, speed, position per sentence). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.6. Not tested on a phone; nothing was heard.
+- [x] v1.4, 2026-11-23: Fit My Time (5 / 15 / 30 min, one plan a day, Done for today) and Surprise Me in the Feed. The tags v1.4 and v1.4.1 failed the emulator test (a plan made before the sources loaded stayed empty; then the smoke script tapped the new time buttons instead of a card); the working build is v1.4.2: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.4.2 (CI run 45163834892). Not tested on a phone.
+- [x] v1.5, 2026-11-23: One Story Many Sources (`Clusters`) and Ask My Stash (FTS4, optional Gemini answer). The tag v1.5 failed to compile (a misplaced line in Db.java); the working build is v1.5.1: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.5.1 (CI run 45164526686). Not tested on a phone.
+- [x] v1.6, 2026-11-23: Listen to Anything (TextToSpeech foreground service with media notification, play queue, speed, position per sentence). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.6 (CI run 45165172557). Not tested on a phone; nothing was heard.
 
 ## 8. Open problems
 
