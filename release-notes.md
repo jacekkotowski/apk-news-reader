@@ -1,4 +1,6 @@
-## Stash Reader 1.4: a Feed that fits your time, and a few surprises
+## Stash Reader 1.4.1: a Feed that fits your time, and a few surprises
+
+This is release 1.4. The tag v1.4 failed the emulator test (the day's list was made before the sources had loaded and stayed empty), so the fixed build is published as 1.4.1. Use this one.
 
 **Fit My Time**
 - The Feed bar now has **5 min / 15 min / 30 min** instead of "Top 15". Pick the time you have and the Feed shows a list that adds up to it: about "12 of 15 min, 5 items". Reading times are the app's estimate (a video counts 10 min, a podcast episode 20 min).

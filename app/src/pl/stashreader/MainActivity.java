@@ -103,7 +103,7 @@ public class MainActivity extends Activity {
             JSONObject p = new JSONObject();
             org.json.JSONArray ids = new org.json.JSONArray(), sur = new org.json.JSONArray(); JSONObject why = new JSONObject();
             for (Ranker.Pick k : pl.picks) { ids.put(k.id); if (k.surprise) sur.put(k.id); why.put("" + k.id, k.why == null ? "" : k.why); }
-            p.put("day", today()); p.put("mins", mins); p.put("ids", ids); p.put("sur", sur); p.put("why", why);
+            p.put("day", today()); p.put("mins", mins); p.put("prov", Refresher.busy()); p.put("ids", ids); p.put("sur", sur); p.put("why", why);
             prefs.edit().putString(PLAN, p.toString()).apply();
             return p;
         } catch (Exception e) { return null; }
@@ -112,7 +112,9 @@ public class MainActivity extends Activity {
         String s = prefs.getString(PLAN, "");
         if (!s.isEmpty()) {
             JSONObject p = new JSONObject(s);
-            if (today().equals(p.optString("day"))) return p;
+            // a plan made while the sources were still loading, or one with nothing in it, is made again once they are loaded
+            boolean stale = p.optJSONArray("ids") == null || p.getJSONArray("ids").length() == 0 || (p.optBoolean("prov") && !Refresher.busy());
+            if (today().equals(p.optString("day")) && !stale) return p;
         }
         JSONObject p = makePlan(prefs.getInt("planMins", 15));
         if (p == null) throw new Exception("no plan");
