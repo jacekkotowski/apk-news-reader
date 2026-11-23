@@ -1,0 +1,1 @@
+{"candidates":[{"content":{"parts":[{"text":"Parquet stores data by column, so a query reads only the columns it needs [1]. DuckDB can query Parquet files directly [2]. See also [7]."}],"role":"model"},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":420,"candidatesTokenCount":38}}

@@ -1,24 +1,21 @@
-## Stash Reader 1.4.2: a Feed that fits your time, and a few surprises
+## Stash Reader 1.5: one card per story, and questions for your Stash
 
-This is release 1.4. The tags v1.4 and v1.4.1 never became releases: the emulator test failed, first because the day's list was made before the sources had loaded (fixed in the app), then because the test tapped the first card at a height that now falls on the new time buttons (fixed in the test). Use this one.
+**One Story, Many Sources**
+- Unread items from the last 3 days that tell the same story become **one card**. They are grouped when they have the same link (tracking parameters, "www" and a trailing slash are ignored) or when their titles share most of their key words. The best-ranked one stays; the card shows **+3 sources on this story**. Tap it to see the other titles and sources, and tap one to read it inside Stash.
+- This works in the Feed list for your time, and in the filtered list too. Older items are never grouped.
 
-**Fit My Time**
-- The Feed bar now has **5 min / 15 min / 30 min** instead of "Top 15". Pick the time you have and the Feed shows a list that adds up to it: about "12 of 15 min, 5 items". Reading times are the app's estimate (a video counts 10 min, a podcast episode 20 min).
-- With 15 or 30 minutes the list mixes **one longer article** (8 min or more) with short ones. With 5 minutes it is short items only. If nothing is short enough, you get the shortest of the best ones rather than an empty list.
-- The list is made once a day and stays the same while you read: new items arriving in the background do not reshuffle it. When you have handled everything on it, the Feed says **Done for today** and stops. Pick a time again to get more.
-- The ⋯ filters and the search work as before and show all matches; choosing a time clears them.
-
-**Surprise Me**
-- About one slot in five is a **surprise**: a recent or familiar-looking item that matches none of your topics, with a "Surprise: why" line.
-- **Less like this** on a surprise also lowers surprises from that source. After three, that source gives none.
+**Ask My Stash**
+- The Stash has a **search box** at the top. Type a word or a question ("how does parquet store columns"). The app looks through the text of everything you kept, your highlights, your notes and your Gemini notes, and shows the best **passages**, each marked [1], [2] ... with the kind (article, highlight, my note, AI notes) and a button that opens the article inside Stash. At most two passages from one article.
+- With a Gemini key saved, **Answer with Gemini** writes a short answer **only from those passages** and cites them as [1], [2]. If the passages hold no answer, or there are none, you get "Nothing in your Stash answers this" and no made-up answer. An answer without a citation is not shown, and citations to passages that were not sent are removed.
+- Only the passages and your question are sent to Gemini. The first search after this update builds the index of everything you kept; later changes (a new highlight, a note) are added at the next search.
 
 **Try on the phone**
-1. Open the Feed: press 5, 15 and 30 min. The list should grow, and the line under the buttons should say how many minutes it fills.
-2. In the 15 or 30 min list, find a card whose line starts with "Surprise:".
-3. Hide or Keep everything on the list: you should see "Done for today". Press 15 min again for more.
-4. Press ⋯ and type a word in the search: all matches show, and the time buttons go grey.
+1. Feed, 30 min: look for a card with "+N sources on this story" (it appears only when two sources really cover one story that week). Tap it.
+2. Stash, search box: type a word from something you kept, for example "parquet" or "causal". Passages should appear; tap the title button to open the article.
+3. Add a Gemini key (Sources, Settings) and press **Answer with Gemini**: the answer should carry [1], [2] marks that match the passages above. Then ask something your Stash does not cover: you should get the "Nothing in your Stash answers this" line.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The PC tests cover the planner (time never exceeded, one long item, surprise rate and rules, the turn-down rule, the fallback). The database part and the new buttons were not run in the emulator beyond starting the app, and the surprise quality rule (score plus length, at least 0.4) is my guess, not tuned on real data.
-- A podcast or video card has no real length in the app, so the 10 and 20 minute figures are fixed estimates.
+- Nothing here has been tested on a real phone. The PC tests cover grouping (on a fixture of 13 titles), the link comparison, passage cutting, the search query, ranking, and the answer request and citation checks; the answer parser was tested on a hand-written reply in Gemini's format, not on a live answer. The full-text index (SQLite FTS4) and the new screens were only started in the emulator, not driven.
+- Search finds words that begin like your words ("model" finds "models") but does not understand meaning. A question phrased with other words than the text uses finds nothing.
+- Clustering is by words in titles: two different stories with very similar headlines can be merged, and one story told in different words can stay separate.
 - Earlier limits still apply.

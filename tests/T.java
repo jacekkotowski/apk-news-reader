@@ -29,6 +29,8 @@ public final class T {
         pageText();
         ranking();
         fitting();
+        clusters();
+        passages();
         markdown();
         json();
         querySources();
@@ -297,6 +299,88 @@ public final class T {
     static java.util.List<Long> ids(java.util.List<Ranker.Scored> l) { java.util.List<Long> o = new java.util.ArrayList<>(); for (Ranker.Scored s : l) o.add(s.id); return o; }
     static Ranker.Scored byId(java.util.List<Ranker.Scored> l, long id) { for (Ranker.Scored s : l) if (s.id == id) return s; return null; }
 
+
+
+    static void clusters() throws Exception {
+        long now = 1794700000000L;
+        java.util.List<Clusters.Item> items = new java.util.ArrayList<>();
+        for (Object o : Json.list(Json.parse(text("tests/fixtures/clusters.json")))) {
+            java.util.Map<String, Object> m = Json.obj(o);
+            long age = Json.num(m, "ageHours");
+            items.add(new Clusters.Item(Json.num(m, "id"), Json.str(m, "title"), Json.str(m, "link"), Json.str(m, "source"), age < 0 ? 0 : now - age * 3600000L));
+        }
+        java.util.List<java.util.List<Clusters.Item>> g = Clusters.group(items, now);
+        java.util.List<java.util.List<Long>> ids = new java.util.ArrayList<>();
+        for (java.util.List<Clusters.Item> c : g) { java.util.List<Long> x = new java.util.ArrayList<>(); for (Clusters.Item i : c) x.add(i.id); ids.add(x); }
+        eq("clusters: the GPT-5 story has three sources, in input order", java.util.Arrays.asList(1L, 3L, 8L), ids.get(0));
+        eq("clusters: the same link (tracking, www, slash, scheme ignored) joins two items", java.util.Arrays.asList(5L, 7L), ids.get(1));
+        eq("clusters: exactly two groups", 2, ids.size());
+        boolean joined = false;
+        for (java.util.List<Long> x : ids) if (x.contains(4L) || x.contains(6L)) joined = true;
+        yes("clusters: two Power BI posts with only two shared words stay apart", !joined);
+        for (java.util.List<Long> x : ids) yes("clusters: an item older than 3 days is left out", !x.contains(9L));
+        for (java.util.List<Long> x : ids) yes("clusters: an undated item is left out", !x.contains(13L));
+        for (java.util.List<Long> x : ids) yes("clusters: two bare home pages are not one story", !x.contains(10L) && !x.contains(11L));
+        eq("link key: tracking, www, slash", "essay.example.com/notebooks", Clusters.linkKey("http://www.Essay.example.com/notebooks/?utm_source=a&ref=hn#top"));
+        eq("link key: a real parameter stays", "x.org/watch?v=1", Clusters.linkKey("https://x.org/watch?v=1&utm_campaign=z"));
+        eq("link key: bare host is empty", "", Clusters.linkKey("https://blog.example.org/"));
+        eq("link key: not a web address", "", Clusters.linkKey("mailto:a@b.c"));
+        eq("clusters: no items, no groups", 0, Clusters.group(new java.util.ArrayList<Clusters.Item>(), now).size());
+    }
+
+
+    static void passages() throws Exception {
+        // chunking
+        StringBuilder long1 = new StringBuilder();
+        for (int i = 0; i < 40; i++) long1.append("Sentence number ").append(i).append(" says something about columns and files. ");
+        java.util.List<String> ch = Passages.chunk(long1.toString());
+        yes("chunk: several pieces", ch.size() >= 4);
+        boolean small = true, ends = true;
+        for (String c : ch) { if (c.length() > Passages.HARD_MAX) small = false; if (!c.endsWith(".")) ends = false; }
+        yes("chunk: no piece over the hard limit", small);
+        yes("chunk: pieces end at a sentence end", ends);
+        eq("chunk: empty text", 0, Passages.chunk("  ").size());
+        StringBuilder nospace = new StringBuilder();
+        for (int i = 0; i < 2500; i++) nospace.append('x');
+        for (String c : Passages.chunk(nospace.toString())) yes("chunk: a huge word is still cut", c.length() <= Passages.HARD_MAX);
+        eq("chunk: a short text is one piece", 1, Passages.chunk("One. Two. Three.").size());
+
+        // questions
+        eq("match query: key words as prefixes", "parquet* OR column* OR store*", Passages.matchQuery("How does Parquet store the columns?"));
+        eq("match query: only stop words", "", Passages.matchQuery("What is the?"));
+        yes("match query: quotes and operators cannot get through", !Passages.matchQuery("\"x\" AND NEAR(a b) -c OR d").contains("\"") && !Passages.matchQuery("\"x\" AND NEAR(a b) -c").contains("("));
+        eq("terms: at most eight", 8, Passages.terms("alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo").size());
+
+        // ranking
+        java.util.List<Passages.Passage> c = new java.util.ArrayList<>();
+        c.add(new Passages.Passage(1, "text", "Parquet stores data by column so queries read fewer bytes."));
+        c.add(new Passages.Passage(1, "text", "The columns of a Parquet file are compressed one by one."));
+        c.add(new Passages.Passage(1, "text", "Parquet column chunks carry statistics for skipping."));
+        c.add(new Passages.Passage(2, "hl", "Columnar storage makes analytics fast."));
+        c.add(new Passages.Passage(3, "text", "Gardening in spring needs patience."));
+        java.util.List<Passages.Passage> r = Passages.rank("How does Parquet store columns?", c, 8);
+        yes("rank: an unrelated passage is dropped", r.size() == 3 && !containsText(r, "Gardening"));
+        int fromOne = 0;
+        for (Passages.Passage p : r) if (p.itemId == 1) fromOne++;
+        eq("rank: at most two passages from one item", 2, fromOne);
+        eq("rank: no match, no passages", 0, Passages.rank("kubernetes", c, 8).size());
+        eq("rank: the limit is respected", 1, Passages.rank("Parquet columns", c, 1).size());
+
+        // answers
+        String reply = Gemini.replyText(200, text("tests/fixtures/gemini-answer.json"));
+        yes("answer: text is read from the reply", reply.startsWith("Parquet stores data by column"));
+        String checked = Passages.checkCitations(reply, 2);
+        yes("answer: a citation to a passage that was not sent is removed", !checked.contains("[7]") && checked.contains("[1]") && checked.contains("[2]"));
+        eq("answer: two real citations counted", 2, Passages.citations(reply, 2));
+        eq("answer: none counted when no passages", 0, Passages.citations(reply, 0));
+        java.util.List<String[]> ps = new java.util.ArrayList<>();
+        ps.add(new String[]{"Parquet basics", "Parquet stores data by column."});
+        String req = Gemini.answerRequest("What is \"Parquet\"?", ps);
+        yes("answer request: valid JSON", Json.obj(Json.parse(req)) != null);
+        yes("answer request: numbered passage, question and the no-answer rule", req.contains("[1] (Parquet basics) Parquet stores data by column.") && req.contains("QUESTION: What is \\\"Parquet\\\"?") && req.contains(Passages.NO_ANSWER));
+        yes("answer request: no JSON schema is asked for", !req.contains("responseSchema"));
+    }
+    static boolean containsText(java.util.List<Passages.Passage> l, String s) { for (Passages.Passage p : l) if (p.text.contains(s)) return true; return false; }
 
     static Ranker.Scored sc(long id, double score, boolean topic, String why) {
         Ranker.Scored s = new Ranker.Scored(); s.id = id; s.score = score; s.topicHit = topic; s.why = why; return s;

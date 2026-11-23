@@ -38,7 +38,7 @@ final class Ranker {
 
     private static final Set<String> STOP = new HashSet<>(Arrays.asList(("a an and are as at be been but by can for from had has have how i if in into is it its of on or our "
         + "so than that the their then there these they this to up was we were what when which who will with you your not no more most new one also about after all any "
-        + "can could do does get got just may might out over some such use used using via why would").split(" ")));
+        + "can could do does doe did ha wa thi get got just may might out over some such use used using via why would").split(" ")));
 
     /** Lower case words without stop words; a trailing plural "s" is removed so "models" and "model" match. */
     static List<String> tokens(String text) {

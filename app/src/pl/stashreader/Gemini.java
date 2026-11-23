@@ -89,6 +89,21 @@ final class Gemini {
         return request(textPart(p + "\n\n--- WHAT I KEPT ---\n" + m), PATH_SCHEMA);
     }
 
+    /** A question answered from numbered passages only. passages: {title, text}. The answer is plain text with [1], [2] citations. */
+    static String answerRequest(String question, List<String[]> passages) {
+        StringBuilder b = new StringBuilder();
+        b.append("Answer the question using ONLY the numbered passages below, which come from my own saved reading. ")
+         .append("Cite the passage after every claim, like [1] or [2]; never cite a number that is not listed. ")
+         .append("If the passages do not contain the answer, reply exactly: ").append(Passages.NO_ANSWER).append(" ")
+         .append("Do not use outside knowledge. Keep the answer under 150 words.\n\nQUESTION: ").append(question).append("\n\nPASSAGES:\n");
+        for (int i = 0; i < passages.size(); i++) {
+            String t = passages.get(i)[1];
+            if (t.length() > 900) t = t.substring(0, 900);
+            b.append('[').append(i + 1).append("] (").append(passages.get(i)[0]).append(") ").append(t).append('\n');
+        }
+        return request(textPart(b.toString()), null);
+    }
+
     /** The model's text from a generateContent answer, or a GeminiException with a short message. */
     static String replyText(int code, String body) throws GeminiException {
         Object root = parseOrNull(body == null ? "" : body);

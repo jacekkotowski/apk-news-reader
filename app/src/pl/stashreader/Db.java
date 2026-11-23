@@ -35,7 +35,7 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 11); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 12); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
@@ -46,6 +46,7 @@ final class Db extends SQLiteOpenHelper {
         createHighlights(d);
         createCards(d);
         createPaths(d);
+        createIndex(d);
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
             for (int k = 0; k < a.length(); k++) {
@@ -111,9 +112,129 @@ final class Db extends SQLiteOpenHelper {
             createPaths(d);
         }
         if (o < 11) d.execSQL("ALTER TABLE sources ADD COLUMN surprise_less INTEGER NOT NULL DEFAULT 0");
+        if (o < 12) { // full-text search over kept text, highlights and notes; every kept item is indexed on the first search
+            createIndex(d);
+            try { d.execSQL("INSERT OR IGNORE INTO fts_dirty SELECT id FROM items WHERE state=" + KEPT); } catch (RuntimeException ignored) { }
+        }
     }
 
-    private void createPaths(SQLiteDatabase d) {
+    /** Passages of kept items for Ask My Stash. docid = item id * 1000 + number, so one item is replaced with one range delete. */
+    private void createIndex(SQLiteDatabase d) {
+        try {
+            d.execSQL("CREATE VIRTUAL TABLE fts USING fts4(kind, text, notindexed=kind, tokenize=unicode61)");
+            d.execSQL("CREATE TABLE fts_dirty(item_id INTEGER PRIMARY KEY)");
+        } catch (RuntimeException e) { /* this phone's SQLite has no FTS4: the search says so */ }
+    }
+
+    private void touch(long item) {
+        try { getWritableDatabase().execSQL("INSERT OR IGNORE INTO fts_dirty(item_id) VALUES(?)", new Object[]{item}); } catch (RuntimeException ignored) { }
+    }
+
+    private static final int PER_ITEM_MAX = 600;
+
+    /** Rebuilds the passages of every item that changed since the last search. */
+    private void flushIndex() {
+        SQLiteDatabase d = getWritableDatabase();
+        List<Long> ids = new ArrayList<>();
+        try (Cursor c = d.rawQuery("SELECT item_id FROM fts_dirty LIMIT 500", null)) { while (c.moveToNext()) ids.add(c.getLong(0)); }
+        for (long id : ids) {
+            d.beginTransaction();
+            try {
+                d.execSQL("DELETE FROM fts WHERE docid BETWEEN ? AND ?", new Object[]{id * 1000, id * 1000 + 999});
+                List<String[]> ps = new ArrayList<>(); // {kind, text}
+                try (Cursor c = d.rawQuery("SELECT state, article, html, note, ai FROM items WHERE id=?", new String[]{"" + id})) {
+                    if (c.moveToFirst() && c.getInt(0) == KEPT) {
+                        String body = c.getString(1).isEmpty() ? c.getString(2) : c.getString(1);
+                        for (String p : Passages.chunk(Sanitizer.text(body))) ps.add(new String[]{"text", p});
+                        for (String p : Passages.chunk(c.getString(3))) ps.add(new String[]{"note", p});
+                        for (String p : Passages.chunk(c.getString(4).replaceAll("[#*`>]+", " "))) ps.add(new String[]{"ai", p});
+                    }
+                }
+                try (Cursor h = d.rawQuery("SELECT text, note FROM highlights WHERE item_id=? ORDER BY id", new String[]{"" + id})) {
+                    while (h.moveToNext()) ps.add(new String[]{"hl", h.getString(0) + (h.getString(1).isEmpty() ? "" : " (my note: " + h.getString(1) + ")")});
+                }
+                for (int k = 0; k < ps.size() && k < PER_ITEM_MAX; k++) {
+                    ContentValues v = new ContentValues();
+                    v.put("docid", id * 1000 + k); v.put("kind", ps.get(k)[0]); v.put("text", ps.get(k)[1]);
+                    d.insert("fts", null, v);
+                }
+                d.delete("fts_dirty", "item_id=?", new String[]{"" + id});
+                d.setTransactionSuccessful();
+            } finally { d.endTransaction(); }
+        }
+    }
+
+    /** Passages that answer a question, best first, each with its article. Empty when nothing matches. */
+    List<Passages.Passage> searchPassages(String question) {
+        List<Passages.Passage> cands = new ArrayList<>();
+        String match = Passages.matchQuery(question);
+        if (match.isEmpty()) return cands;
+        try {
+            flushIndex();
+            try (Cursor c = getReadableDatabase().rawQuery("SELECT docid, kind, text FROM fts WHERE fts MATCH ? LIMIT 400", new String[]{match})) {
+                while (c.moveToNext()) cands.add(new Passages.Passage(c.getLong(0) / 1000, c.getString(1), c.getString(2)));
+            }
+        } catch (RuntimeException e) { return new ArrayList<>(); }
+        List<Passages.Passage> top = Passages.rank(question, cands, Passages.LIMIT);
+        for (Passages.Passage p : top) {
+            try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.link, CASE WHEN s.name='' THEN s.url ELSE s.name END FROM items i JOIN sources s ON s.id=i.source_id WHERE i.id=?", new String[]{"" + p.itemId})) {
+                if (c.moveToFirst()) { p.title = c.getString(0); p.link = c.getString(1); p.source = c.getString(2); }
+            }
+        }
+        return top;
+    }
+
+    String passagesJson(String question) {
+        JSONArray a = new JSONArray();
+        try {
+            List<Passages.Passage> l = searchPassages(question);
+            for (int i = 0; i < l.size(); i++) {
+                Passages.Passage p = l.get(i);
+                JSONObject o = new JSONObject();
+                o.put("n", i + 1); o.put("id", "" + p.itemId); o.put("kind", p.kind); o.put("text", p.text); o.put("title", p.title); o.put("link", p.link); o.put("source", p.source);
+                a.put(o);
+            }
+        } catch (Exception ignored) { }
+        return a.toString();
+    }
+
+    // ---- One Story, Many Sources ----
+
+    /**
+     * Groups the unread items of the last three days that tell one story. The first id of each group in `order` stays and gets the
+     * others as {id, title, source, link}; the others are removed from `order`. Ids in a group but not in `order` count as sources too.
+     */
+    Map<Long, JSONArray> collapse(List<Long> order) {
+        Map<Long, JSONArray> out = new HashMap<>();
+        long now = System.currentTimeMillis();
+        List<Clusters.Item> items = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.title, i.link, CASE WHEN s.name='' THEN s.url ELSE s.name END, " + WHEN + " FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + NEW + " AND s.enabled=1 AND " + WHEN + ">" + (now - Clusters.WINDOW_MS) + " ORDER BY " + WHEN + " DESC LIMIT " + Clusters.MAX_ITEMS, null)) {
+            while (c.moveToNext()) items.add(new Clusters.Item(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4)));
+        }
+        Map<Long, Integer> pos = new HashMap<>();
+        for (int i = 0; i < order.size(); i++) pos.put(order.get(i), i);
+        java.util.Set<Long> drop = new java.util.HashSet<>();
+        try {
+            for (List<Clusters.Item> g : Clusters.group(items, now)) {
+                Clusters.Item lead = null;
+                for (Clusters.Item it : g) if (pos.containsKey(it.id) && (lead == null || pos.get(it.id) < pos.get(lead.id))) lead = it;
+                if (lead == null) continue;
+                JSONArray a = new JSONArray();
+                for (Clusters.Item it : g) {
+                    if (it == lead) continue;
+                    JSONObject o = new JSONObject();
+                    o.put("id", "" + it.id); o.put("title", it.title); o.put("source", it.source); o.put("link", it.link);
+                    a.put(o);
+                    drop.add(it.id);
+                }
+                out.put(lead.id, a);
+            }
+        } catch (Exception ignored) { }
+        order.removeAll(drop);
+        return out;
+    }
+
+    /** A plan that fills the given minutes (see Ranker.fit), from the unread items. */
         d.execSQL("CREATE TABLE paths(topic TEXT PRIMARY KEY, md TEXT NOT NULL, searches TEXT NOT NULL DEFAULT '[]', created INTEGER NOT NULL)");
     }
 
@@ -254,6 +375,7 @@ final class Db extends SQLiteOpenHelper {
         ContentValues v = new ContentValues();
         v.put("article", clean); v.put("mins", Math.max(1, Math.round(words / 220f)));
         getWritableDatabase().update("items", v, "id=?", new String[]{"" + id});
+        touch(id);
         // an item saved from a page has no excerpt yet; use the start of its text
         getWritableDatabase().execSQL("UPDATE items SET excerpt=? WHERE id=? AND excerpt='Saved from a share.'", new Object[]{Sanitizer.shorten(Sanitizer.text(clean), 300), id});
     }
@@ -292,6 +414,7 @@ final class Db extends SQLiteOpenHelper {
             }
         }
         d.update("items", v, "id=?", new String[]{"" + id});
+        touch(id);
     }
 
     private static JSONObject card(Cursor c) throws Exception {
@@ -327,15 +450,19 @@ final class Db extends SQLiteOpenHelper {
             }
         }
         JSONArray a = new JSONArray();
+        List<Long> order = new ArrayList<>();
+        Map<Long, String> whys = new HashMap<>();
         if (f.newest) {
-            for (Ranker.Doc d : docs) { if (a.length() >= FEED_LIMIT) break; a.put(cards.get(d.id)); }
-            return a.toString();
+            for (Ranker.Doc d : docs) order.add(d.id);
+        } else {
+            for (Ranker.Scored r : Ranker.rank(docs, topics, texts(KEPT), texts(LESS), System.currentTimeMillis())) { order.add(r.id); whys.put(r.id, r.why); }
         }
-        List<Ranker.Scored> ranked = Ranker.rank(docs, topics, texts(KEPT), texts(LESS), System.currentTimeMillis());
-        for (Ranker.Scored r : ranked) {
+        Map<Long, JSONArray> also = collapse(order);
+        for (long id : order) {
             if (a.length() >= FEED_LIMIT) break;
-            JSONObject o = cards.get(r.id);
-            o.put("why", r.why);
+            JSONObject o = cards.get(id);
+            if (whys.containsKey(id)) o.put("why", whys.get(id));
+            if (also.containsKey(id)) o.put("also", also.get(id));
             a.put(o);
         }
         return a.toString();
@@ -355,6 +482,10 @@ final class Db extends SQLiteOpenHelper {
             }
         }
         List<Ranker.Scored> ranked = Ranker.rank(docs, topics, texts(KEPT), texts(LESS), System.currentTimeMillis());
+        List<Long> order = new ArrayList<>();
+        for (Ranker.Scored r : ranked) order.add(r.id);
+        collapse(order);
+        for (java.util.Iterator<Ranker.Scored> it = ranked.iterator(); it.hasNext(); ) if (!order.contains(it.next().id)) it.remove();
         Map<Long, Integer> pen = new HashMap<>();
         try (Cursor c = getReadableDatabase().rawQuery("SELECT id, surprise_less FROM sources WHERE surprise_less>0", null)) {
             while (c.moveToNext()) pen.put(c.getLong(0), c.getInt(1));
@@ -373,9 +504,12 @@ final class Db extends SQLiteOpenHelper {
             }
         }
         JSONArray a = new JSONArray();
-        for (long id : ids) {
+        List<Long> shown = new ArrayList<>();
+        for (long id : ids) if (byId.containsKey(id)) shown.add(id);
+        Map<Long, JSONArray> also = collapse(shown);
+        for (long id : shown) {
             JSONObject o = byId.get(id);
-            if (o == null) continue;
+            if (also.containsKey(id)) o.put("also", also.get(id));
             o.put("why", why.containsKey(id) ? why.get(id) : "");
             o.put("surprise", surprise.contains(id));
             a.put(o);
@@ -473,16 +607,18 @@ final class Db extends SQLiteOpenHelper {
             d.insert("cards", null, cv);
         }
         setState(item, KEPT);
+        touch(item);
         return true;
     }
     void setHighlightNote(long id, String note) {
         ContentValues v = new ContentValues(); v.put("note", note == null ? "" : note.trim());
         getWritableDatabase().update("highlights", v, "id=?", new String[]{"" + id});
+        touch(highlightItem(id));
     }
     long highlightItem(long id) {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT item_id FROM highlights WHERE id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getLong(0) : -1; }
     }
-    void removeHighlight(long id) { getWritableDatabase().delete("highlights", "id=?", new String[]{"" + id}); }
+    void removeHighlight(long id) { long item = highlightItem(id); getWritableDatabase().delete("highlights", "id=?", new String[]{"" + id}); touch(item); }
     /** Saves a link shared from another app straight into the Stash. Returns the item id, or -1 when the link is not usable. */
     long addShared(String url, String title) {
         SQLiteDatabase d = getWritableDatabase();
@@ -502,6 +638,7 @@ final class Db extends SQLiteOpenHelper {
         v.put("source_id", sid); v.put("key", i.uid); v.put("title", i.title); v.put("excerpt", "Saved from a share."); v.put("html", "");
         v.put("link", i.link); v.put("pub", now); v.put("fetched", now); v.put("state", KEPT); v.put("kept_at", now);
         long id = d.insertWithOnConflict("items", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+        if (id != -1) touch(id);
         if (id == -1) { // the same link is already known, perhaps from a feed: keep that one
             try (Cursor c = d.rawQuery("SELECT id FROM items WHERE key=?", new String[]{i.uid})) { if (!c.moveToFirst()) return -1; id = c.getLong(0); }
             setState(id, KEPT);
@@ -554,6 +691,7 @@ final class Db extends SQLiteOpenHelper {
     void setNote(long item, String note) {
         ContentValues v = new ContentValues(); v.put("note", note == null ? "" : note.trim());
         getWritableDatabase().update("items", v, "id=?", new String[]{"" + item});
+        touch(item);
     }
 
     /** Everything the Markdown note needs, or null when the item is gone or not kept. */
@@ -617,6 +755,7 @@ final class Db extends SQLiteOpenHelper {
             }
             d.setTransactionSuccessful();
         } finally { d.endTransaction(); }
+        touch(id);
     }
 
     /** Titles, sources and highlighted passages of the kept items on one topic, for the learning path. Never your own notes. */

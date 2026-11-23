@@ -394,6 +394,22 @@ public class MainActivity extends Activity {
             sync(id);
             return "" + id;
         }
+        /** Passages from the Stash that match a question, each with its article link: [{n, id, kind, text, title, link, source}]. */
+        @JavascriptInterface public String searchStash(String question) { return db.passagesJson(question == null ? "" : question); }
+        /** "Answer with Gemini": answers only from those passages, with [n] citations. The result is read with geminiResult("ask"). */
+        @JavascriptInterface public void askStash(final String question) {
+            gem("ask", () -> {
+                java.util.List<Passages.Passage> ps = db.searchPassages(question == null ? "" : question);
+                if (ps.isEmpty()) return Passages.NO_ANSWER;
+                java.util.List<String[]> in = new java.util.ArrayList<>();
+                for (Passages.Passage p : ps) in.add(new String[]{p.title, p.text});
+                String answer = Gemini.ask(apiKey(), Gemini.answerRequest(question, in), Refresher.AGENT).trim();
+                if (answer.contains(Passages.NO_ANSWER)) return Passages.NO_ANSWER;
+                answer = Passages.checkCitations(answer, ps.size());
+                if (Passages.citations(answer, ps.size()) == 0) throw new Gemini.GeminiException("Gemini did not cite your passages, so its answer is not shown. Read the passages above instead.");
+                return answer;
+            });
+        }
         @JavascriptInterface public void setBack(boolean open) { backOpen = open; }
         @JavascriptInterface public String notesJson() { try { return db.notesJson(); } catch (Exception e) { return "{\"items\":[],\"paths\":[]}"; } }
         @JavascriptInterface public void saveArticle(String id, String html) { db.saveArticle(Long.parseLong(id), html); }

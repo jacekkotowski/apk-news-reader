@@ -1,0 +1,15 @@
+[
+ {"id":1,"title":"OpenAI releases GPT-5 with longer context window","link":"https://news.example.com/gpt5","source":"Example News","ageHours":5},
+ {"id":2,"title":"Parquet files explained for analysts","link":"https://blog.example.org/parquet-explained","source":"Data Blog","ageHours":6},
+ {"id":3,"title":"GPT-5 released: longer context window and cheaper pricing","link":"https://www.other.example.net/2026/gpt5-release/","source":"Other Net","ageHours":9},
+ {"id":4,"title":"Power BI June update: new visuals","link":"https://powerbi.example.com/june","source":"Power BI Blog","ageHours":12},
+ {"id":5,"title":"Why I stopped using notebooks","link":"https://essay.example.com/notebooks?utm_source=newsletter&utm_medium=email","source":"Essay Site","ageHours":20},
+ {"id":6,"title":"Power BI tips for faster reports","link":"https://powerbi.example.com/july","source":"Power BI Blog","ageHours":14},
+ {"id":7,"title":"A reader's reply on notebooks and reproducibility","link":"http://essay.example.com/notebooks/?ref=hn","source":"Hacker News","ageHours":30},
+ {"id":8,"title":"What the new GPT-5 context window means for RAG","link":"https://rag.example.io/gpt5-context","source":"RAG Weekly","ageHours":40},
+ {"id":9,"title":"OpenAI releases GPT-5 with longer context window","link":"https://old.example.com/gpt5","source":"Old Copy","ageHours":120},
+ {"id":10,"title":"Home page of a blog","link":"https://blog.example.org/","source":"Data Blog","ageHours":3},
+ {"id":11,"title":"Another home page","link":"https://blog.example.org","source":"Data Blog","ageHours":3},
+ {"id":12,"title":"Tidymodels workflows for time series","link":"https://tidy.example.org/ts","source":"Tidy","ageHours":50},
+ {"id":13,"title":"Undated item about GPT-5 longer context window release","link":"https://x.example.org/u","source":"X","ageHours":-1}
+]

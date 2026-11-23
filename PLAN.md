@@ -183,7 +183,7 @@ Four releases planned 2026-11-23 (approved by Jacek): v1.3 notes anywhere and a 
 
 - [x] v1.3, 2026-11-23: links open inside Stash as reader pages, one pencil button keeps the page and makes Gemini notes, Notes chip in the Stash with a Markdown view. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.3 (CI run 45160827183). Not tested on a phone.
 - [x] v1.4, 2026-11-23: Fit My Time (5 / 15 / 30 min, one plan a day, Done for today) and Surprise Me in the Feed. The tags v1.4 and v1.4.1 failed the emulator test (a plan made before the sources loaded stayed empty; then the smoke script tapped the new time buttons instead of a card); the working build is v1.4.2: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.4.2. Not tested on a phone.
-- [ ] v1.5: One Story Many Sources (`Clusters`) and Ask My Stash (FTS4, optional Gemini answer).
+- [x] v1.5, 2026-11-23: One Story Many Sources (`Clusters`) and Ask My Stash (FTS4, optional Gemini answer). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.5. Not tested on a phone.
 - [ ] v1.6: Listen to Anything (TextToSpeech foreground service, play queue).
 
 ## 8. Open problems

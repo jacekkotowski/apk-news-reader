@@ -12,3 +12,5 @@ Share.java
 Recall.java
 Gemini.java
 FeedFilter.java
+Clusters.java
+Passages.java
