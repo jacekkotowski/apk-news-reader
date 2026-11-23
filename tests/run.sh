@@ -7,3 +7,4 @@ CORE=$(sed "s#^#$S/#" tests/core.txt)
 javac -nowarn --release 11 -encoding UTF-8 -d $O $CORE tests/T.java 2>&1 | grep -v "^Picked up" || true
 [ -f $O/pl/stashreader/T.class ] || { echo "Test compile failed"; exit 1; }
 java -cp $O pl.stashreader.T 2>&1 | grep -v "^Picked up"; [ "${PIPESTATUS[0]}" = 0 ]
+if command -v node >/dev/null 2>&1; then node tests/md.js; else echo "node not found: markdown tests skipped"; fi

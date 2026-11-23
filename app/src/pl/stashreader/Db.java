@@ -253,6 +253,27 @@ final class Db extends SQLiteOpenHelper {
         ContentValues v = new ContentValues();
         v.put("article", clean); v.put("mins", Math.max(1, Math.round(words / 220f)));
         getWritableDatabase().update("items", v, "id=?", new String[]{"" + id});
+        // an item saved from a page has no excerpt yet; use the start of its text
+        getWritableDatabase().execSQL("UPDATE items SET excerpt=? WHERE id=? AND excerpt='Saved from a share.'", new Object[]{Sanitizer.shorten(Sanitizer.text(clean), 300), id});
+    }
+
+    /** Items that have Gemini notes, and the learning paths, newest first. The text itself is read with itemJson / pathJson. */
+    String notesJson() throws Exception {
+        JSONObject out = new JSONObject();
+        JSONArray items = new JSONArray(), paths = new JSONArray();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, " + WHEN + ", i.ai FROM items i JOIN sources s ON s.id=i.source_id WHERE i.ai<>'' ORDER BY i.kept_at DESC, i.id DESC", null)) {
+            while (c.moveToNext()) {
+                JSONObject o = new JSONObject();
+                o.put("id", "" + c.getLong(0)); o.put("title", c.getString(1)); o.put("source", c.getString(2)); o.put("pub", c.getLong(3));
+                o.put("snippet", Sanitizer.shorten(c.getString(4).replaceAll("[#*_>`\\-]+", " ").replaceAll("\\s+", " ").trim(), 160));
+                items.put(o);
+            }
+        }
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT topic, created FROM paths ORDER BY created DESC", null)) {
+            while (c.moveToNext()) { JSONObject o = new JSONObject(); o.put("topic", c.getString(0)); o.put("created", c.getLong(1)); paths.put(o); }
+        }
+        out.put("items", items); out.put("paths", paths);
+        return out.toString();
     }
     String itemLink(long id) {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT link FROM items WHERE id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getString(0) : ""; }

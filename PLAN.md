@@ -179,13 +179,21 @@ summaries, Play Store.
 
 - [x] v1.2, 2026-11-23: Feed with a short list, filters and search behind the three dots, 30-day expiry, automatic notes folder Documents/Stash Reader, Settings group. https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.2 (CI run 45090729772). Emulator: a kept note appears as a .md file in the folder. Not tested on a phone.
 
+Four releases planned 2026-11-23 (approved by Jacek): v1.3 notes anywhere and a Notes view; v1.4 Fit My Time and Surprise Me; v1.5 One Story Many Sources and Ask My Stash; v1.6 Listen to Anything.
+
+- [x] v1.3, 2026-11-23: links open inside Stash as reader pages, one pencil button keeps the page and makes Gemini notes, Notes chip in the Stash with a Markdown view. Not tested on a phone.
+- [ ] v1.4: Fit My Time (5 / 15 / 30 min) and Surprise Me in the Feed.
+- [ ] v1.5: One Story Many Sources (`Clusters`) and Ask My Stash (FTS4, optional Gemini answer).
+- [ ] v1.6: Listen to Anything (TextToSpeech foreground service, play queue).
+
 ## 8. Open problems
 
 See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit and Semantic Scholar could not be checked for real (HTTP 404 and 429 from the build computer); the Stash folder export, share sheet and text selection were not exercised in the emulator; steps 6 to 8 are not started.
 
 Added after steps 6 to 8: the curator's scheduled run has not fired yet; page watch, recommendations, highlights, share and the export folder were not used on a phone.
 
-Added after v1.0: Gemini was called live only from the PC (answers recorded as test fixtures); Make notes and the learning path were never pressed in the app on a real phone. Free-tier limits and terms can change (the YouTube feature is a preview). The key Jacek pasted in chat is in the private keys repo (apk-news-reader/gemini.env); it is also in this session's transcript, so he may want to make a new key after testing.
+Added after v1.0: Gemini was called live only from the PC (answers recorded as test fixtures); Make notes and the learning path were never pressed in the app on a real phone. Free-tier limits and terms can change (the YouTube feature is a preview). The key Jacek pasted in chat is in the private keys repo (apk-news-reader/gemini.env); it is also in this session's transcript, so he may want to make a new key after testing.
+
 
 ## 9. Future plans (ideas for a new session, not commitments)
 

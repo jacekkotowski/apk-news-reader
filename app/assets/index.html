@@ -52,6 +52,12 @@ section{display:none}section.on{display:block}
 .src input{width:22px;height:22px;margin-top:3px}
 .add{display:flex;gap:8px;margin:12px 0}.add input{flex:1;min-width:0;padding:8px 12px;border-radius:18px;border:1px solid var(--line);background:var(--card);color:var(--text);font:inherit}
 #msg{color:var(--bad);font-size:13px;min-height:18px}
+.text h2{font-size:1.25em;line-height:1.3;margin:1em 0 .3em}.text h3{font-size:1.12em;line-height:1.3;margin:1em 0 .3em}.text h4{font-size:1em;margin:.8em 0 .2em}.text ul,.text ol{padding-left:22px}.text img{max-width:100%;height:auto}
+#pg{position:fixed;left:0;right:0;top:0;bottom:0;background:var(--bg);z-index:10;display:none;flex-direction:column}
+#pgbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line)}#pgbar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dim);font-size:13px}
+#pgbody{flex:1;overflow-y:auto;padding:12px 16px 100px;overflow-wrap:anywhere}
+#pgnote{position:absolute;right:18px;bottom:22px;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--bg);font-size:24px;box-shadow:0 2px 8px rgba(0,0,0,.35)}#pgnote:disabled{opacity:.5}
+#pgmsg{position:absolute;left:16px;right:88px;bottom:28px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;display:none}
 h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:14px 0 4px}
 </style></head><body>
 <header><h1>Stash Reader</h1><small id="stat"></small><button class="btn" id="refresh">Refresh</button></header>
@@ -97,6 +103,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <p class="meta" id="ver"></p>
 </section>
 </main>
+<div id="pg"><div id="pgbar"><button class="btn" id="pgback">\u2039 Back</button><span id="pgtitle"></span></div><div id="pgbody" class="text"></div><div id="pgmsg"></div><button id="pgnote" title="Keep this page and make Gemini notes">\u270E</button></div>
 <div id="hlbar"><button class="btn main" id="hlbtn">Highlight selection</button></div>
 <nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Stash</button><button data-t="topics">Topics</button><button data-t="sources">Sources</button></nav>
 <script src="Readability.js"></script>
@@ -104,7 +111,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
 var KL={};
 var fF={type:'',topic:'',source:'0',query:'',newest:false},fShown=15,fT=0;
-var aiBusy=0,recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
+var notesOn=false,noteOpen=null,pgStack=[],aiBusy=0,recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
 function J(s){try{return JSON.parse(s)}catch(e){return []}}
@@ -217,7 +224,7 @@ function card(it,mode){
       acts=el('div','acts top');b.appendChild(acts);
       label=el('div','label');b.appendChild(label);
       text=el('div','text');text.__card=c;b.appendChild(text);
-      text.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href)A.openUrl(a.href)}});
+      text.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href&&/^https?:/i.test(a.href))openPage(a.href)}});
       note=el('div','note');b.appendChild(note);
       paint();
       aiBox=el('div','mine');b.appendChild(aiBox);
@@ -250,13 +257,15 @@ function render(){
     $('autofolder').style.display=(A.autoFolderAvailable&&A.autoFolderAvailable())?'':'none';
     renderRecall();renderPath();
     var kb=$('keptlist');kb.textContent='';
+    if(notesOn){renderNotes(kb);return}
     var ki=J(A.kept());
     var tp={};ki.forEach(function(it){(it.topics||[]).forEach(function(x){tp[x]=(tp[x]||0)+1})});
     var ch=$('chips');ch.textContent='';
     var names=Object.keys(tp).sort();
-    if(names.length){
-      var all=el('button','chip'+(!topicFilter?' on':''),'All');all.onclick=function(){topicFilter='';render()};ch.appendChild(all);
-      names.forEach(function(n){var b=el('button','chip'+(topicFilter===n?' on':''),n+' ('+tp[n]+')');b.onclick=function(){topicFilter=n;render()};ch.appendChild(b)});
+    {
+      var nb=el('button','chip'+(notesOn?' on':''),'Notes');nb.onclick=function(){notesOn=true;noteOpen=null;topicFilter='';render()};ch.appendChild(nb);
+      var all=el('button','chip'+(!topicFilter&&!notesOn?' on':''),'All');all.onclick=function(){topicFilter='';notesOn=false;noteOpen=null;render()};ch.appendChild(all);
+      names.forEach(function(n){var b=el('button','chip'+(topicFilter===n?' on':''),n+' ('+tp[n]+')');b.onclick=function(){topicFilter=n;notesOn=false;noteOpen=null;render()};ch.appendChild(b)});
     }
     var shown=0;
     ki.forEach(function(it){if(topicFilter&&(it.topics||[]).indexOf(topicFilter)<0)return;shown++;kb.appendChild(card(it,'stash'))});
@@ -368,7 +377,7 @@ function mdBlock(md){
 }
 function renderPath(){
   var box=$('pathbox');box.textContent='';
-  if(!topicFilter)return;
+  if(!topicFilter||notesOn)return;
   var has=!!(A.geminiKeySet&&A.geminiKeySet());
   var p=J(A.pathJson?A.pathJson(topicFilter):'{}');
   var panel=el('div','panel');
@@ -396,6 +405,118 @@ function renderPath(){
     panel.appendChild(mk);
   }else if(!(p&&p.md)){panel.appendChild(el('div','meta','Add a free Gemini key in Sources to make a learning path from what you kept under this topic.'))}
   panel.appendChild(msg);box.appendChild(panel);
+}
+
+//MD-START
+function mdEsc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function mdInline(s){
+  s=mdEsc(s);
+  s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+  s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  s=s.replace(/(^|[^*\w])\*([^*\s][^*]*)\*/g,'$1<em>$2</em>');
+  s=s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,'<a href="$2">$1</a>');
+  return s;
+}
+// Markdown to HTML: everything is escaped first, so only the tags made here can appear. Links must be http(s).
+function md2html(md){
+  var out=[],para=[],list=null,quote=[],code=null;
+  function endPara(){if(para.length){out.push('<p>'+mdInline(para.join(' '))+'</p>');para=[]}}
+  function endList(){if(list){out.push('</'+list+'>');list=null}}
+  function endQuote(){if(quote.length){out.push('<blockquote>'+mdInline(quote.join(' '))+'</blockquote>');quote=[]}}
+  function endAll(){endPara();endList();endQuote()}
+  String(md).split('\n').forEach(function(raw){
+    var line=raw.replace(/\s+$/,''),m;
+    if(code!==null){if(/^\s*```/.test(line)){out.push('<pre><code>'+mdEsc(code.join('\n'))+'</code></pre>');code=null}else code.push(line);return}
+    if(/^\s*```/.test(line)){endAll();code=[];return}
+    if(!line.trim()){endAll();return}
+    if((m=/^(#{1,6})\s+(.*)$/.exec(line))){endAll();var lv=Math.min(4,Math.max(2,m[1].length+1));out.push('<h'+lv+'>'+mdInline(m[2])+'</h'+lv+'>');return}
+    if(/^\s*([-*_])(\s*\1){2,}\s*$/.test(line)){endAll();out.push('<hr>');return}
+    if((m=/^\s*>\s?(.*)$/.exec(line))){endPara();endList();quote.push(m[1]);return}
+    if((m=/^\s*[-*•]\s+(.*)$/.exec(line))){endPara();endQuote();if(list!=='ul'){endList();out.push('<ul>');list='ul'}out.push('<li>'+mdInline(m[1])+'</li>');return}
+    if((m=/^\s*\d+[.)]\s+(.*)$/.exec(line))){endPara();endQuote();if(list!=='ol'){endList();out.push('<ol>');list='ol'}out.push('<li>'+mdInline(m[1])+'</li>');return}
+    endList();endQuote();para.push(line.trim());
+  });
+  if(code!==null)out.push('<pre><code>'+mdEsc(code.join('\n'))+'</code></pre>');
+  endAll();
+  return out.join('\n');
+}
+//MD-END
+function hostOf(u){var m=/^https?:\/\/([^\/?#]+)/i.exec(u||'');return m?m[1].replace(/^www\./,''):''}
+function backState(){if(A.setBack)A.setBack(pgStack.length>0||noteOpen!==null)}
+function pageBack(){
+  if(pgStack.length){pgStack.pop();if(pgStack.length)pgPaint();else $('pg').style.display='none';backState();return true}
+  if(noteOpen!==null){noteOpen=null;render();backState();return true}
+  return false;
+}
+function pgMsg(t){var m=$('pgmsg');m.textContent=t||'';m.style.display=t?'block':'none'}
+function openPage(url){pgStack.push({url:url,title:'',html:'',id:0,err:''});pgLoad(pgStack[pgStack.length-1]);backState()}
+function pgPaint(){
+  var p=pgStack[pgStack.length-1];if(!p)return;
+  $('pg').style.display='flex';pgMsg('');
+  $('pgtitle').textContent=(p.title?p.title+' | ':'')+hostOf(p.url);
+  var b=$('pgbody');b.textContent='';$('pgnote').disabled=!p.html;
+  if(p.html){b.innerHTML=p.html;b.scrollTop=0}
+  else if(p.err){
+    b.appendChild(el('p','note',p.err+' Use Open in browser to read it.'));
+    var ob=el('button','btn main','Open in browser');ob.onclick=function(){A.openUrl(p.url)};b.appendChild(ob);
+  }else b.appendChild(el('p','meta','Loading the page...'));
+}
+function pgLoad(p){
+  pgPaint();
+  A.fetchUrl(p.url);
+  (function poll(n){
+    var r=A.pageResult(p.url);
+    if(!r){if(n>80){p.err='The page took too long to load.';if(pgStack[pgStack.length-1]===p)pgPaint()}else setTimeout(function(){poll(n+1)},500);return}
+    if(r.indexOf('err:')===0)p.err='Could not load the page: '+r.slice(4)+'.';
+    else{
+      try{
+        var doc=new DOMParser().parseFromString(r.slice(3),'text/html');
+        var base=doc.createElement('base');base.href=p.url;doc.head.insertBefore(base,doc.head.firstChild);
+        var art=new Readability(doc).parse();
+        if(art&&art.textContent&&art.textContent.trim().length>=300){p.html=A.cleanHtml?A.cleanHtml(art.content):'';p.title=(art.title||'').trim();if(!p.html)p.err='The page text could not be shown.'}
+        else p.err='Reader mode could not find the article text on that page.';
+      }catch(e){p.err='Reader mode failed on that page.'}
+    }
+    if(pgStack[pgStack.length-1]===p)pgPaint();
+  })(0);
+}
+$('pgback').onclick=function(){pageBack()};
+$('pgbody').addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();if(a.href&&/^https?:/i.test(a.href))openPage(a.href)}});
+$('pgnote').onclick=function(){
+  var p=pgStack[pgStack.length-1];if(!p||!p.html)return;
+  var id=A.keepPage(p.url,p.title,p.html);
+  if(!id){pgMsg('That page could not be saved.');return}
+  p.id=id;
+  if(!(A.geminiKeySet&&A.geminiKeySet())){pgMsg('Kept in your Stash. Add a Gemini key in Sources to make notes.');return}
+  $('pgnote').disabled=true;pgMsg('Kept in your Stash. Asking Gemini for notes...');
+  A.makeNotes(id);
+  gstart('notes:'+id,function(ok,m){if(pgStack[pgStack.length-1]===p){$('pgnote').disabled=false;pgMsg(ok?'Notes saved. Find them in Stash, Notes.':m)}});
+};
+function renderNotes(kb){
+  var n=J(A.notesJson?A.notesJson():'{}');
+  if(noteOpen){
+    var o=noteOpen,back=el('button','btn','‹ Notes');back.onclick=function(){pageBack()};kb.appendChild(back);
+    var md='',title='',link='';
+    if(o.kind==='path'){var pp=J(A.pathJson(o.topic));md=pp.md||'';title='Learning path: '+o.topic}
+    else{var d=J(A.item(o.id));md=d.ai||'';title=o.title;link=d.link||''}
+    var h=el('h3',null,title);h.style.margin='12px 0 4px';kb.appendChild(h);
+    kb.appendChild(el('div','label',o.kind==='path'?'Gemini, from what you kept':'AI notes (Gemini), not the article'));
+    var t=el('div','text');t.innerHTML=md2html(md);
+    t.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();if(a.href&&/^https?:/i.test(a.href))openPage(a.href)}});
+    kb.appendChild(t);
+    if(link){var ob=el('button','btn','Read the page');ob.style.marginTop='12px';ob.onclick=function(){openPage(link)};kb.appendChild(ob)}
+    backState();return;
+  }
+  backState();
+  var any=false;
+  (n.paths||[]).forEach(function(x){any=true;
+    var c=el('div','card');c.appendChild(el('div','meta','Learning path | '+ago(x.created)));c.appendChild(el('h3',null,x.topic));
+    c.onclick=function(){noteOpen={kind:'path',topic:x.topic};render();document.querySelector('main').scrollTop=0};kb.appendChild(c)});
+  (n.items||[]).forEach(function(x){any=true;
+    var c=el('div','card');var m=el('div','meta');m.appendChild(el('b',null,x.source));m.appendChild(el('span',null,ago(x.pub)));c.appendChild(m);
+    c.appendChild(el('h3',null,x.title));c.appendChild(el('p','ex',x.snippet));
+    c.onclick=function(){noteOpen={kind:'item',id:x.id,title:x.title};render();document.querySelector('main').scrollTop=0};kb.appendChild(c)});
+  if(!any)kb.appendChild(el('div','empty','No notes yet. Open a card, press the three dots, then Make notes. Or open a link inside an article and press the pencil.'));
 }
 function renderGemini(){
   $('gstate').textContent=(A.geminiKeySet&&A.geminiKeySet())?'A key is saved on this phone.':'No key yet.';

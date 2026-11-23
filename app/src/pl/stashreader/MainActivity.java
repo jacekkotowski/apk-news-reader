@@ -85,6 +85,14 @@ public class MainActivity extends Activity {
         }
     }
 
+    private volatile boolean backOpen = false;
+    /** The page over the reader, or an open note, takes the Back button first. */
+    @SuppressWarnings("deprecation")
+    @Override public void onBackPressed() {
+        if (backOpen) web.evaluateJavascript("window.pageBack&&pageBack()", null);
+        else super.onBackPressed();
+    }
+
     @Override protected void onNewIntent(Intent in) {
         super.onNewIntent(in);
         setIntent(in);
@@ -301,6 +309,32 @@ public class MainActivity extends Activity {
         }
         /** "" while loading, else "ok:" plus the page HTML or "err:" plus a message. */
         @JavascriptInterface public String pageResult(String id) { String v = pages.remove(id); return v == null ? "" : v; }
+        /** Loads any web address for the page view; the answer is read with pageResult(address). */
+        @JavascriptInterface public void fetchUrl(final String url) {
+            if (url == null) return;
+            pages.remove(url);
+            new Thread(() -> {
+                if (!Sanitizer.isHttp(url)) { pages.put(url, "err:That is not a web address"); return; }
+                try { pages.put(url, "ok:" + Refresher.fetchPage(url)); }
+                catch (Throwable t) { pages.put(url, "err:" + (t instanceof java.io.IOException ? t.getMessage() : "Unexpected problem: " + t)); }
+            }, "fetch-url").start();
+        }
+        /** Cleans HTML from the page view before the page shows it. */
+        @JavascriptInterface public String cleanHtml(String html) { return Sanitizer.clean(html == null ? "" : html, 400000); }
+        /** Keeps a page opened inside Stash as an item with its reader text. Returns the item id, or "" when it could not be saved. */
+        @JavascriptInterface public String keepPage(String url, String title, String html) {
+            if (url == null || !Sanitizer.isHttp(url)) return "";
+            String t = Sanitizer.collapse(title == null ? "" : title);
+            if (t.isEmpty()) t = Share.hostOf(url);
+            if (t.length() > 200) t = t.substring(0, 200);
+            long id = db.addShared(url, t);
+            if (id < 0) return "";
+            db.saveArticle(id, html == null ? "" : html);
+            sync(id);
+            return "" + id;
+        }
+        @JavascriptInterface public void setBack(boolean open) { backOpen = open; }
+        @JavascriptInterface public String notesJson() { try { return db.notesJson(); } catch (Exception e) { return "{\"items\":[],\"paths\":[]}"; } }
         @JavascriptInterface public void saveArticle(String id, String html) { db.saveArticle(Long.parseLong(id), html); }
         @JavascriptInterface public void setSourceEnabled(String id, boolean on) { db.setEnabled(Long.parseLong(id), on); }
         @JavascriptInterface public void removeSource(String id) { db.removeSource(Long.parseLong(id)); }
