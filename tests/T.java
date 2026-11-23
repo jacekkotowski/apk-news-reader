@@ -385,6 +385,9 @@ public final class T {
 
 
     static void listening() {
+        yes("isArticle: a plain page is an article", FeedParser.isArticle("https://example.org/post", ""));
+        yes("isArticle: a video is not", !FeedParser.isArticle("https://www.youtube.com/watch?v=1", ""));
+        yes("isArticle: a podcast episode is not", !FeedParser.isArticle("https://example.org/ep1", "https://cdn.example.org/a.mp3"));
         java.util.List<String> s = Listen.sentences("A talk about Parquet", true, "Parquet stores data by column. It is compressed! Is it fast? Yes, very. See Dr. Smith.");
         eq("listen: the title comes first", "A talk about Parquet.", s.get(0));
         eq("listen: sentences follow", "Parquet stores data by column.", s.get(1));

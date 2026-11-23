@@ -137,7 +137,7 @@ final class Db extends SQLiteOpenHelper {
     /** {title, source, text, "1" when the text is the full article} for reading aloud; null when the item is gone or is a video or a podcast. */
     String[] listenInput(long id) {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.article, i.html, i.full, i.link, i.audio FROM items i JOIN sources s ON s.id=i.source_id WHERE i.id=?", new String[]{"" + id})) {
-            if (!c.moveToFirst() || !FeedParser.kindOf(c.getString(5), c.getString(6)).equals("article")) return null;
+            if (!c.moveToFirst() || !FeedParser.isArticle(c.getString(5), c.getString(6))) return null;
             boolean article = !c.getString(2).isEmpty();
             String text = Sanitizer.text(article ? c.getString(2) : c.getString(3));
             if (text.isEmpty()) return null;
@@ -157,7 +157,7 @@ final class Db extends SQLiteOpenHelper {
     List<Long> listenQueue() {
         List<Long> out = new ArrayList<>();
         try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.link, i.audio FROM items i LEFT JOIN listen l ON l.item_id=i.id WHERE i.state=" + KEPT + " AND COALESCE(l.done,0)=0 ORDER BY i.kept_at DESC, i.id DESC", null)) {
-            while (c.moveToNext()) if (FeedParser.kindOf(c.getString(1), c.getString(2)).equals("article")) out.add(c.getLong(0));
+            while (c.moveToNext()) if (FeedParser.isArticle(c.getString(1), c.getString(2))) out.add(c.getLong(0));
         }
         return out;
     }
@@ -165,7 +165,7 @@ final class Db extends SQLiteOpenHelper {
     long listenNext(long after) {
         List<long[]> all = new ArrayList<>(); // {id, done}
         try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.link, i.audio, COALESCE(l.done,0) FROM items i LEFT JOIN listen l ON l.item_id=i.id WHERE i.state=" + KEPT + " ORDER BY i.kept_at DESC, i.id DESC", null)) {
-            while (c.moveToNext()) if (FeedParser.kindOf(c.getString(1), c.getString(2)).equals("article")) all.add(new long[]{c.getLong(0), c.getLong(3)});
+            while (c.moveToNext()) if (FeedParser.isArticle(c.getString(1), c.getString(2))) all.add(new long[]{c.getLong(0), c.getLong(3)});
         }
         int at = -1;
         for (int i = 0; i < all.size(); i++) if (all.get(i)[0] == after) at = i;

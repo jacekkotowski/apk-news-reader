@@ -199,6 +199,7 @@ How the four releases work, where the code is, and what is unproven.
 - **Build facts learned the hard way.** No Android SDK on Jacek's PC, so only CI compiles the app classes; before pushing, run `javac -proc:none` over all sources and look for errors that are not "cannot find symbol" (that catches syntax slips). A tag that fails CI cannot be moved (the permission classifier blocks deleting or force-pushing tags), so check first: this is why the releases are v1.4.2 and v1.5.1 (v1.4, v1.4.1, v1.5 failed). The smoke script taps by screen position; any change to the top of the Feed can break it.
 - **Not tested anywhere:** every v1.3 to v1.6 screen on a phone or in the emulator beyond start-up; nothing has been heard from Speaker; FTS4 on a real phone; Gemini answers (only a hand-written reply fixture); the surprise quality threshold on real data.
 - **Ideas not built:** a daily count, "follow a person" box, video thumbnails, clusters by meaning instead of words, position by time for podcasts, reading aloud inside the page view, a sleep timer.
+- [x] v1.6.1, 2026-11-23, found on his phone: Play said there was nothing to read (articles were taken for non-articles; `FeedParser.kindOf` returns an empty string for a plain article). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.6.1.
 
 ## 8. Open problems
 

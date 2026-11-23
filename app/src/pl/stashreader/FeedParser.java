@@ -183,6 +183,9 @@ final class FeedParser {
         return "";
     }
 
+    /** A plain web article: not a video and not a podcast episode (kindOf gives an empty string for those). */
+    static boolean isArticle(String link, String audio) { return kindOf(link, audio).isEmpty(); }
+
     /** Normalised link when present (so the same page from two feeds is one item), then GUID, then feed and headline. */
     static String uid(Item i, String feedUrl) {
         String l = normalizeLink(i.link);
