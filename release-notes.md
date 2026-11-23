@@ -1,16 +1,15 @@
-## Stash Reader 1.8.2: the pencil works on YouTube links
+## Stash Reader 1.8.3: player buttons, no code, English or Polish
 
-**Fix**
-- A YouTube link opened inside Stash (for example from an article) showed an error and the pencil did nothing, because a video page has no article text. Now the page says it is a video, offers **▶ Watch**, and the **pencil** keeps the video in your Stash and asks Gemini to write notes **from the video itself** (key ideas, quotes with mm:ss times, why it matters, what to try). The notes appear in Stash, Notes, and in the `.md` file.
-- This is how videos were already handled elsewhere: a YouTube card or a link shared to Stash has **Make notes** under the three dots.
-
-**How Gemini reads the video**
-- The app sends Gemini the YouTube address. Gemini watches the video, sound and picture, itself; the automatic captions are not needed and are not what it uses. The video must be **public** (not private, and not age- or region-restricted). Long videos and the free tier's daily limit can make it fail with a short message. Google may use what is sent on the free tier.
+**Fixes**
+- **The buttons showed codes** like `\u23ed` instead of symbols: the player bar (pause, next, stop), the Back button of the page view and the pencil. They now show ⏸ ⏭ ✕ ‹ ✎.
+- **Code is not read aloud.** Code blocks in an article are skipped, and a web address is read as the word "link" instead of letter by letter. (Short code inside a sentence is still read.)
+- **Language.** The app picks the voice from the text: Polish when it has Polish letters (ą, ę, ł, ó, ś, ż and so on) in the title or text, otherwise **English**. Before, a text that was not Polish was read in the phone's own language, so on a Polish phone an English article got a Polish voice.
 
 **Try on the phone**
-1. In a reader text, tap a link to a YouTube video. You should see "This is a YouTube video" and a Watch button.
-2. Press ✎ (Gemini key saved in Settings). Wait up to a minute; then Stash, Notes should have the notes.
+1. Press Play: the bar should show ⏸ ⏭ ✕ symbols.
+2. Play an English article that has a code block: you should not hear the code. Play a Polish one: it should use the Polish voice.
 
 **Known limits**
-- Nothing here has been tested on a real phone. Gemini's video answer was recorded live from a PC in an earlier version (the parser is tested on it); this new route in the page view was not run in the emulator.
+- Nothing here has been tested on a real phone. The PC tests cover the language choice, dropping code blocks and the link rule; the voice itself was not heard.
+- One language per article: a Polish text with English quotes is read entirely in Polish, and an English post with a long Polish quote entirely in English. If the Polish or the English voice is not installed on the phone, you get a message (Settings, Text-to-speech).
 - Earlier limits still apply.

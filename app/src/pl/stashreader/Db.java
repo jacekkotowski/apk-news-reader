@@ -139,7 +139,7 @@ final class Db extends SQLiteOpenHelper {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.article, i.html, i.full, i.link, i.audio FROM items i JOIN sources s ON s.id=i.source_id WHERE i.id=?", new String[]{"" + id})) {
             if (!c.moveToFirst() || !FeedParser.isArticle(c.getString(5), c.getString(6))) return null;
             boolean article = !c.getString(2).isEmpty();
-            String text = Sanitizer.text(article ? c.getString(2) : c.getString(3));
+            String text = Sanitizer.text(Listen.dropCode(article ? c.getString(2) : c.getString(3)));
             if (text.isEmpty()) return null;
             return new String[]{c.getString(0), c.getString(1), text, article || c.getInt(4) != 0 ? "1" : "0"};
         }

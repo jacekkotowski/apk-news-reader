@@ -413,9 +413,12 @@ public final class T {
         yes("listen: a very long sentence is cut", cut);
         eq("listen: no text, only the title", 1, Listen.sentences("Only a title", true, "").size());
         eq("listen: nothing at all", 0, Listen.sentences("", true, "  ").size());
-        eq("language: English", "", Listen.language("This is an ordinary English text about data and models and nothing else at all."));
+        eq("language: English", "en", Listen.language("This is an ordinary English text about data and models and nothing else at all."));
         eq("language: Polish", "pl", Listen.language("Zażółć gęślą jaźń: to jest zwykły tekst po polsku o danych, modelach i łączeniu źródeł."));
-        eq("language: too short to tell", "", Listen.language("Zażółć"));
+        eq("language: too short to tell, so English", "en", Listen.language("Zażółć"));
+        eq("code blocks are dropped", " After. ", Listen.dropCode("<pre><code>x = 1\nprint(x)</code></pre> After. ").replaceAll("^ +", " ").replaceAll("^ ", " "));
+        yes("code: text around a code block stays", Listen.dropCode("<p>Before</p><PRE class=\"a\">code\nmore</PRE><p>After</p>").contains("Before") && Listen.dropCode("<p>Before</p><PRE class=\"a\">code\nmore</PRE><p>After</p>").contains("After") && !Listen.dropCode("<p>Before</p><PRE class=\"a\">code\nmore</PRE><p>After</p>").contains("code"));
+        yes("links are read as the word link", Listen.sentences("", true, "See https://example.org/a?b=1 for details about it all.").get(0).equals("See link for details about it all."));
         eq("rate: stays on a choice", 120, Listen.rate(120));
         eq("rate: snaps to the nearest choice", 150, Listen.rate(140));
         eq("rate: nonsense becomes normal speed or the nearest", 180, Listen.rate(999));

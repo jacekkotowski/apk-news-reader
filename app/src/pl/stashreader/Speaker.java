@@ -123,27 +123,24 @@ public class Speaker extends Service {
         if (in == null) { skipFrom(id); return; }
         boolean full = in[3].equals("1");
         sentences = Listen.sentences(in[0], full, in[2]);
-        lang = Listen.language(in[2]);
+        lang = Listen.language(in[0] + " " + in[2]);
         currentId = id; currentTitle = in[0]; currentTotal = sentences.size();
         int at = Listen.start(db.listenPos(id), sentences.size(), db.listenDone(id));
         if (fresh && at >= sentences.size()) at = 0;
         db.setListenPos(id, at, false);
         spoken = at; next = at; currentIndex = at;
         active = true;
-        if (!applyLanguage()) { toast("This phone's speech engine has no voice for this language. Install one in Settings, Text-to-speech."); }
+        if (!applyLanguage()) { toast("This phone's speech engine has no " + (lang.equals("pl") ? "Polish" : "English") + " voice. Install one in Settings, Text-to-speech."); }
         wantPlay = true;
         if (!requestFocus()) { wantPlay = false; playing = false; refresh(); return; }
         speakAhead(true);
     }
 
     private boolean applyLanguage() {
-        Locale want = lang.equals("pl") ? new Locale("pl", "PL") : Locale.getDefault();
+        // English unless the text looks Polish; the phone's own language is not used (it may be Polish while the article is English)
+        Locale want = lang.equals("pl") ? new Locale("pl", "PL") : Locale.ENGLISH;
         int r = tts.setLanguage(want);
-        if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) {
-            if (lang.isEmpty()) { tts.setLanguage(Locale.US); }
-            return false;
-        }
-        return true;
+        return !(r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED);
     }
 
     private void toast(final String m) { main.post(() -> android.widget.Toast.makeText(Speaker.this, m, android.widget.Toast.LENGTH_LONG).show()); }

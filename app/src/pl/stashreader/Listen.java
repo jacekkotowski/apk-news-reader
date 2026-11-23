@@ -17,7 +17,7 @@ final class Listen {
         String t = title == null ? "" : title.replaceAll("\\s+", " ").trim();
         if (!t.isEmpty()) out.add(t + ".");
         if (!fullText) out.add("This is only the summary from the feed, not the full article.");
-        String body = text == null ? "" : text.replaceAll("\\s+", " ").trim();
+        String body = text == null ? "" : text.replaceAll("https?://\\S+", "link").replaceAll("\\s+", " ").trim();
         if (body.isEmpty()) return out;
         StringBuilder carry = new StringBuilder();
         for (String s : body.split("(?<=[.!?…])\\s+")) {
@@ -42,9 +42,14 @@ final class Listen {
         if (!s.isEmpty()) out.add(s);
     }
 
-    /** "pl" when the text looks Polish (Polish letters make up at least 1.5% of its letters), else "" for the phone's own language. */
+    /** HTML without its code blocks (&lt;pre&gt;), which sound like noise when read aloud. */
+    static String dropCode(String html) {
+        return html == null ? "" : html.replaceAll("(?is)<pre\\b.*?</pre>", " ");
+    }
+
+    /** "pl" when the text looks Polish (Polish letters make up at least 1.5% of its letters), else "en". */
     static String language(String text) {
-        if (text == null) return "";
+        if (text == null) return "en";
         int letters = 0, polish = 0;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
@@ -52,7 +57,7 @@ final class Listen {
             letters++;
             if ("ąćęłńóśźżĄĆĘŁŃÓŚŹŻ".indexOf(c) >= 0) polish++;
         }
-        return letters >= 40 && polish * 1000 >= letters * 15 ? "pl" : "";
+        return letters >= 40 && polish * 1000 >= letters * 15 ? "pl" : "en";
     }
 
     /** The speed in percent, kept to the choices in the settings. */
