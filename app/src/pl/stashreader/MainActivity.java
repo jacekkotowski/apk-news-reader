@@ -78,6 +78,11 @@ public class MainActivity extends Activity {
         web.loadUrl("file:///android_asset/index.html");
         refreshInBackground();
         handleShare(getIntent());
+        // the first start with the automatic folder writes the notes of everything already kept
+        if (Exporter.auto(this) && !prefs.getBoolean("autoExported", false)) {
+            prefs.edit().putBoolean("autoExported", true).apply();
+            new Thread(() -> Exporter.writeAll(MainActivity.this, db), "export-first").start();
+        }
     }
 
     @Override protected void onNewIntent(Intent in) {
@@ -139,7 +144,7 @@ public class MainActivity extends Activity {
 
     /** Rewrites the item's note file when an export folder is set. */
     private void sync(final long id) {
-        if (id < 0 || Exporter.folder(this) == null) return;
+        if (id < 0 || !Exporter.enabled(this)) return;
         new Thread(() -> {
             String e = Exporter.write(MainActivity.this, db, id);
             if (!e.isEmpty()) runOnUiThread(() -> web.evaluateJavascript("window.exportMsg&&exportMsg(" + JSONObject.quote(e) + ")", null));
@@ -152,7 +157,7 @@ public class MainActivity extends Activity {
         Uri tree = data.getData();
         try {
             getContentResolver().takePersistableUriPermission(tree, Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-            prefs.edit().putString(Exporter.PREF, tree.toString()).apply();
+            prefs.edit().putString(Exporter.PREF, tree.toString()).putBoolean(Exporter.OFF, false).apply();
             web.evaluateJavascript("window.folderChosen&&folderChosen()", null);
         } catch (RuntimeException e) {
             web.evaluateJavascript("window.exportMsg&&exportMsg('The folder could not be kept: ' + " + JSONObject.quote(String.valueOf(e.getMessage())) + ")", null);
@@ -184,6 +189,16 @@ public class MainActivity extends Activity {
             } catch (Exception e) { return "{\"refreshing\":false}"; }
         }
         @JavascriptInterface public String feed() { try { return db.feedJson(); } catch (Exception e) { return "[]"; } }
+        /** The Feed with the reader's filters: type "", article, video or audio; sort "newest" or anything else for best match. */
+        @JavascriptInterface public String feedFiltered(String type, String topic, String source, String query, String sort) {
+            try {
+                FeedFilter.Filters f = new FeedFilter.Filters();
+                f.type = type == null ? "" : type; f.topic = topic == null ? "" : topic; f.query = query == null ? "" : query;
+                try { f.source = Long.parseLong(source); } catch (RuntimeException e) { f.source = 0; }
+                f.newest = "newest".equals(sort);
+                return db.feedJson(f);
+            } catch (Exception e) { return "[]"; }
+        }
         @JavascriptInterface public String kept() { try { return db.keptJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public String item(String id) { try { return db.itemJson(Long.parseLong(id)); } catch (Exception e) { return "{}"; } }
         @JavascriptInterface public void keep(String id) { db.setState(Long.parseLong(id), Db.KEPT); sync(Long.parseLong(id)); }
@@ -210,7 +225,9 @@ public class MainActivity extends Activity {
                 try { startActivityForResult(i, PICK_FOLDER); } catch (RuntimeException e) { web.evaluateJavascript("window.exportMsg&&exportMsg('This phone has no folder picker.')", null); }
             });
         }
-        @JavascriptInterface public void clearFolder() { prefs.edit().remove(Exporter.PREF).apply(); }
+        @JavascriptInterface public void clearFolder() { prefs.edit().remove(Exporter.PREF).putBoolean(Exporter.OFF, true).apply(); }
+        @JavascriptInterface public boolean autoFolderAvailable() { return Exporter.autoAvailable(); }
+        @JavascriptInterface public void useAutoFolder() { prefs.edit().remove(Exporter.PREF).putBoolean(Exporter.OFF, false).apply(); }
         /** Writes every kept item to the folder; the answer comes back through exportMsg(). */
         @JavascriptInterface public void exportAll() {
             new Thread(() -> {

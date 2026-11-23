@@ -35,6 +35,7 @@ section{display:none}section.on{display:block}
 .text table{border-collapse:collapse;display:block;overflow-x:auto}.text td,.text th{border:1px solid var(--line);padding:3px 6px}
 .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.btn.on{border-color:var(--ok);color:var(--ok);font-weight:700}.acts.top{margin:0 0 10px}
 .acts .more{flex:1 0 100%;display:flex;gap:8px;flex-wrap:wrap}.btn.icon{padding:6px 14px;font-weight:700}
+.fbar{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}.fq{width:100%;padding:8px 12px;border-radius:18px;border:1px solid var(--line);background:var(--bg);color:var(--text);font:inherit;margin-bottom:8px}
 .empty{text-align:center;color:var(--dim);padding:40px 16px}
 .src{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line)}
 .src .t{flex:1;min-width:0;overflow-wrap:anywhere}.src .t div{font-size:12.5px;color:var(--dim)}
@@ -55,11 +56,11 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 </style></head><body>
 <header><h1>Stash Reader</h1><small id="stat"></small><button class="btn" id="refresh">Refresh</button></header>
 <main>
-<section id="feed" class="on"></section>
+<section id="feed" class="on"><div id="feedbar"></div><div id="feedlist"></div></section>
 <section id="kept">
   <div class="meta" style="margin-bottom:8px">Export folder: <b id="folder">not set</b> <button class="btn" id="exptoggle" style="padding:2px 12px;margin-left:6px">Options</button></div>
   <div class="panel" id="exppanel" style="display:none">
-    <div class="acts" style="margin-top:0"><button class="btn" id="choose">Choose folder</button><button class="btn" id="exportall">Export all</button><button class="btn" id="clearfolder">Stop exporting</button></div>
+    <div class="acts" style="margin-top:0"><button class="btn" id="choose">Choose another folder</button><button class="btn" id="autofolder">Use automatic folder</button><button class="btn" id="exportall">Export all</button><button class="btn" id="clearfolder">Stop exporting</button></div>
     <div class="meta" id="exportMsg"></div>
   </div>
   <div id="recall"></div>
@@ -73,24 +74,25 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <div id="topiclist"></div>
 </section>
 <section id="sources">
-  <div class="add"><input id="url" type="text" placeholder="Blog or feed address, e.g. example.com" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="add">Add</button></div>
+  <div class="add"><input id="url" type="text" placeholder="Blog, channel or feed address, e.g. example.com" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="add">Add</button></div>
   <div id="msg"></div>
   <h2>Add a search or watch a page</h2>
   <div class="add q"><select id="qkind" class="btn"></select><input id="qtext" type="text" placeholder="What to search for" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="qadd">Add</button></div>
   <div id="qmsg" class="note"></div>
-  <p class="meta">Searches ask an open service for new items about your words, at most once every 3 hours each. Watching a page lists the new article links on it, at most once a day, and skips pages that robots.txt closes to robots. A watched page that builds its list with JavaScript shows nothing.</p>
-  <h2>Reading text size</h2>
-  <div class="acts"><button class="btn" id="fsm">A− smaller</button><button class="btn" id="flg">A+ larger</button></div>
-  <h2>Background refresh</h2>
-  <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
+  <p class="meta">A search asks an open service at most every 3 hours. A watched page lists its new article links once a day and respects robots.txt.</p>
   <h2>Sources</h2><div id="srclist"></div>
-  <h2>Gemini (optional)</h2>
+  <h2>Settings</h2>
   <div class="panel">
+    <div class="label">Reading text size</div>
+    <div class="acts" style="margin:0 0 14px"><button class="btn" id="fsm">A− smaller</button><button class="btn" id="flg">A+ larger</button></div>
+    <div class="label">Background refresh</div>
+    <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
+    <div class="label" style="margin-top:14px">Gemini (optional)</div>
     <div class="meta" id="gstate"></div>
     <div class="add"><input id="gkey" type="password" placeholder="Paste your Gemini API key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="gsave">Save</button></div>
     <div class="acts"><button class="btn" id="gtest">Test key</button><button class="btn" id="gclear">Remove key</button></div>
     <div id="gmsg" class="note"></div>
-    <p class="meta">With a free key from aistudio.google.com, cards get a Make notes button and the Stash can make a learning path. Free tier: Google may use what you send to improve its products. Only public links, article text, titles and highlighted passages are sent. Your own notes are never sent. The key stays on this phone.</p>
+    <p class="meta">A free key from aistudio.google.com adds Make notes and learning paths. Free tier: Google may use what you send. Only public links, article text, titles and highlights are sent, never your notes. The key stays on this phone.</p>
   </div>
   <p class="meta" id="ver"></p>
 </section>
@@ -101,6 +103,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
 var KL={};
+var fF={type:'',topic:'',source:'0',query:'',newest:false},fShown=15,fT=0;
 var aiBusy=0,recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
@@ -241,13 +244,10 @@ function gone(c){var p=c.parentNode;p.removeChild(c);if(!p.querySelector('.card'
 function render(){
   var s=J(A.status());
   if(tab==='feed'){
-    var box=$('feed');box.textContent='';
-    var items=J(A.feed());
-    items.forEach(function(it){box.appendChild(card(it,'feed'))});
-    if(!items.length)box.appendChild(el('div','empty',s.refreshing?'Loading your sources...':'You have read everything new. Press Refresh later for more.'));
-    else if(items.length>=300)box.appendChild(el('div','empty','Showing the newest 300. Mark some as Done to see older ones.'));
+    renderFeed(s);
   }else if(tab==='kept'){
     $('folder').textContent=(A.exportFolder&&A.exportFolder())||'not set';
+    $('autofolder').style.display=(A.autoFolderAvailable&&A.autoFolderAvailable())?'':'none';
     renderRecall();renderPath();
     var kb=$('keptlist');kb.textContent='';
     var ki=J(A.kept());
@@ -290,6 +290,59 @@ function render(){
     $('ver').textContent='Stash Reader '+A.version();renderGemini();
     var sel=$('hours');if(sel&&A.refreshHours)sel.value=''+A.refreshHours();
   }
+}
+function fCount(){return (fF.type?1:0)+(fF.topic?1:0)+(fF.source!=='0'?1:0)+(fF.query.trim()?1:0)+(fF.newest?1:0)}
+function renderFeed(s){
+  var list=$('feedlist');list.textContent='';
+  var items=J(A.feedFiltered?A.feedFiltered(fF.type,fF.topic,fF.source,fF.query,fF.newest?'newest':'best'):A.feed());
+  var browse=fCount()>0;
+  var shown=browse?items.length:Math.min(items.length,fShown);
+  items.slice(0,shown).forEach(function(it){list.appendChild(card(it,'feed'))});
+  if(!items.length)list.appendChild(el('div','empty',browse?'Nothing matches. Open the filters and press Clear.':(s.refreshing?'Loading your sources...':'You have read everything new. Press Refresh later for more.')));
+  else if(!browse&&items.length>shown){
+    var more=el('button','btn main','Show '+Math.min(15,items.length-shown)+' more');more.style.width='100%';
+    more.onclick=function(){fShown+=15;renderFeed(J(A.status()))};list.appendChild(more);
+  }else if(items.length>=300)list.appendChild(el('div','empty','Showing the first 300. Hide some, or add a filter to see others.'));
+  $('fcount').textContent=browse?items.length+(items.length===1?' match':' matches'):'Top '+shown+' of '+items.length;
+  var n=fCount();$('fmore').textContent='\u22EF'+(n?' '+n:'');$('fmore').className=n?'btn icon on':'btn icon';
+}
+function buildBar(){
+  var bar=$('feedbar');
+  var row=el('div','fbar');var cnt=el('span','meta');cnt.id='fcount';
+  var btn=el('button','btn icon','\u22EF');btn.id='fmore';btn.title='Filters';
+  row.appendChild(cnt);row.appendChild(btn);bar.appendChild(row);
+  var panel=el('div','panel');panel.id='fpanel';panel.style.display='none';bar.appendChild(panel);
+  btn.onclick=function(){var open=panel.style.display==='none';panel.style.display=open?'block':'none';if(open)buildPanel()};
+}
+function buildPanel(){
+  var p=$('fpanel');p.textContent='';
+  var q=el('input','fq');q.id='fq';q.type='text';q.placeholder='Search titles and text';q.value=fF.query;
+  q.setAttribute('autocapitalize','off');q.setAttribute('autocorrect','off');q.spellcheck=false;
+  q.oninput=function(){clearTimeout(fT);fT=setTimeout(function(){fF.query=q.value;fShown=15;renderFeed(J(A.status()))},300)};
+  p.appendChild(q);
+  var o=el('div');o.id='fopts';p.appendChild(o);buildOpts();
+}
+function buildOpts(){
+  var o=$('fopts');o.textContent='';
+  function chips(label,list,get,set){
+    o.appendChild(el('div','label',label));
+    var w=el('div','chips');
+    list.forEach(function(x){var b=el('button','chip'+(get()===x[0]?' on':''),x[1]);b.onclick=function(){set(get()===x[0]&&x[0]!==''?'':x[0]);fShown=15;buildOpts();renderFeed(J(A.status()))};w.appendChild(b)});
+    o.appendChild(w);
+  }
+  chips('Type',[['','All'],['article','Articles'],['video','Videos'],['audio','Podcasts']],function(){return fF.type},function(v){fF.type=v});
+  var tp=J(A.topics?A.topics():'[]').filter(function(t){return t.weight>0}).map(function(t){return [t.phrase,t.phrase]});
+  if(tp.length)chips('Topic',tp,function(){return fF.topic},function(v){fF.topic=v});
+  o.appendChild(el('div','label','Source'));
+  var sel=el('select','btn');sel.style.maxWidth='100%';
+  var all=el('option',null,'All sources');all.value='0';sel.appendChild(all);
+  J(A.sources?A.sources():'[]').filter(function(x){return x.enabled}).sort(function(a,b){return (a.name||a.url).toLowerCase()<(b.name||b.url).toLowerCase()?-1:1}).forEach(function(x){var op=el('option',null,x.name||x.url);op.value=x.id;sel.appendChild(op)});
+  sel.value=fF.source;sel.onchange=function(){fF.source=sel.value;fShown=15;renderFeed(J(A.status()))};
+  o.appendChild(sel);
+  chips('Sort',[['best','Best match'],['newest','Newest']],function(){return fF.newest?'newest':'best'},function(v){fF.newest=(v==='newest')});
+  var clr=el('button','btn','Clear');clr.style.marginTop='10px';
+  clr.onclick=function(){fF={type:'',topic:'',source:'0',query:'',newest:false};fShown=15;buildPanel();renderFeed(J(A.status()))};
+  o.appendChild(clr);
 }
 function gstart(key,done){
   aiBusy++;var n=0;
@@ -411,6 +464,7 @@ $('add').onclick=function(){
     else setTimeout(wait,600)})();
 };
 $('exptoggle').onclick=function(){var p=$('exppanel');p.style.display=p.style.display==='none'?'block':'none'};
+$('autofolder').onclick=function(){A.useAutoFolder();$('exportMsg').textContent='Notes go to Documents/Stash Reader.';render()};
 $('choose').onclick=function(){A.chooseFolder()};
 $('exportall').onclick=function(){$('exportMsg').textContent='Writing notes...';A.exportAll()};
 $('clearfolder').onclick=function(){A.clearFolder();$('exportMsg').textContent='Export stopped. Existing files stay where they are.';render()};
@@ -432,6 +486,6 @@ $('fsm').onclick=function(){setFont(-1)};
 $('flg').onclick=function(){setFont(1)};
 $('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
 $('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
-render();status();setInterval(status,1500);
+buildBar();render();status();setInterval(status,1500);
 </script>
 </body></html>

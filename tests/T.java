@@ -23,6 +23,7 @@ public final class T {
         feeds();
         shareAndRecall();
         gemini();
+        feedFilter();
         starter();
         discovery();
         pageText();
@@ -125,6 +126,32 @@ public final class T {
         yes("export: path note has front matter and the path", pn.startsWith("---\ntitle: ") && pn.contains("# Learning path: tidymodels") && pn.contains("## Order to learn"));
         eq("export: path file name", "Path - Power BI DAX.md", MarkdownExport.pathFileName("Power BI / DAX"));
         eq("export: path file name for an empty topic", "Path - topic.md", MarkdownExport.pathFileName("///"));
+    }
+
+    static void feedFilter() {
+        FeedFilter.Filters none = new FeedFilter.Filters();
+        yes("filter: nothing on accepts everything", FeedFilter.accept(none, "", false, 5, "Any title", "any text") && none.count() == 0);
+        FeedFilter.Filters t = new FeedFilter.Filters(); t.type = "video";
+        yes("filter: video type", FeedFilter.accept(t, "video", false, 1, "a", "b") && !FeedFilter.accept(t, "", false, 1, "a", "b") && !FeedFilter.accept(t, "audio", false, 1, "a", "b"));
+        t.type = "audio";
+        yes("filter: podcast type", FeedFilter.accept(t, "audio", false, 1, "a", "b") && !FeedFilter.accept(t, "video", false, 1, "a", "b"));
+        t.type = "article";
+        yes("filter: article type is everything that is not a video or podcast", FeedFilter.accept(t, "", false, 1, "a", "b") && !FeedFilter.accept(t, "video", false, 1, "a", "b") && !FeedFilter.accept(t, "audio", false, 1, "a", "b"));
+        FeedFilter.Filters tp = new FeedFilter.Filters(); tp.topic = "tidymodels";
+        yes("filter: topic", FeedFilter.accept(tp, "", true, 1, "a", "b") && !FeedFilter.accept(tp, "", false, 1, "a", "b"));
+        FeedFilter.Filters src = new FeedFilter.Filters(); src.source = 7;
+        yes("filter: source", FeedFilter.accept(src, "", false, 7, "a", "b") && !FeedFilter.accept(src, "", false, 8, "a", "b"));
+        FeedFilter.Filters q = new FeedFilter.Filters(); q.query = "  Random FOREST ";
+        yes("filter: search needs every word, in any case and order", FeedFilter.accept(q, "", false, 1, "Tuning a random forest", "x") && FeedFilter.accept(q, "", false, 1, "Forest", "a random thing") && !FeedFilter.accept(q, "", false, 1, "Tuning a random tree", "x"));
+        yes("filter: search also reads the text", FeedFilter.accept(q, "", false, 1, "Title", "about a random forest model"));
+        yes("filter: blank search is no filter", FeedFilter.accept(new FeedFilter.Filters(), "", false, 1, "a", "b") && new FeedFilter.Filters().count() == 0);
+        FeedFilter.Filters all = new FeedFilter.Filters(); all.type = "video"; all.topic = "x"; all.source = 3; all.query = "dax"; all.newest = true;
+        eq("filter: count of filters on", 5, all.count());
+        yes("filter: all together", FeedFilter.accept(all, "video", true, 3, "DAX tips", "") && !FeedFilter.accept(all, "video", true, 4, "DAX tips", "") && !FeedFilter.accept(all, "video", true, 3, "Power BI", ""));
+        yes("filter: null filters accept", FeedFilter.accept(null, "", false, 1, "a", "b"));
+        long now = 1800000000000L;
+        eq("expiry: cutoff is 30 days back", now - 30L * 86400000L, FeedFilter.cutoff(now, FeedFilter.EXPIRY_DAYS));
+        eq("expiry: the period is 30 days", 30, FeedFilter.EXPIRY_DAYS);
     }
 
     static void shareAndRecall() {

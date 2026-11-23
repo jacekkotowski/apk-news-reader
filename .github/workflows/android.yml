@@ -82,6 +82,7 @@ jobs:
             smoke3.png
             smoke4.png
             smoke_share.png
+            smoke_filter.png
             logcat.txt
           if-no-files-found: warn
 

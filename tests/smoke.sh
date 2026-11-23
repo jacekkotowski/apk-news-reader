@@ -25,6 +25,13 @@ tap_text() {
   echo "Could not find the button: $1"; return 1
 }
 
+# The filter panel behind the three dots (closed again so the next tap lands on the first card).
+tap_text "⋯"
+sleep 1
+adb exec-out screencap -p > smoke_filter.png
+tap_text "⋯"
+sleep 1
+
 # Open the first card (its buttons are at the top of the opened card) and read the full article.
 adb shell input tap $((W / 2)) $((H * 22 / 100))
 sleep 2
@@ -41,6 +48,10 @@ sleep 2
 adb shell input tap $((W * 3 / 8)) $((H * 96 / 100))
 sleep 2
 adb exec-out screencap -p > smoke_stash.png
+# the kept note was written to the automatic notes folder
+sleep 3
+NOTES=$(adb shell 'ls "/sdcard/Documents/Stash Reader/"' 2>&1 | tr -d '\r')
+echo "Notes folder: $NOTES"
 adb shell input tap $((W * 5 / 8)) $((H * 96 / 100))
 sleep 2
 adb exec-out screencap -p > smoke_topics.png
@@ -61,4 +72,5 @@ adb logcat -d > logcat.txt
 rc=0
 if grep -q "FATAL EXCEPTION" logcat.txt; then echo "The app crashed (FATAL EXCEPTION in logcat)"; rc=1; fi
 if [ -z "$(adb shell pidof pl.stashreader | tr -d '\r')" ]; then echo "The app process is gone"; rc=1; fi
+if ! echo "$NOTES" | grep -q '\.md$'; then echo "No .md note in Documents/Stash Reader"; rc=1; fi
 exit $rc

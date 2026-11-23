@@ -17,7 +17,7 @@ import org.json.JSONObject;
 /** Sources, topics and cached items. Items: state 0 new, 1 kept, 2 done, 3 "less like this". */
 final class Db extends SQLiteOpenHelper {
     static final int NEW = 0, KEPT = 1, DONE = 2, LESS = 3;
-    static final int MAX_ITEMS = 2000, FEED_LIMIT = 300, RANK_POOL = 600;
+    static final int MAX_ITEMS = 2000, FEED_LIMIT = 300, RANK_POOL = 1500;
     /** Starter searches: {kind, query, topic}. They bring items from places nobody added by hand. */
     private static final String[][] DEFAULT_QUERIES = {
         {QuerySource.ARXIV, "causal inference", "causal inference"}, {QuerySource.HN, "claude code", "Claude Code"},
@@ -239,6 +239,8 @@ final class Db extends SQLiteOpenHelper {
             }
             // never drop kept items; drop the oldest of the rest beyond the cap
             d.execSQL("DELETE FROM items WHERE state<>" + KEPT + " AND id NOT IN (SELECT id FROM items i WHERE state<>" + KEPT + " ORDER BY " + WHEN + " DESC LIMIT " + MAX_ITEMS + ")");
+            // an unkept card disappears 30 days after it arrived; it is marked done, so it is not offered again
+            d.execSQL("UPDATE items SET state=" + DONE + ", html='', article='' WHERE state=" + NEW + " AND fetched < " + FeedFilter.cutoff(now, FeedFilter.EXPIRY_DAYS));
             d.setTransactionSuccessful();
         } finally { d.endTransaction(); }
         return added;
@@ -277,22 +279,37 @@ final class Db extends SQLiteOpenHelper {
         o.put("kind", FeedParser.kindOf(c.getString(9), c.getString(10)));
         return o;
     }
-    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state, i.because, i.link, i.audio FROM items i JOIN sources s ON s.id=i.source_id";
+    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state, i.because, i.link, i.audio, i.source_id FROM items i JOIN sources s ON s.id=i.source_id";
 
-    /** The newest unread items, ordered by the explainable score. Each card carries a "why" sentence. */
-    String feedJson() throws Exception {
+    /** The unread items, ordered by the explainable score. Each card carries a "why" sentence. */
+    String feedJson() throws Exception { return feedJson(new FeedFilter.Filters()); }
+
+    /** Same, but only the cards that pass the reader's filters; "newest" skips the score and orders by date. */
+    String feedJson(FeedFilter.Filters f) throws Exception {
+        List<Ranker.Topic> topics = topicList();
+        String want = f.topic.toLowerCase(java.util.Locale.ROOT);
         List<Ranker.Doc> docs = new ArrayList<>();
         Map<Long, JSONObject> cards = new HashMap<>();
         try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + NEW + " AND s.enabled=1 ORDER BY " + WHEN + " DESC, i.id DESC LIMIT " + RANK_POOL, null)) {
             while (c.moveToNext()) {
                 JSONObject o = card(c);
+                boolean topicOk = false;
+                if (!want.isEmpty()) {
+                    topicOk = c.getString(6).toLowerCase(java.util.Locale.ROOT).equals(want);
+                    if (!topicOk) for (String t : Ranker.matchedTopics(c.getString(1) + " " + c.getString(2), topics)) if (t.toLowerCase(java.util.Locale.ROOT).equals(want)) { topicOk = true; break; }
+                }
+                if (!FeedFilter.accept(f, o.getString("kind"), topicOk, c.getLong(11), c.getString(1), c.getString(2))) continue;
                 long id = c.getLong(0);
                 cards.put(id, o);
                 docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3), c.getString(8)));
             }
         }
-        List<Ranker.Scored> ranked = Ranker.rank(docs, topicList(), texts(KEPT), texts(LESS), System.currentTimeMillis());
         JSONArray a = new JSONArray();
+        if (f.newest) {
+            for (Ranker.Doc d : docs) { if (a.length() >= FEED_LIMIT) break; a.put(cards.get(d.id)); }
+            return a.toString();
+        }
+        List<Ranker.Scored> ranked = Ranker.rank(docs, topics, texts(KEPT), texts(LESS), System.currentTimeMillis());
         for (Ranker.Scored r : ranked) {
             if (a.length() >= FEED_LIMIT) break;
             JSONObject o = cards.get(r.id);
