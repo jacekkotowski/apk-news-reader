@@ -25,13 +25,6 @@ tap_text() {
   echo "Could not find the button: $1"; return 1
 }
 
-# The filter panel behind the three dots (closed again so the next tap lands on the first card).
-tap_text "⋯"
-sleep 1
-adb exec-out screencap -p > smoke_filter.png
-tap_text "⋯"
-sleep 1
-
 # Open the first card (its buttons are at the top of the opened card) and read the full article.
 adb shell input tap $((W / 2)) $((H * 22 / 100))
 sleep 2
