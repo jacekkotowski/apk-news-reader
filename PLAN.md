@@ -175,6 +175,8 @@ summaries, Play Store.
 
 - [x] Steps 10 and 11, 2026-11-22 (Jacek's requests): v0.9 share to Stash and recall cards (https://github.com/jacekkotowski/apk-news-reader/releases/tag/v0.9, CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45081607827); v1.0 Gemini notes and learning paths with his own free key (https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.0, CI run https://github.com/jacekkotowski/apk-news-reader/actions/runs/45082816528). Not tested on a phone.
 
+- [x] v1.0.1 (YouTube channel address fix) and v1.1 (fewer buttons), 2026-11-22: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.0.1 and https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.1 (CI runs 45085715469 and the v1.1 tag run). Not tested on a phone.
+
 ## 8. Open problems
 
 See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit and Semantic Scholar could not be checked for real (HTTP 404 and 429 from the build computer); the Stash folder export, share sheet and text selection were not exercised in the emulator; steps 6 to 8 are not started.
