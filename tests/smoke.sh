@@ -26,7 +26,7 @@ tap_text() {
 }
 
 # Open the first card (its buttons are at the top of the opened card) and read the full article.
-adb shell input tap $((W / 2)) $((H * 22 / 100))
+adb shell input tap $((W / 2)) $((H * 40 / 100))
 sleep 2
 adb exec-out screencap -p > smoke_open.png
 if tap_text "Read full article"; then sleep 20; fi
