@@ -14,3 +14,4 @@ Hand-built Android APK, no Gradle: aapt2, javac, d8, zipalign, apksigner (`build
 - Don't call anything working unless the CI run for that exact commit is green. State plainly what was not tested on a phone.
 - Plain English in docs and commit messages.
 - Plan first: for any change beyond a tiny fix, write a short plan, ask Jacek the questions that matter, and wait for his yes before building. He wants fewer buttons, not more. Ideas for later are in `PLAN.md` section 9.
+- Current state (v1.6) and how each feature works: `PLAN.md` section 8a. Check CI before tagging: a failed tag cannot be moved here, so run `bash tests/run.sh` and `javac -proc:none` over all sources first. The smoke script taps by position (`tests/smoke.sh`).

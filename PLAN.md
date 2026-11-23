@@ -186,6 +186,20 @@ Four releases planned 2026-11-23 (approved by Jacek): v1.3 notes anywhere and a 
 - [x] v1.5, 2026-11-23: One Story Many Sources (`Clusters`) and Ask My Stash (FTS4, optional Gemini answer). The tag v1.5 failed to compile (a misplaced line in Db.java); the working build is v1.5.1: https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.5.1 (CI run 45164526686). Not tested on a phone.
 - [x] v1.6, 2026-11-23: Listen to Anything (TextToSpeech foreground service with media notification, play queue, speed, position per sentence). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.6 (CI run 45165172557). Not tested on a phone; nothing was heard.
 
+## 8a. State after v1.6 (2026-11-23, read this first)
+
+How the four releases work, where the code is, and what is unproven.
+
+- **Fit My Time / Surprise Me (v1.4.2).** `Ranker.fit` (core, tested) builds a plan for 5, 15 or 30 min from the ranked items: one long item (8+ min, only for 15 and 30), then short ones (7 min or less); a video counts 10 min, a podcast 20. About 1 in 5 slots is a surprise (no topic hit, quality = score + length, at least 0.4, source not turned down; `sources.surprise_less` counts "Less like this" on surprises, 3 means none). `MainActivity.currentPlan/makePlan` store one plan a day in SharedPreferences key `plan` (ids, why lines, surprise ids). A plan made while a refresh is running (`prov`) or an empty one is made again. Filters (the three dots) bypass the plan and show all matches.
+- **Clusters (v1.5.1).** `Clusters.group` (core): last 3 days, same link key or titles sharing at least 3 key words and 55% of the shorter title. `Db.collapse` keeps the best-ranked member and attaches the others as `also`. Known weakness: similar headlines of different stories merge.
+- **Ask My Stash (v1.5.1).** FTS4 table `fts` (docid = item id * 1000 + n) plus `fts_dirty`; every writer calls `touch(id)`, `flushIndex()` rebuilds before a search. `Passages` (core) cuts text, builds the MATCH query (prefix terms joined by OR) and ranks; `Gemini.answerRequest` + `Passages.checkCitations` keep the answer to the passages. If a phone's SQLite lacks FTS4 the search returns nothing (not seen yet).
+- **Notes anywhere (v1.3).** Reader links call `openPage` (overlay `#pg`), which uses `fetchUrl` + Readability + `cleanHtml` + `keepPage` (`Db.addShared`). The Android Back button needs `enableOnBackInvokedCallback="false"` in the manifest (target SDK 36) and the JS `setBack/pageBack` pair. `md2html` lives between `//MD-START` and `//MD-END` in index.html and is tested by `tests/md.js` (run by `tests/run.sh` when node exists).
+- **Listen (v1.6).** `Speaker` (foreground service, TextToSpeech, MediaSession, audio focus, wake lock) reads `Listen.sentences` (core, tested); position per item in table `listen`; the bridge sends intents (`PLAY`, `TOGGLE`, `NEXT`, `STOP`, `RATE`) and polls `Speaker.state()`. Needs `<queries>` for the TTS engine and the media-playback foreground type.
+- **Database version is 13.** Upgrades are in `Db.onUpgrade`.
+- **Build facts learned the hard way.** No Android SDK on Jacek's PC, so only CI compiles the app classes; before pushing, run `javac -proc:none` over all sources and look for errors that are not "cannot find symbol" (that catches syntax slips). A tag that fails CI cannot be moved (the permission classifier blocks deleting or force-pushing tags), so check first: this is why the releases are v1.4.2 and v1.5.1 (v1.4, v1.4.1, v1.5 failed). The smoke script taps by screen position; any change to the top of the Feed can break it.
+- **Not tested anywhere:** every v1.3 to v1.6 screen on a phone or in the emulator beyond start-up; nothing has been heard from Speaker; FTS4 on a real phone; Gemini answers (only a hand-written reply fixture); the surprise quality threshold on real data.
+- **Ideas not built:** a daily count, "follow a person" box, video thumbnails, clusters by meaning instead of words, position by time for podcasts, reading aloud inside the page view, a sleep timer.
+
 ## 8. Open problems
 
 See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit and Semantic Scholar could not be checked for real (HTTP 404 and 429 from the build computer); the Stash folder export, share sheet and text selection were not exercised in the emulator; steps 6 to 8 are not started.
@@ -200,7 +214,7 @@ Added after v1.0: Gemini was called live only from the PC (answers recorded as t
 How to work: plan first, ask Jacek the questions that matter, wait for his yes, then build in small releases (his rule, 2026-11-23). He wants fewer buttons, not more; propose the smallest version. Nothing has been tested on a real phone yet, so the first job of the next session is to read what he found on the phone.
 
 **First, in this order**
-1. Collect his corrections from testing v1.1 (install, then the "Try on the phone" lists of v0.8 to v1.1), fix them in one small release.
+1. Collect his corrections from testing v1.6 (install, then the "Try on the phone" lists of v1.3, v1.4.2, v1.5.1 and v1.6), fix them in one small release.
 2. Make a new Gemini key (the old one was pasted in chat) and replace `apk-signing-keys/apk-news-reader/gemini.env`.
 3. Check the curator's first scheduled run (05:17 UTC) on branch `curator-data`.
 
