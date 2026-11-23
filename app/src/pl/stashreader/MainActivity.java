@@ -446,6 +446,16 @@ public class MainActivity extends Activity {
             prefs.edit().putString("geminiKey", v).apply();
             return "";
         }
+        @JavascriptInterface public boolean s2KeySet() { return !prefs.getString("s2Key", "").isEmpty(); }
+        /** Saves (or, with an empty text, removes) the Semantic Scholar key. Returns "" or a message. */
+        @JavascriptInterface public String setS2Key(String k) {
+            String v = k == null ? "" : k.trim();
+            if (!v.isEmpty() && !QuerySource.validS2Key(v)) return "That does not look like a Semantic Scholar API key.";
+            prefs.edit().putString("s2Key", v).apply();
+            Refresher.loadKeys(MainActivity.this);
+            if (!v.isEmpty()) { db.clearS2Backoff(); refreshInBackground(); }
+            return "";
+        }
         @JavascriptInterface public void testGemini() {
             gem("test", () -> "Gemini accepted the key (" + Gemini.MODEL + " answered: " + Gemini.ask(apiKey(), Gemini.pingRequest(), Refresher.AGENT).trim() + ").");
         }

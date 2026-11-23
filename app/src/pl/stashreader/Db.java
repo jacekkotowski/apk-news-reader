@@ -537,6 +537,12 @@ final class Db extends SQLiteOpenHelper {
         return pen;
     }
 
+    /** After a Semantic Scholar key is saved: ask again now instead of waiting out an earlier "slow down". */
+    void clearS2Backoff() {
+        getWritableDatabase().execSQL("UPDATE sources SET retry_after=0, last_error='' WHERE kind IN ('" + QuerySource.S2 + "','" + QuerySource.RECS + "')");
+        getWritableDatabase().execSQL("UPDATE sources SET last_ok=0 WHERE kind IN ('" + QuerySource.S2 + "','" + QuerySource.RECS + "')");
+    }
+
     /** "Less like this" on a surprise: surprises from that source become rarer, and stop after three. */
     void surpriseLess(long item) {
         getWritableDatabase().execSQL("UPDATE sources SET surprise_less=surprise_less+1 WHERE id=(SELECT source_id FROM items WHERE id=?)", new Object[]{item});

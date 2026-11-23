@@ -1,21 +1,13 @@
-## Stash Reader 1.8: a notebook in the app, and open the .md file
+## Stash Reader 1.8.1: Semantic Scholar key
 
-**Notebook**
-- The Stash **Notes** chip now lists every kept item that has **anything of yours**: highlights, your note or Gemini notes (before, only Gemini notes). Each entry says what it has ("2 highlights | my note | AI notes"). Learning paths are still there.
-- Tap one: it opens as **one rendered note**, the same text as the `.md` file (link to the source, your highlights as quotes, AI notes, your note), in your text size and dark mode. Links open inside Stash.
-
-**Open the .md file**
-- On that note, **Open the .md file** opens the real file from Documents/Stash Reader (or your chosen export folder) in an app you pick: Obsidian, a text editor, any app that can open Markdown. If the file is not there yet, the app writes it first.
-
-**Ways to use the files** (nothing to install for the first)
-- Files app, Documents, Stash Reader: all notes, one file per kept item.
-- Obsidian on the phone: open that folder as a vault.
-- To the PC: sync the folder with Syncthing or a cloud-sync app (see the README).
+**New**
+- **Sources, Settings, "Semantic Scholar (optional)":** paste a free Semantic Scholar API key and press Save. The app then sends it with every Semantic Scholar request (searches, recommendations from your kept papers, citations), which ends the "slow down" (HTTP 429) answers. Saving the key also cancels the earlier waiting time and asks again straight away. **Remove key** goes back to the shared pool.
+- The key is sent **only** to `api.semanticscholar.org` (the PC tests check that no other address gets it) and stays on the phone. Get a free key at semanticscholar.org/product/api.
 
 **Try on the phone**
-1. Keep an article, highlight a passage, write a note. Stash, chip **Notes**: it should be listed, with "1 highlight | my note".
-2. Open it: you should see the same sections as in the file. Press **Open the .md file** and pick an app.
+1. Request a key at semanticscholar.org/product/api (they send it by e-mail), paste it in Settings, Save.
+2. Sources: the Semantic Scholar lines should refresh and stop saying 429 after a minute.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The PC tests cover the front-matter removal and the rendering; the file hand-off to another app was not run, and some apps (Obsidian included) may not offer themselves for a file opened this way. If yours does not, use the Files app route above.
-- The Notes list shows kept items only (plus any item with Gemini notes). Earlier limits still apply.
+- Nothing here has been tested on a real phone, and the key has not been tried against the real service (no key is available to me). If a request is refused with HTTP 401 or 403, the key is wrong or not yet active.
+- Reddit may still answer 429; that has no key option. Earlier limits still apply.

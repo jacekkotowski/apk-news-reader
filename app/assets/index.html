@@ -105,6 +105,12 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
     <div class="acts"><button class="btn" id="gtest">Test key</button><button class="btn" id="gclear">Remove key</button></div>
     <div id="gmsg" class="note"></div>
     <p class="meta">A free key from aistudio.google.com adds Make notes and learning paths. Free tier: Google may use what you send. Only public links, article text, titles and highlights are sent, never your notes. The key stays on this phone.</p>
+    <div class="label" style="margin-top:14px">Semantic Scholar (optional)</div>
+    <div class="meta" id="s2state"></div>
+    <div class="add"><input id="s2key" type="password" placeholder="Paste your Semantic Scholar API key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="s2save">Save</button></div>
+    <div class="acts"><button class="btn" id="s2clear">Remove key</button></div>
+    <div id="s2msg" class="note"></div>
+    <p class="meta">Without a key, Semantic Scholar often answers "slow down" (HTTP 429) because everyone shares one small pool. A free key is requested at semanticscholar.org/product/api. It is sent only to Semantic Scholar and stays on this phone.</p>
   </div>
   <p class="meta" id="ver"></p>
 </section>
@@ -624,7 +630,8 @@ $('pplay').onclick=function(){A.listenToggle();setTimeout(function(){listenPoll(
 $('pnext').onclick=function(){A.listenNext();setTimeout(function(){listenPoll(0)},600)};
 $('pstop').onclick=function(){A.listenStop();setTimeout(function(){listenPoll(0)},400)};
 $('rate').onchange=function(){A.setListenRate&&A.setListenRate(parseInt($('rate').value))};
-function renderGemini(){
+function renderS2(){$('s2state').textContent=(A.s2KeySet&&A.s2KeySet())?'A key is saved on this phone.':'No key yet.'}
+function renderGemini(){renderS2();
   $('gstate').textContent=(A.geminiKeySet&&A.geminiKeySet())?'A key is saved on this phone.':'No key yet.';
 }
 function renderRecall(){
@@ -704,6 +711,8 @@ window.exportMsg=function(m){$('exportMsg').textContent=m};
   sel.onchange=ph;ph()})();
 $('qadd').onclick=function(){var m=A.addQuerySource($('qkind').value,$('qtext').value);$('qmsg').textContent=m;if(!m){$('qtext').value='';wasBusy=true}render()};
 $('gsave').onclick=function(){var m=A.setGeminiKey?A.setGeminiKey($('gkey').value):'';$('gmsg').textContent=m||'Saved on this phone.';if(!m)$('gkey').value='';renderGemini()};
+$('s2save').onclick=function(){var m=A.setS2Key?A.setS2Key($('s2key').value):'';$('s2msg').textContent=m||'Saved. Semantic Scholar is asked again now.';if(!m){$('s2key').value='';wasBusy=true}renderS2()};
+$('s2clear').onclick=function(){A.setS2Key('');$('s2msg').textContent='Key removed.';renderS2()};
 $('gclear').onclick=function(){A.setGeminiKey('');$('gmsg').textContent='Key removed.';renderGemini()};
 $('gtest').onclick=function(){
   if(!(A.geminiKeySet&&A.geminiKeySet())){$('gmsg').textContent='Save a key first.';return}

@@ -16,15 +16,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "1.8";
+    static final String VERSION = "1.8.1";
     static final String AGENT = "StashReader/" + VERSION;
     private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
+    /** The reader's optional Semantic Scholar key; sent only to Semantic Scholar, as the header x-api-key. */
+    private static volatile String s2Key = "";
+
+    static void loadKeys(Context c) { s2Key = c.getSharedPreferences("stash", Context.MODE_PRIVATE).getString("s2Key", ""); }
 
     static boolean busy() { return BUSY.get(); }
 
     static void all(Context c) {
         if (!BUSY.compareAndSet(false, true)) return;
+        loadKeys(c);
         try {
             final Db db = Db.get(c);
             ExecutorService pool = Executors.newFixedThreadPool(POOL);
@@ -38,6 +43,7 @@ final class Refresher {
 
     /** Refreshes one source right away (used after adding it), ignoring a back-off. */
     static void single(Context c, long id) {
+        loadKeys(c);
         Db db = Db.get(c);
         one(db, id, true);
     }
@@ -99,6 +105,7 @@ final class Refresher {
             h.setConnectTimeout(CONNECT_MS); h.setReadTimeout(READ_MS);
             h.setRequestProperty("User-Agent", AGENT + " (personal reader; Android)");
             h.setRequestProperty("Accept", accept);
+            if (!s2Key.isEmpty() && QuerySource.isS2Host(address)) h.setRequestProperty("x-api-key", s2Key);
             if (body != null) {
                 h.setRequestMethod("POST");
                 h.setDoOutput(true);

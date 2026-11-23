@@ -89,6 +89,12 @@ final class QuerySource {
         }
     }
 
+    /** Semantic Scholar's API host: the only place the optional key is ever sent. */
+    static boolean isS2Host(String address) { return address != null && address.startsWith("https://api.semanticscholar.org/"); }
+
+    /** A key as Semantic Scholar issues them: one word of letters, digits, dashes and underscores, 20 to 100 characters. */
+    static boolean validS2Key(String k) { return k != null && k.matches("[A-Za-z0-9_\\-]{20,100}"); }
+
     static final String S2_FIELDS = "title,abstract,year,url,publicationDate,citationCount";
 
     /** Citations of one paper (newest first is not offered by the API, so the caller keeps recent ones). */

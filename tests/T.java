@@ -32,6 +32,7 @@ public final class T {
         clusters();
         passages();
         listening();
+        s2key();
         markdown();
         json();
         querySources();
@@ -383,6 +384,16 @@ public final class T {
     }
     static boolean containsText(java.util.List<Passages.Passage> l, String s) { for (Passages.Passage p : l) if (p.text.contains(s)) return true; return false; }
 
+
+    static void s2key() {
+        yes("s2 key: a normal key is valid", QuerySource.validS2Key("aB3dEfGh1jKlMnOpQrStUvWxYz0123456789AbCd"));
+        yes("s2 key: with spaces is not", !QuerySource.validS2Key("aB3dEfGh1jKlMnOpQ rStUvWxYz"));
+        yes("s2 key: too short is not", !QuerySource.validS2Key("abc"));
+        yes("s2 key: empty and null are not", !QuerySource.validS2Key("") && !QuerySource.validS2Key(null));
+        yes("s2 host: the API address", QuerySource.isS2Host(QuerySource.requestUrl("s2", "causal inference", 1794700000000L)));
+        yes("s2 host: recommendations and citations too", QuerySource.isS2Host(QuerySource.requestUrl("recs", "", 1794700000000L)) && QuerySource.isS2Host(QuerySource.citationsUrl("0123456789012345678901234567890123456789")));
+        yes("s2 host: the key never goes to another host", !QuerySource.isS2Host("https://evil.example/https://api.semanticscholar.org/") && !QuerySource.isS2Host("https://api.semanticscholar.org.evil.example/x") && !QuerySource.isS2Host("http://api.semanticscholar.org/x") && !QuerySource.isS2Host("https://www.reddit.com/r/x"));
+    }
 
     static void listening() {
         yes("isArticle: a plain page is an article", FeedParser.isArticle("https://example.org/post", ""));
