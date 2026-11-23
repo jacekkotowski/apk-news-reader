@@ -9,11 +9,13 @@ Package `pl.stashreader`, Android 8.0 or newer. The interface is in English; sou
 
 ## What it does
 
-- **Feed.** About 28 starter sources (data science, Power BI, tidymodels, AI and Claude Code blogs, YouTube channels, podcasts, a daily curated feed). Add any blog or feed by pasting its address; the app finds the feed itself, also for YouTube channels (`youtube.com/@name`). The Feed starts with a short list (the 15 best, then Show more); the three dots open filters (type, topic, source, sort, search). Cards you neither keep nor hide expire after 30 days.
+- **Feed.** About 28 starter sources (data science, Power BI, tidymodels, AI and Claude Code blogs, YouTube channels, podcasts, a daily curated feed). Add any blog or feed by pasting its address; the app finds the feed itself, also for YouTube channels (`youtube.com/@name`). **Fit My Time:** pick 5, 15 or 30 minutes and the Feed shows a list that adds up to it (one longer article mixed with short ones, about 1 in 5 a **surprise** outside your topics), then says Done for today. Items from the last 3 days that tell the same story are one card (**+N sources**). The three dots open filters (type, topic, source, sort, search). Cards you neither keep nor hide expire after 30 days.
 - **Search and watch sources.** arXiv, Hacker News, Hugging Face daily papers, Reddit, GitHub and Semantic Scholar searches; pages without a feed (or a sitemap) watched for new articles, with robots.txt honoured; recommendations of new papers from the papers you kept.
 - **Ranking you can read.** Items are ordered by your Topics, by what you keep, by "Less like this", and by freshness. Every card says why it is there.
-- **Reading.** Cards open in place with the feed text, clearly labelled when it is only a summary. **Read full article** loads the page and shows it in reader mode (Mozilla Readability), saved for offline use. Videos open in the YouTube app; podcast episodes open in your phone's audio player.
+- **Reading.** Cards open in place with the feed text, clearly labelled when it is only a summary. **Read full article** loads the page and shows it in reader mode (Mozilla Readability), saved for offline use. Links inside an article open inside Stash as another reader page; the **✎** button there keeps the page and makes Gemini notes. Videos open in the YouTube app; podcast episodes open in your phone's audio player.
 - **Keep and learn.** Keep puts an item in the Stash. Highlight passages, add a note, each kept item is saved as a Markdown note, by itself in `Documents/Stash Reader` on Android 10+ (or into a folder you choose, for example an Obsidian vault), or shared. **Recall** asks about your highlights again after 1, 3, 7, 21 and 60 days, at most 5 a day, so the session ends.
+- **Ask My Stash.** The Stash search box searches the text of everything you kept, your highlights and notes (SQLite FTS4) and shows passages with links. With a Gemini key, **Answer with Gemini** answers only from those passages and cites them as [1], [2]; with no passages there is no answer. A **Notes** chip lists your Gemini notes and learning paths, rendered with headings, lists and links.
+- **Listen to anything.** **Play** reads an article aloud with the phone's own voice, also with the screen off (foreground service, media notification with pause and next), with a speed setting, the place remembered per sentence, and a **Play queue** of kept articles.
 - **Share to Stash.** In YouTube, Chrome or any app, press Share and pick Stash Reader to save a link.
 - **Gemini notes and learning paths (optional).** With your own free Gemini key, **Make notes** turns a video (through its YouTube link) or an article into study notes and recall questions, and **Make a learning path** orders what you kept on a topic and lists the gaps. Notes are always labelled AI, never shown as the article. Only public links, article text, titles and your highlighted passages are sent; your own notes never are. On Google's free tier, Google may use what is sent to improve its products.
 - **Daily curator.** A GitHub Actions job searches Hacker News, arXiv, Hugging Face and GitHub for your topics once a day and publishes one feed (branch `curator-data`). It costs nothing and uses no LLM.
@@ -24,14 +26,14 @@ Everything lives on the phone: no account, no analytics, no server of mine. The 
 
 - No Gradle and no third-party libraries in the app. `build.sh` calls aapt2, javac (Java 11 source level), d8, zipalign and apksigner. minSdk 26.
 - The screen is a WebView showing `app/assets/index.html` (plain JavaScript). A small `@JavascriptInterface` bridge in `MainActivity` does everything that touches the network, the database or Android; the WebView itself may not load anything from the network.
-- Classes that must stay free of Android imports are listed in `tests/core.txt` and are tested on the PC with `bash tests/run.sh` (342 checks), using saved files in `tests/fixtures/`. The curator has its own Python tests (`python3 -m unittest discover -s curator`). No test touches the network.
+- Classes that must stay free of Android imports are listed in `tests/core.txt` and are tested on the PC with `bash tests/run.sh` (432 checks, plus 12 for the Markdown renderer when node is installed), using saved files in `tests/fixtures/`. The curator has its own Python tests (`python3 -m unittest discover -s curator`). No test touches the network.
 - The only vendored file is `app/assets/Readability.js` (Apache-2.0), see [THIRD_PARTY.md](THIRD_PARTY.md).
 
 ## Repository map
 
 | Path | What |
 |---|---|
-| `app/src/pl/stashreader/` | Java sources (database, refresh, parsers, ranker, export, Gemini, bridge) |
+| `app/src/pl/stashreader/` | Java sources (database, refresh, parsers, ranker, clusters, passages, export, Gemini, speaker, bridge) |
 | `app/assets/` | the UI, the starter sources, Readability.js |
 | `tests/` | PC tests, fixtures, the emulator smoke script |
 | `curator/` | the daily curator (Python, standard library only) |
@@ -57,4 +59,4 @@ bash build.sh                           # needs signing.env, see below
 
 ## What was not tested
 
-Nothing has been run on a real phone. The emulator smoke test shows that the app starts, the feed loads, Keep works and a shared link reaches the Stash. Not exercised anywhere: text selection and highlighting, the share sheet out, the expiry after 30 days, writing into a picked export folder (the automatic folder was checked in the emulator), the background refresh job, page watching and recommendations in the app, the YouTube and audio hand-offs, and the Gemini buttons inside the app (Gemini itself was called live from a PC, and the app's parser is tested on those real answers).
+Nothing has been run on a real phone. The emulator smoke test shows that the app starts, the feed loads, Keep works and a shared link reaches the Stash. Features of v1.3 to v1.6 (page view and ✎, Fit My Time, clusters, search and answers, reading aloud) were not driven in the emulator at all; nothing was heard. Not exercised anywhere: text selection and highlighting, the share sheet out, the expiry after 30 days, writing into a picked export folder (the automatic folder was checked in the emulator), the background refresh job, page watching and recommendations in the app, the YouTube and audio hand-offs, and the Gemini buttons inside the app (Gemini itself was called live from a PC, and the app's parser is tested on those real answers).
