@@ -18,6 +18,11 @@ final class FeedFilter {
         long source;
         String query = "";
         boolean newest;
+        /** 0 = any length; else only items of at most this many minutes (a video counts 10, a podcast 20). */
+        int maxMins;
+
+        /** No filter and the default order: the plain Feed, where surprises are mixed in. */
+        boolean plain() { return count() == 0; }
 
         /** How many filters are on, for the number shown on the filter button. Sorting counts as one. */
         int count() {

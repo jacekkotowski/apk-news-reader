@@ -74,7 +74,7 @@ final class QuerySource {
             case HF:
                 return "https://huggingface.co/api/daily_papers?limit=50";
             case REDDIT:
-                if (q.regionMatches(true, 0, "r/", 0, 2) && q.indexOf(' ') < 0) return "https://www.reddit.com/r/" + enc(q.substring(2)) + "/new/.rss?limit=30";
+                if (q.regionMatches(true, 0, "r/", 0, 2) && q.indexOf(' ') < 0) return "https://www.reddit.com/r/" + enc(q.substring(2)) + "/new.rss?limit=30";
                 return "https://www.reddit.com/search.rss?q=" + enc(q) + "&sort=new&t=month&limit=30";
             case GITHUB:
                 return "https://api.github.com/search/repositories?q=" + enc(q + " created:>" + day(now - 90L * 86400000L)) + "&sort=stars&order=desc&per_page=20";

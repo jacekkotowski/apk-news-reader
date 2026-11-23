@@ -417,72 +417,59 @@ public final class T {
     static Ranker.Scored sc(long id, double score, boolean topic, String why) {
         Ranker.Scored s = new Ranker.Scored(); s.id = id; s.score = score; s.topicHit = topic; s.why = why; return s;
     }
-    static int total(Ranker.Plan p) { int t = 0; for (Ranker.Pick k : p.picks) t += k.mins; return t; }
 
     static void fitting() {
         java.util.List<Ranker.Scored> ranked = new java.util.ArrayList<>();
         java.util.Map<Long, Ranker.Cand> info = new java.util.HashMap<>();
-        // 12 topic items of 3 to 12 minutes, then 4 items without a topic
-        for (long i = 1; i <= 12; i++) { ranked.add(sc(i, 10 - i * 0.3, true, "Matches your topics: x")); info.put(i, new Ranker.Cand(i % 4 == 0 ? 12 : (int) (2 + i % 5), 1, "Blog A")); }
+        // 12 topic items, then 6 items without a topic: three good ones, an old one, a long one, one from a source turned down
+        for (long i = 1; i <= 12; i++) { ranked.add(sc(i, 10 - i * 0.3, true, "Matches your topics: x")); info.put(i, new Ranker.Cand(3, 1, "Blog A")); }
         ranked.add(sc(101, 1.4, false, "Recent")); info.put(101L, new Ranker.Cand(4, 7, "Blog B"));
         ranked.add(sc(102, 1.2, false, "Like items you kept (parquet)")); info.put(102L, new Ranker.Cand(5, 8, "Blog C"));
         ranked.add(sc(103, 0.1, false, "No topic matched; shown by date")); info.put(103L, new Ranker.Cand(5, 9, "Blog D"));
         ranked.add(sc(104, 1.3, false, "Recent")); info.put(104L, new Ranker.Cand(30, 9, "Blog D"));
+        ranked.add(sc(105, 1.35, false, "Recent")); info.put(105L, new Ranker.Cand(4, 10, "Blog E"));
+        ranked.add(sc(106, 1.1, false, "Recent")); info.put(106L, new Ranker.Cand(4, 11, "Blog F"));
         java.util.Map<Long, Integer> pen = new java.util.HashMap<>();
+        pen.put(10L, 3);
 
-        for (int budget : new int[]{5, 15, 30}) {
-            Ranker.Plan p = Ranker.fit(ranked, info, pen, budget);
-            yes("fit " + budget + ": never over the time", total(p) <= budget);
-            yes("fit " + budget + ": not empty", !p.picks.isEmpty());
-            eq("fit " + budget + ": used is the sum", total(p), p.used);
-        }
-        Ranker.Plan p15 = Ranker.fit(ranked, info, pen, 15), p30 = Ranker.fit(ranked, info, pen, 30);
-        yes("fit: 30 minutes holds more than 15", p30.picks.size() > p15.picks.size());
-        boolean hasLong = false;
-        for (Ranker.Pick k : p30.picks) if (k.mins >= Ranker.LONG_MIN) hasLong = true;
-        yes("fit 30: one long item is mixed with short ones", hasLong);
-        int longs = 0;
-        for (Ranker.Pick k : p30.picks) if (k.mins >= Ranker.LONG_MIN) longs++;
-        eq("fit 30: only one long item", 1, longs);
-        boolean long5 = false;
-        for (Ranker.Pick k : Ranker.fit(ranked, info, pen, 5).picks) if (k.mins >= Ranker.LONG_MIN) long5 = true;
-        yes("fit 5: no long item", !long5);
-        int sur30 = 0;
-        for (Ranker.Pick k : p30.picks) if (k.surprise) { sur30++; yes("surprise says why", k.why.startsWith("Surprise: matches none of your topics")); }
-        eq("fit 30: about one slot in five is a surprise", (p30.picks.size() + 1) / 5 > 0 ? 1 : 0, Math.min(1, sur30));
-        yes("fit 30: at most one surprise for a list this size", sur30 <= (p30.picks.size() + 1) / 5);
-        int sur5 = 0;
-        for (Ranker.Pick k : Ranker.fit(ranked, info, pen, 5).picks) if (k.surprise) sur5++;
-        eq("fit 5: a short list has no surprise", 0, sur5);
-        // a surprise never matches a topic and never repeats
+        java.util.List<Ranker.Pick> m = Ranker.mix(ranked, info, pen);
+        eq("mix: every item appears once", ranked.size(), m.size());
         java.util.Set<Long> seen = new java.util.HashSet<>();
-        for (Ranker.Pick k : p30.picks) { yes("no repeated item", seen.add(k.id)); if (k.surprise) yes("surprise has no topic", k.id > 100); }
-        for (Ranker.Pick k : p30.picks) if (k.id == 103) yes("an old no-topic item is not a surprise", !k.surprise);
-        yes("the 30-minute article is too long for a surprise", seen.contains(104L) == false);
+        for (Ranker.Pick k : m) yes("mix: no repeated item", seen.add(k.id));
+        eq("mix: the first four are the best ranked", java.util.Arrays.asList(1L, 2L, 3L, 4L), java.util.Arrays.asList(m.get(0).id, m.get(1).id, m.get(2).id, m.get(3).id));
+        yes("mix: the fifth place is a surprise", m.get(4).surprise && m.get(4).id > 100);
+        yes("mix: the tenth place is a surprise", m.get(9).surprise);
+        int sur = 0;
+        for (Ranker.Pick k : m) if (k.surprise) { sur++; yes("mix: a surprise matches no topic", k.id > 100); yes("mix: a surprise says why", k.why.startsWith("Surprise: matches none of your topics")); }
+        eq("mix: three surprises fit the list (18 items / 5)", 3, sur);
+        yes("mix: the best candidate comes first", m.get(4).id == 101L || m.get(4).id == 105L);
+        yes("mix: an old no-topic item is no surprise", !byPick(m, 103).surprise);
+        yes("mix: a long item is no surprise", !byPick(m, 104).surprise);
+        yes("mix: a source turned down three times gives none", !byPick(m, 105).surprise && !byPick(m, 105).why.startsWith("Surprise"));
+        yes("mix: a kept-like item says why", byPick(m, 102).why.contains("like items you kept") || !byPick(m, 102).surprise);
+        yes("mix: regular items keep their own why", byPick(m, 3).why.equals("Matches your topics: x"));
 
-        // turning down surprises from a source lowers them
-        for (Ranker.Pick k : p30.picks) if (k.surprise) pen.put(info.get(k.id).sourceId, 3);
-        Ranker.Plan after = Ranker.fit(ranked, info, pen, 30);
-        for (Ranker.Pick k : after.picks) if (k.surprise) yes("a source turned down three times gives no more surprises", info.get(k.id).sourceId != info.get(sc0(p30)).sourceId);
         java.util.Map<Long, Integer> pen1 = new java.util.HashMap<>();
-        for (Ranker.Pick k : p30.picks) if (k.surprise) pen1.put(info.get(k.id).sourceId, 1);
-        Ranker.Plan one = Ranker.fit(ranked, info, pen1, 30);
-        yes("one turn-down still lists a smaller penalty first", one.picks.size() > 0);
+        pen1.put(7L, 2);
+        boolean b101 = false;
+        for (Ranker.Pick k : Ranker.mix(ranked, info, pen1)) if (k.id == 101 && k.surprise) b101 = true;
+        yes("mix: two turn-downs lower a source but 1.4 - 1.6 is under the bar", !b101);
 
-        // when nothing fits, the shortest of the best is offered
-        java.util.List<Ranker.Scored> big = new java.util.ArrayList<>(); java.util.Map<Long, Ranker.Cand> bi = new java.util.HashMap<>();
-        big.add(sc(1, 5, true, "x")); bi.put(1L, new Ranker.Cand(20, 1, "A"));
-        big.add(sc(2, 4, true, "x")); bi.put(2L, new Ranker.Cand(9, 1, "A"));
-        Ranker.Plan f = Ranker.fit(big, bi, new java.util.HashMap<Long, Integer>(), 5);
-        eq("nothing fits 5 minutes: the shortest is offered", 1, f.picks.size());
-        eq("nothing fits 5 minutes: it is the 9-minute one", 2L, f.picks.get(0).id);
-        eq("empty input, empty plan", 0, Ranker.fit(new java.util.ArrayList<Ranker.Scored>(), new java.util.HashMap<Long, Ranker.Cand>(), new java.util.HashMap<Long, Integer>(), 15).picks.size());
+        eq("mix: a short list has no surprise slot", 0, countSurprises(Ranker.mix(ranked.subList(0, 4), info, pen)));
+        eq("mix: empty input", 0, Ranker.mix(new java.util.ArrayList<Ranker.Scored>(), new java.util.HashMap<Long, Ranker.Cand>(), new java.util.HashMap<Long, Integer>()).size());
         eq("minutes: article is capped", 40, Ranker.minutes("article", 90));
         eq("minutes: article is at least one", 1, Ranker.minutes("article", 0));
         eq("minutes: video", 10, Ranker.minutes("video", 1));
         eq("minutes: podcast", 20, Ranker.minutes("audio", 1));
+        FeedFilter.Filters f = new FeedFilter.Filters();
+        yes("filters: none on is the plain Feed", f.plain());
+        f.maxMins = 15;
+        yes("filters: the time limit alone keeps surprises", f.plain());
+        f.query = "x";
+        yes("filters: a search is not the plain Feed", !f.plain());
     }
-    static long sc0(Ranker.Plan p) { for (Ranker.Pick k : p.picks) if (k.surprise) return k.id; return -1; }
+    static Ranker.Pick byPick(java.util.List<Ranker.Pick> l, long id) { for (Ranker.Pick k : l) if (k.id == id) return k; return null; }
+    static int countSurprises(java.util.List<Ranker.Pick> l) { int n = 0; for (Ranker.Pick k : l) if (k.surprise) n++; return n; }
 
     static void ranking() {
         long now = 1794700000000L;
@@ -583,7 +570,7 @@ public final class T {
         yes("url arxiv", QuerySource.requestUrl("arxiv", "causal inference", now).startsWith("https://export.arxiv.org/api/query?search_query=all%3A%22causal+inference%22&sortBy=submittedDate"));
         yes("url hn", QuerySource.requestUrl("hn", q, now).startsWith("https://hn.algolia.com/api/v1/search_by_date?query=claude+code&tags=story&numericFilters=points%3E%3D20"));
         eq("url hf", "https://huggingface.co/api/daily_papers?limit=50", QuerySource.requestUrl("hf", "", now));
-        eq("url reddit subreddit", "https://www.reddit.com/r/rstats/new/.rss?limit=30", QuerySource.requestUrl("reddit", "r/rstats", now));
+        eq("url reddit subreddit", "https://www.reddit.com/r/rstats/new.rss?limit=30", QuerySource.requestUrl("reddit", "r/rstats", now));
         yes("url reddit search", QuerySource.requestUrl("reddit", "power bi", now).startsWith("https://www.reddit.com/search.rss?q=power+bi&sort=new"));
         yes("url github: only repos created in the last 90 days", QuerySource.requestUrl("github", "tidymodels", now).contains("q=tidymodels+created%3A%3E2026-08-16&sort=stars"));
         yes("url s2: this and last year", QuerySource.requestUrl("s2", "causal inference", now).contains("&year=2025-2026&fields="));

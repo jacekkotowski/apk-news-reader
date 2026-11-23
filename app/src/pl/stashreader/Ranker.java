@@ -227,19 +227,17 @@ final class Ranker {
         return b.toString();
     }
 
-    // ---- Fit My Time: a list that fills 5, 15 or 30 minutes, with a few surprises ----
+    // ---- Surprise Me: about every fifth card of the Feed is a surprise ----
 
-    static final int SHORT_MAX = 7, LONG_MIN = 8, MAX_PICKS = 12;
     static final double SURPRISE_MIN = 0.4, SURPRISE_PENALTY = 0.8;
-    static final int BLOCK_AFTER = 3;
+    static final int BLOCK_AFTER = 3, SURPRISE_EVERY = 5, SURPRISE_MAX_MINS = 12;
 
-    /** What the planner needs to know about one item besides its score. */
+    /** What the Feed needs to know about one item besides its score. */
     static final class Cand {
         final int mins; final long sourceId; final String source;
         Cand(int mins, long sourceId, String source) { this.mins = mins; this.sourceId = sourceId; this.source = source; }
     }
-    static final class Pick { long id; int mins; boolean surprise; String why; }
-    static final class Plan { final List<Pick> picks = new ArrayList<>(); int used; }
+    static final class Pick { long id; boolean surprise; String why; }
 
     /** Reading time of a card: the estimate for articles (at least 1, at most 40); a video counts 10 minutes, a podcast episode 20. */
     static int minutes(String kind, int mins) {
@@ -249,98 +247,47 @@ final class Ranker {
     }
 
     /**
-     * Fills the budget (minutes) from the ranked items: one long item (8 minutes or more, at most 60% of the budget, only when
-     * the budget is 15 or more) and then short ones (7 minutes or less) in rank order while they fit. About one slot in five is a
-     * surprise: a fresh or familiar-looking item that matches none of your topics, from a source you have not turned down.
-     * The picks come back in rank order, with the surprises at the fifth, tenth ... place.
+     * The whole Feed in order: the ranked items, with a surprise at every fifth place (the fifth, tenth ...) while there are any.
+     * A surprise matches none of your topics, is fresh or like what you kept (score plus a little for length, at least SURPRISE_MIN),
+     * is short (12 minutes or less), and comes from a source you have not turned down three times.
      */
-    static Plan fit(List<Scored> ranked, Map<Long, Cand> info, Map<Long, Integer> penalty, int budget) {
-        List<Scored> pool = new ArrayList<>();   // topic matches first, in rank order, then the rest
-        for (Scored s : ranked) if (info.containsKey(s.id) && s.topicHit) pool.add(s);
-        for (Scored s : ranked) if (info.containsKey(s.id) && !s.topicHit) pool.add(s);
-        Set<Long> none = new HashSet<>();
-        int regular = fill(budget, pool, info, none).size();
-        int wanted = (regular + 1) / 5;
-        // surprise candidates, best quality first
-        List<Scored> cands = new ArrayList<>();
+    static List<Pick> mix(List<Scored> ranked, Map<Long, Cand> info, Map<Long, Integer> penalty) {
         final Map<Long, Double> quality = new HashMap<>();
+        List<Scored> cands = new ArrayList<>();
         for (Scored s : ranked) {
             Cand c = info.get(s.id);
-            if (c == null || s.topicHit) continue;
+            if (c == null || s.topicHit || c.mins > SURPRISE_MAX_MINS) continue;
             int pen = penalty.containsKey(c.sourceId) ? penalty.get(c.sourceId) : 0;
             double q = s.score + 0.3 * Math.min(c.mins, 10) / 10.0 - SURPRISE_PENALTY * pen;
-            if (pen >= BLOCK_AFTER || q < SURPRISE_MIN || c.mins > Math.max(6, budget / 3)) continue;
+            if (pen >= BLOCK_AFTER || q < SURPRISE_MIN) continue;
             quality.put(s.id, q);
             cands.add(s);
         }
         Collections.sort(cands, new Comparator<Scored>() {
             @Override public int compare(Scored a, Scored b) { return Double.compare(quality.get(b.id), quality.get(a.id)); }
         });
-        List<Scored> sur = new ArrayList<>();
-        int reserved = 0;
-        for (Scored s : cands) {
-            if (sur.size() >= wanted) break;
-            int m = info.get(s.id).mins;
-            if (reserved + m > budget / 2) continue;
-            sur.add(s); reserved += m;
-        }
+        int max = ranked.size() / SURPRISE_EVERY;
+        List<Scored> sur = cands.size() > max ? new ArrayList<>(cands.subList(0, max)) : cands;
         Set<Long> surIds = new HashSet<>();
         for (Scored s : sur) surIds.add(s.id);
-        List<Scored> reg = fill(budget - reserved, pool, info, surIds);
-        List<Pick> picks = new ArrayList<>();
-        for (Scored s : reg) picks.add(pick(s, info.get(s.id), false));
-        int at = 4;
-        for (Scored s : sur) {
-            picks.add(Math.min(at, picks.size()), pick(s, info.get(s.id), true));
-            at += 5;
+        List<Scored> reg = new ArrayList<>();
+        for (Scored s : ranked) if (!surIds.contains(s.id)) reg.add(s);
+        List<Pick> out = new ArrayList<>();
+        int ri = 0, si = 0;
+        while (ri < reg.size() || si < sur.size()) {
+            boolean slot = out.size() % SURPRISE_EVERY == SURPRISE_EVERY - 1;
+            if ((slot && si < sur.size()) || ri >= reg.size()) { out.add(pick(sur.get(si), info.get(sur.get(si).id), true)); si++; }
+            else { out.add(pick(reg.get(ri), info.get(reg.get(ri).id), false)); ri++; }
         }
-        Plan plan = new Plan();
-        plan.picks.addAll(picks);
-        for (Pick p : picks) plan.used += p.mins;
-        return plan;
+        return out;
     }
 
     private static Pick pick(Scored s, Cand c, boolean surprise) {
         Pick p = new Pick();
-        p.id = s.id; p.mins = c.mins; p.surprise = surprise;
+        p.id = s.id; p.surprise = surprise;
         if (!surprise) p.why = s.why;
         else if (s.why.startsWith("Like items you kept")) p.why = "Surprise: matches none of your topics; " + s.why.substring(0, 1).toLowerCase(Locale.ROOT) + s.why.substring(1);
         else p.why = "Surprise: matches none of your topics, but it is recent and from " + c.source;
         return p;
-    }
-
-    private static List<Scored> fill(int budget, List<Scored> pool, Map<Long, Cand> info, Set<Long> skip) {
-        List<Scored> out = new ArrayList<>();
-        int left = budget;
-        Scored lng = null;
-        if (budget >= 15) {
-            for (Scored s : pool) {
-                int m = info.get(s.id).mins;
-                if (skip.contains(s.id) || m < LONG_MIN || m * 10 > budget * 6) continue;
-                lng = s; break;
-            }
-        }
-        if (lng != null) { out.add(lng); left -= info.get(lng.id).mins; }
-        for (Scored s : pool) {
-            if (out.size() >= MAX_PICKS) break;
-            int m = info.get(s.id).mins;
-            if (s == lng || skip.contains(s.id) || m > SHORT_MAX || m > left) continue;
-            out.add(s); left -= m;
-        }
-        if (out.isEmpty()) { // nothing fits: offer the shortest of the best ten rather than an empty list
-            Scored best = null;
-            for (int i = 0, seen = 0; i < pool.size() && seen < 10; i++) {
-                Scored s = pool.get(i);
-                if (skip.contains(s.id)) continue;
-                seen++;
-                if (best == null || info.get(s.id).mins < info.get(best.id).mins) best = s;
-            }
-            if (best != null) out.add(best);
-        }
-        final List<Scored> order = pool;
-        Collections.sort(out, new Comparator<Scored>() {
-            @Override public int compare(Scored a, Scored b) { return Integer.compare(order.indexOf(a), order.indexOf(b)); }
-        });
-        return out;
     }
 }
