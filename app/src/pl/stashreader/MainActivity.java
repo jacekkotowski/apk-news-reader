@@ -93,6 +93,21 @@ public class MainActivity extends Activity {
         else super.onBackPressed();
     }
 
+    private void sendToSpeaker(String action, long id) {
+        Intent i = new Intent(this, Speaker.class).setAction(action);
+        if (id >= 0) i.putExtra("id", id);
+        try { startForegroundService(i); }
+        catch (RuntimeException e) { runOnUiThread(() -> android.widget.Toast.makeText(MainActivity.this, "Listening could not start: " + e.getMessage(), android.widget.Toast.LENGTH_LONG).show()); }
+    }
+
+    /** From Android 13 the media notification (pause, next) needs this permission; reading aloud works without it. Asked once. */
+    private void askNotificationPermission() {
+        if (Build.VERSION.SDK_INT < 33 || prefs.getBoolean("askedNotif", false)) return;
+        if (checkSelfPermission("android.permission.POST_NOTIFICATIONS") == android.content.pm.PackageManager.PERMISSION_GRANTED) return;
+        prefs.edit().putBoolean("askedNotif", true).apply();
+        runOnUiThread(() -> requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 52));
+    }
+
     private static final String PLAN = "plan";
     private static String today() { return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new java.util.Date()); }
 
@@ -409,6 +424,31 @@ public class MainActivity extends Activity {
                 if (Passages.citations(answer, ps.size()) == 0) throw new Gemini.GeminiException("Gemini did not cite your passages, so its answer is not shown. Read the passages above instead.");
                 return answer;
             });
+        }
+        /** Reads the item aloud in the Speaker service (works with the screen off); it goes on with the play queue. */
+        @JavascriptInterface public void listenPlay(String id) {
+            final long item;
+            try { item = Long.parseLong(id); } catch (RuntimeException e) { return; }
+            if (db.listenInput(item) == null) { runOnUiThread(() -> android.widget.Toast.makeText(MainActivity.this, "There is no text to read aloud for this item", android.widget.Toast.LENGTH_LONG).show()); return; }
+            askNotificationPermission();
+            sendToSpeaker(Speaker.PLAY, item);
+        }
+        /** Starts the play queue: kept articles that were not heard to the end, newest kept first. */
+        @JavascriptInterface public void listenQueue() {
+            java.util.List<Long> q = db.listenQueue();
+            if (q.isEmpty()) return;
+            askNotificationPermission();
+            sendToSpeaker(Speaker.PLAY, q.get(0));
+        }
+        @JavascriptInterface public int listenQueueCount() { try { return db.listenQueue().size(); } catch (Exception e) { return 0; } }
+        @JavascriptInterface public String listenState() { return Speaker.state(); }
+        @JavascriptInterface public void listenToggle() { if (Speaker.isActive()) sendToSpeaker(Speaker.TOGGLE, -1); }
+        @JavascriptInterface public void listenNext() { if (Speaker.isActive()) sendToSpeaker(Speaker.NEXT, -1); }
+        @JavascriptInterface public void listenStop() { if (Speaker.isActive()) sendToSpeaker(Speaker.STOP, -1); }
+        @JavascriptInterface public int listenRate() { return Listen.rate(prefs.getInt("ttsRate", 100)); }
+        @JavascriptInterface public void setListenRate(int pct) {
+            prefs.edit().putInt("ttsRate", Listen.rate(pct)).apply();
+            if (Speaker.isActive()) sendToSpeaker(Speaker.RATE, -1);
         }
         @JavascriptInterface public void setBack(boolean open) { backOpen = open; }
         @JavascriptInterface public String notesJson() { try { return db.notesJson(); } catch (Exception e) { return "{\"items\":[],\"paths\":[]}"; } }

@@ -35,7 +35,7 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 12); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 13); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
@@ -47,6 +47,7 @@ final class Db extends SQLiteOpenHelper {
         createCards(d);
         createPaths(d);
         createIndex(d);
+        createListen(d);
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
             for (int k = 0; k < a.length(); k++) {
@@ -112,6 +113,7 @@ final class Db extends SQLiteOpenHelper {
             createPaths(d);
         }
         if (o < 11) d.execSQL("ALTER TABLE sources ADD COLUMN surprise_less INTEGER NOT NULL DEFAULT 0");
+        if (o < 13) createListen(d);
         if (o < 12) { // full-text search over kept text, highlights and notes; every kept item is indexed on the first search
             createIndex(d);
             try { d.execSQL("INSERT OR IGNORE INTO fts_dirty SELECT id FROM items WHERE state=" + KEPT); } catch (RuntimeException ignored) { }
@@ -124,6 +126,51 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("CREATE VIRTUAL TABLE fts USING fts4(kind, text, notindexed=kind, tokenize=unicode61)");
             d.execSQL("CREATE TABLE fts_dirty(item_id INTEGER PRIMARY KEY)");
         } catch (RuntimeException e) { /* this phone's SQLite has no FTS4: the search says so */ }
+    }
+
+    private void createListen(SQLiteDatabase d) {
+        d.execSQL("CREATE TABLE listen(item_id INTEGER PRIMARY KEY REFERENCES items(id) ON DELETE CASCADE, pos INTEGER NOT NULL DEFAULT 0, done INTEGER NOT NULL DEFAULT 0)");
+    }
+
+    // ---- Listen to Anything ----
+
+    /** {title, source, text, "1" when the text is the full article} for reading aloud; null when the item is gone or is a video or a podcast. */
+    String[] listenInput(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.article, i.html, i.full, i.link, i.audio FROM items i JOIN sources s ON s.id=i.source_id WHERE i.id=?", new String[]{"" + id})) {
+            if (!c.moveToFirst() || !FeedParser.kindOf(c.getString(5), c.getString(6)).equals("article")) return null;
+            boolean article = !c.getString(2).isEmpty();
+            String text = Sanitizer.text(article ? c.getString(2) : c.getString(3));
+            if (text.isEmpty()) return null;
+            return new String[]{c.getString(0), c.getString(1), text, article || c.getInt(4) != 0 ? "1" : "0"};
+        }
+    }
+    int listenPos(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT pos FROM listen WHERE item_id=?", new String[]{"" + id})) { return c.moveToFirst() ? c.getInt(0) : 0; }
+    }
+    boolean listenDone(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT done FROM listen WHERE item_id=?", new String[]{"" + id})) { return c.moveToFirst() && c.getInt(0) != 0; }
+    }
+    void setListenPos(long id, int pos, boolean done) {
+        getWritableDatabase().execSQL("INSERT OR REPLACE INTO listen(item_id, pos, done) VALUES(?,?,?)", new Object[]{id, pos, done ? 1 : 0});
+    }
+    /** The play queue: kept articles not heard to the end, newest kept first. */
+    List<Long> listenQueue() {
+        List<Long> out = new ArrayList<>();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.link, i.audio FROM items i LEFT JOIN listen l ON l.item_id=i.id WHERE i.state=" + KEPT + " AND COALESCE(l.done,0)=0 ORDER BY i.kept_at DESC, i.id DESC", null)) {
+            while (c.moveToNext()) if (FeedParser.kindOf(c.getString(1), c.getString(2)).equals("article")) out.add(c.getLong(0));
+        }
+        return out;
+    }
+    /** The item after this one in the queue order (newest kept first) that has not been heard to the end; the first such item when this one is not in the queue; -1 when none is left. */
+    long listenNext(long after) {
+        List<long[]> all = new ArrayList<>(); // {id, done}
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.link, i.audio, COALESCE(l.done,0) FROM items i LEFT JOIN listen l ON l.item_id=i.id WHERE i.state=" + KEPT + " ORDER BY i.kept_at DESC, i.id DESC", null)) {
+            while (c.moveToNext()) if (FeedParser.kindOf(c.getString(1), c.getString(2)).equals("article")) all.add(new long[]{c.getLong(0), c.getLong(3)});
+        }
+        int at = -1;
+        for (int i = 0; i < all.size(); i++) if (all.get(i)[0] == after) at = i;
+        for (int i = at + 1; i < all.size(); i++) if (all.get(i)[1] == 0) return all.get(i)[0];
+        return -1;
     }
 
     private void touch(long item) {

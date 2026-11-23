@@ -1,23 +1,28 @@
-## Stash Reader 1.5.1: one card per story, and questions for your Stash
+## Stash Reader 1.6: listen to anything
 
-This is release 1.5. The tag v1.5 never became a release: the build failed on a misplaced line in the database code (found by the build, fixed here). Use this one.
+**Read aloud**
+- Articles have a **▶ Play** button in the reader. It reads the title, then the text, with the phone's own text-to-speech voice. If only the feed summary is available, it says so first ("This is only the summary from the feed, not the full article") and the button is in the ⋯ row as "Read the summary aloud".
+- It keeps going with the **screen off**, as a foreground service with a media notification (pause, next) and lock-screen controls. It pauses for a call or other audio, and when headphones are unplugged.
+- A small player bar appears above the tabs while it plays: title and sentence number, pause or play, next, stop.
+- When an article ends, it goes on with the next one in the **play queue**.
 
-**One Story, Many Sources**
-- Unread items from the last 3 days that tell the same story become **one card**. They are grouped when they have the same link (tracking parameters, "www" and a trailing slash are ignored) or when their titles share most of their key words. The best-ranked one stays; the card shows **+3 sources on this story**. Tap it to see the other titles and sources, and tap one to read it inside Stash.
-- This works in the Feed list for your time, and in the filtered list too. Older items are never grouped.
+**Play queue**
+- In the Stash, **▶ Play queue (N articles)** plays your kept articles that you have not heard to the end, newest kept first. Videos and podcasts are not in it.
+- The place is remembered **per article, by sentence**: press Play on an article you stopped halfway and it goes on from that sentence. An article heard to the end starts from the top next time.
 
-**Ask My Stash**
-- The Stash has a **search box** at the top. Type a word or a question ("how does parquet store columns"). The app looks through the text of everything you kept, your highlights, your notes and your Gemini notes, and shows the best **passages**, each marked [1], [2] ... with the kind (article, highlight, my note, AI notes) and a button that opens the article inside Stash. At most two passages from one article.
-- With a Gemini key saved, **Answer with Gemini** writes a short answer **only from those passages** and cites them as [1], [2]. If the passages hold no answer, or there are none, you get "Nothing in your Stash answers this" and no made-up answer. An answer without a citation is not shown, and citations to passages that were not sent are removed.
-- Only the passages and your question are sent to Gemini. The first search after this update builds the index of everything you kept; later changes (a new highlight, a note) are added at the next search.
+**Speed and language**
+- Sources, Settings: **Reading aloud speed** (0.8x to 1.8x). A change applies at once.
+- Text that looks Polish is read with the Polish voice, other text with the phone's language. If that voice is not installed, you get a message and the English one is used.
 
 **Try on the phone**
-1. Feed, 30 min: look for a card with "+N sources on this story" (it appears only when two sources really cover one story that week). Tap it.
-2. Stash, search box: type a word from something you kept, for example "parquet" or "causal". Passages should appear; tap the title button to open the article.
-3. Add a Gemini key (Sources, Settings) and press **Answer with Gemini**: the answer should carry [1], [2] marks that match the passages above. Then ask something your Stash does not cover: you should get the "Nothing in your Stash answers this" line.
+1. Open an article card with full text and press ▶ Play. You should hear the title, then the text. Lock the screen: it should go on, and the notification should have Pause and Next.
+2. Pause, close the app, come back and press Play on the same article: it should go on from where it stopped.
+3. Stash, ▶ Play queue: it should move on to the next article by itself when one ends.
+4. Sources, Settings: change the speed while it is reading.
+5. On Android 13 or newer the first Play asks for the notification permission; reading aloud works if you say no, but the notification will not show.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The PC tests cover grouping (on a fixture of 13 titles), the link comparison, passage cutting, the search query, ranking, and the answer request and citation checks; the answer parser was tested on a hand-written reply in Gemini's format, not on a live answer. The full-text index (SQLite FTS4) and the new screens were only started in the emulator, not driven.
-- Search finds words that begin like your words ("model" finds "models") but does not understand meaning. A question phrased with other words than the text uses finds nothing.
-- Clustering is by words in titles: two different stories with very similar headlines can be merged, and one story told in different words can stay separate.
+- Nothing here has been tested on a real phone, and nothing was heard: the emulator test only checks that the app still starts. The service, the notification, audio focus and the speech engine were not run. The PC tests cover the text-to-sentences cutting, the language guess, the speed choices and where playback restarts.
+- The voice is whatever the phone has: quality, languages and speed limits depend on it.
+- Position is by sentence and is saved when a sentence starts, so after a pause it repeats the sentence that was being read.
 - Earlier limits still apply.

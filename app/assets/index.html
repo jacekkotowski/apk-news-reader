@@ -58,6 +58,7 @@ section{display:none}section.on{display:block}
 #pgbody{flex:1;overflow-y:auto;padding:12px 16px 100px;overflow-wrap:anywhere}
 #pgnote{position:absolute;right:18px;bottom:22px;width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:var(--bg);font-size:24px;box-shadow:0 2px 8px rgba(0,0,0,.35)}#pgnote:disabled{opacity:.5}
 #pgmsg{position:absolute;left:16px;right:88px;bottom:28px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;display:none}
+#pbar{display:none;align-items:center;gap:8px;padding:6px 16px;border-top:1px solid var(--line);background:var(--card)}#pbar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}#pbar .btn{padding:4px 12px}
 h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:14px 0 4px}
 </style></head><body>
 <header><h1>Stash Reader</h1><small id="stat"></small><button class="btn" id="refresh">Refresh</button></header>
@@ -71,6 +72,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   </div>
   <input id="ask" class="fq" type="search" placeholder="Search or ask your Stash" enterkeyhint="search" autocapitalize="off" autocorrect="off" spellcheck="false">
   <div id="askres"></div>
+  <button class="btn" id="playq" style="display:none;margin-bottom:10px"></button>
   <div id="recall"></div>
   <div id="chips" class="chips"></div>
   <div id="pathbox"></div>
@@ -95,6 +97,8 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
     <div class="acts" style="margin:0 0 14px"><button class="btn" id="fsm">A− smaller</button><button class="btn" id="flg">A+ larger</button></div>
     <div class="label">Background refresh</div>
     <select id="hours" class="btn"><option value="0">Off</option><option value="3">Every 3 hours</option><option value="6">Every 6 hours</option><option value="12">Every 12 hours</option><option value="24">Every day</option></select>
+    <div class="label">Reading aloud speed</div>
+    <select id="rate" class="btn" style="margin-bottom:14px"><option value="80">Slower (0.8x)</option><option value="100">Normal (1x)</option><option value="120">1.2x</option><option value="150">1.5x</option><option value="180">1.8x</option></select>
     <div class="label" style="margin-top:14px">Gemini (optional)</div>
     <div class="meta" id="gstate"></div>
     <div class="add"><input id="gkey" type="password" placeholder="Paste your Gemini API key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="gsave">Save</button></div>
@@ -107,6 +111,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 </main>
 <div id="pg"><div id="pgbar"><button class="btn" id="pgback">\u2039 Back</button><span id="pgtitle"></span></div><div id="pgbody" class="text"></div><div id="pgmsg"></div><button id="pgnote" title="Keep this page and make Gemini notes">\u270E</button></div>
 <div id="hlbar"><button class="btn main" id="hlbtn">Highlight selection</button></div>
+<div id="pbar"><span id="ptitle"></span><button class="btn" id="pplay">\u23F8</button><button class="btn" id="pnext">\u23ED</button><button class="btn" id="pstop">\u2715</button></div>
 <nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Stash</button><button data-t="topics">Topics</button><button data-t="sources">Sources</button></nav>
 <script src="Readability.js"></script>
 <script>
@@ -179,6 +184,8 @@ function card(it,mode){
     if(d.kind==='audio'){var pl=el('button','btn main','\u25B6 Listen');pl.onclick=function(e){e.stopPropagation();A.play(it.id)};acts.appendChild(pl)}
     else if(d.kind==='video'&&d.link){var wt=el('button','btn main','\u25B6 Watch');wt.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};acts.appendChild(wt)}
     else if(d.link&&!d.article&&!d.full)acts.appendChild(readBtn);
+    var canPlay=A.listenPlay&&d.kind!=='audio'&&d.kind!=='video';
+    if(canPlay&&(d.article||d.full)){var pl=el('button','btn','\u25B6 Play');pl.onclick=function(e){e.stopPropagation();A.listenPlay(it.id);listenPoll(8)};acts.appendChild(pl)}
     var more=el('button','btn icon','\u22EF');more.title='More';
     more.onclick=function(e){e.stopPropagation();moreOpen=!moreOpen;buildActs()};
     acts.appendChild(more);
@@ -190,6 +197,7 @@ function card(it,mode){
         gstart('notes:'+it.id,function(ok,m){if(ok){d=J(A.item(it.id));buildActs();renderAi()}else{mk.disabled=false;mk.textContent='Make notes';note.textContent=m}})};
       row.appendChild(mk);
     }
+    if(canPlay&&!(d.article||d.full)){var pl2=el('button','btn','\u25B6 Read the summary aloud');pl2.onclick=function(e){e.stopPropagation();A.listenPlay(it.id);listenPoll(8)};row.appendChild(pl2)}
     if(d.link&&d.kind!=='video'){var o=el('button','btn',d.kind==='audio'?'Open episode page':'Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};row.appendChild(o)}
     if(mode==='feed'&&!kept){
       var dn=el('button','btn','Hide');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};row.appendChild(dn);
@@ -265,7 +273,7 @@ function render(){
   }else if(tab==='kept'){
     $('folder').textContent=(A.exportFolder&&A.exportFolder())||'not set';
     $('autofolder').style.display=(A.autoFolderAvailable&&A.autoFolderAvailable())?'':'none';
-    renderRecall();renderPath();askVis();
+    renderRecall();renderPath();askVis();renderQueueBtn();
     var kb=$('keptlist');kb.textContent='';
     if(notesOn){renderNotes(kb);return}
     var ki=J(A.kept());
@@ -307,6 +315,7 @@ function render(){
       l.appendChild(r);
     });
     $('ver').textContent='Stash Reader '+A.version();renderGemini();
+    if(A.listenRate)$('rate').value=''+A.listenRate();
     var sel=$('hours');if(sel&&A.refreshHours)sel.value=''+A.refreshHours();
   }
 }
@@ -569,6 +578,26 @@ function renderAsk(){
   box.appendChild(ans);
 }
 $('ask').oninput=function(){clearTimeout(askT);askT=setTimeout(function(){askQ=$('ask').value.trim();renderAsk()},350)};
+function renderQueueBtn(){
+  var b=$('playq'),n=A.listenQueueCount?A.listenQueueCount():0;
+  b.style.display=n>0&&!askQ?'':'none';
+  b.textContent='\u25B6 Play queue ('+n+(n===1?' article':' articles')+')';
+  b.onclick=function(){A.listenQueue();listenPoll(8)};
+}
+var listenT=0;
+function listenPoll(retry){
+  var s=J(A.listenState?A.listenState():'{}'),bar=$('pbar');
+  clearTimeout(listenT);listenT=0;
+  if(!s||!s.active){bar.style.display='none';if(retry>0)listenT=setTimeout(function(){listenPoll(retry-1)},500);return}
+  bar.style.display='flex';
+  $('ptitle').textContent=s.title+' ('+(s.index+1)+'/'+s.total+')';
+  $('pplay').textContent=s.playing?'\u23F8':'\u25B6';
+  listenT=setTimeout(function(){listenPoll(0)},1500);
+}
+$('pplay').onclick=function(){A.listenToggle();setTimeout(function(){listenPoll(0)},300)};
+$('pnext').onclick=function(){A.listenNext();setTimeout(function(){listenPoll(0)},600)};
+$('pstop').onclick=function(){A.listenStop();setTimeout(function(){listenPoll(0)},400)};
+$('rate').onchange=function(){A.setListenRate&&A.setListenRate(parseInt($('rate').value))};
 function renderGemini(){
   $('gstate').textContent=(A.geminiKeySet&&A.geminiKeySet())?'A key is saved on this phone.':'No key yet.';
 }
@@ -614,6 +643,7 @@ function runRecall(list,box){
 window.sharedSaved=function(){show('kept')};
 function status(){
   var s=J(A.status());
+  if(!listenT&&A.listenState)listenPoll(0);
   $('stat').textContent=s.refreshing?'Refreshing...':(s.fresh!=null?s.fresh+' new'+(s.failed?', '+s.failed+' source(s) with errors':''):'');
   $('refresh').disabled=!!s.refreshing;
   if(wasBusy&&!s.refreshing)pending=true;
@@ -658,6 +688,6 @@ $('fsm').onclick=function(){setFont(-1)};
 $('flg').onclick=function(){setFont(1)};
 $('hours').onchange=function(){A.setRefreshHours(parseInt($('hours').value))};
 $('addtopic').onclick=function(){if(A.addTopic($('topic').value))$('topic').value='';render()};
-buildBar();render();status();setInterval(status,1500);
+buildBar();render();status();listenPoll(0);setInterval(status,1500);
 </script>
 </body></html>

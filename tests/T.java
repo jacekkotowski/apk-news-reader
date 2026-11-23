@@ -31,6 +31,7 @@ public final class T {
         fitting();
         clusters();
         passages();
+        listening();
         markdown();
         json();
         querySources();
@@ -381,6 +382,34 @@ public final class T {
         yes("answer request: no JSON schema is asked for", !req.contains("responseSchema"));
     }
     static boolean containsText(java.util.List<Passages.Passage> l, String s) { for (Passages.Passage p : l) if (p.text.contains(s)) return true; return false; }
+
+
+    static void listening() {
+        java.util.List<String> s = Listen.sentences("A talk about Parquet", true, "Parquet stores data by column. It is compressed! Is it fast? Yes, very. See Dr. Smith.");
+        eq("listen: the title comes first", "A talk about Parquet.", s.get(0));
+        eq("listen: sentences follow", "Parquet stores data by column.", s.get(1));
+        yes("listen: short pieces are joined to the next sentence", s.contains("Is it fast? Yes, very.") || s.contains("It is compressed! Is it fast?"));
+        yes("listen: no warning for a full article", !s.get(1).startsWith("This is only"));
+        java.util.List<String> summary = Listen.sentences("T", false, "Some text here that is long enough to be a sentence.");
+        eq("listen: a summary is announced as a summary", "This is only the summary from the feed, not the full article.", summary.get(1));
+        StringBuilder big = new StringBuilder();
+        for (int i = 0; i < 120; i++) big.append("word").append(i).append(i % 9 == 0 ? ", " : " ");
+        boolean cut = true;
+        for (String x : Listen.sentences("", true, big.toString())) if (x.length() > Listen.MAX_SENTENCE + 1) cut = false;
+        yes("listen: a very long sentence is cut", cut);
+        eq("listen: no text, only the title", 1, Listen.sentences("Only a title", true, "").size());
+        eq("listen: nothing at all", 0, Listen.sentences("", true, "  ").size());
+        eq("language: English", "", Listen.language("This is an ordinary English text about data and models and nothing else at all."));
+        eq("language: Polish", "pl", Listen.language("Zażółć gęślą jaźń: to jest zwykły tekst po polsku o danych, modelach i łączeniu źródeł."));
+        eq("language: too short to tell", "", Listen.language("Zażółć"));
+        eq("rate: stays on a choice", 120, Listen.rate(120));
+        eq("rate: snaps to the nearest choice", 150, Listen.rate(140));
+        eq("rate: nonsense becomes normal speed or the nearest", 180, Listen.rate(999));
+        eq("start: saved sentence", 7, Listen.start(7, 20, false));
+        eq("start: past the end starts again", 0, Listen.start(25, 20, false));
+        eq("start: heard to the end starts again", 0, Listen.start(7, 20, true));
+        eq("start: negative", 0, Listen.start(-1, 20, false));
+    }
 
     static Ranker.Scored sc(long id, double score, boolean topic, String why) {
         Ranker.Scored s = new Ranker.Scored(); s.id = id; s.score = score; s.topicHit = topic; s.why = why; return s;
