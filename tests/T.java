@@ -31,6 +31,7 @@ public final class T {
         fitting();
         clusters();
         passages();
+        feedMix();
         listening();
         s2key();
         markdown();
@@ -721,6 +722,16 @@ public final class T {
 
     static String msg(String u) {
         try { FeedParser.validateUrl(u); return ""; } catch (FeedParser.FeedException e) { return e.getMessage(); }
+    }
+
+    static void feedMix() {
+        eq("feed mix: no cards leaves the feed alone", 0, FeedMix.slots(10, 0).length);
+        eq("feed mix: one card after four articles", "[4]", java.util.Arrays.toString(FeedMix.slots(10, 1)));
+        eq("feed mix: three cards", "[4, 8, 10]", java.util.Arrays.toString(FeedMix.slots(10, 3)));
+        eq("feed mix: short feed puts the card at the end", "[2]", java.util.Arrays.toString(FeedMix.slots(2, 1)));
+        eq("feed mix: empty feed still has its card", "[0, 0]", java.util.Arrays.toString(FeedMix.slots(0, 2)));
+        eq("feed mix: never above the daily cap", Recall.DAILY_CAP, FeedMix.slots(100, 50).length);
+        eq("feed mix: negative count is nothing", 0, FeedMix.slots(5, -3).length);
     }
 
     /** starter.json is read by the app with org.json; here it is checked as text. */

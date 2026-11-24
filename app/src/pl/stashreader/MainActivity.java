@@ -438,6 +438,7 @@ public class MainActivity extends Activity {
             });
         }
         @JavascriptInterface public String recall() { try { return db.recallJson(); } catch (Exception e) { return "[]"; } }
+        @JavascriptInterface public String recallSlots(int articles, int cards) { return java.util.Arrays.toString(FeedMix.slots(articles, cards)); }
         @JavascriptInterface public void recallAnswer(String id, boolean ok) { db.recallAnswer(Long.parseLong(id), ok); }
         @JavascriptInterface public boolean geminiKeySet() { return !prefs.getString("geminiKey", "").isEmpty(); }
         @JavascriptInterface public String setGeminiKey(String k) {

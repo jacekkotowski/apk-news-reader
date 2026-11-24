@@ -73,7 +73,6 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <input id="ask" class="fq" type="search" placeholder="Search or ask your Stash" enterkeyhint="search" autocapitalize="off" autocorrect="off" spellcheck="false">
   <div id="askres"></div>
   <button class="btn" id="playq" style="display:none;margin-bottom:10px"></button>
-  <div id="recall"></div>
   <div id="chips" class="chips"></div>
   <div id="pathbox"></div>
   <div id="keptlist"></div>
@@ -279,7 +278,7 @@ function render(){
   }else if(tab==='kept'){
     $('folder').textContent=(A.exportFolder&&A.exportFolder())||'not set';
     $('autofolder').style.display=(A.autoFolderAvailable&&A.autoFolderAvailable())?'':'none';
-    renderRecall();renderPath();askVis();renderQueueBtn();
+    renderPath();askVis();renderQueueBtn();
     var kb=$('keptlist');kb.textContent='';
     if(notesOn){renderNotes(kb);return}
     var ki=J(A.kept());
@@ -326,7 +325,9 @@ function render(){
   }
 }
 function fCount(){return (fF.type?1:0)+(fF.topic?1:0)+(fF.source!=='0'?1:0)+(fF.query.trim()?1:0)+(fF.newest?1:0)}
-var fItems=[],fShown=15,fSig='',fMax=0;
+var fItems=[],fShown=15,fSig='',fMax=0,fRecall=[],fSlots=[],fRi=0;
+// due recall cards sit among the articles: card k after (k+1)*4 articles, or at the end of a short list
+function putRecall(list,before,n){while(fRi<fSlots.length&&fRi<fRecall.length&&fSlots[fRi]<=n){list.insertBefore(recallCard(fRecall[fRi]),before);fRi++}}
 function feedEnd(s){
   var e=el('div','empty');e.id='fend';
   if(!fItems.length)e.textContent=fCount()>0||fMax?'Nothing matches. Open the filters and press Clear, or switch the time filter off.':(s&&s.refreshing?'Loading your sources...':'You have read everything new. Press Refresh later for more.');
@@ -345,7 +346,11 @@ function renderFeed(s){
   if(sig!==fSig){fSig=sig;fShown=15}
   fItems=J(A.feedFiltered?A.feedFiltered(fF.type,fF.topic,fF.source,fF.query,fF.newest?'newest':'best',fMax):A.feed());
   list.textContent='';
-  fItems.slice(0,fShown).forEach(function(it){list.appendChild(card(it,'feed'))});
+  recallOpen=0;recallOn=false;fRi=0;
+  fRecall=fCount()||fMax?[]:J(A.recall?A.recall():'[]');
+  fSlots=fRecall.length?J(A.recallSlots(fItems.length,fRecall.length)):[];
+  putRecall(list,null,0);
+  fItems.slice(0,fShown).forEach(function(it,i){list.appendChild(card(it,'feed'));putRecall(list,null,i+1)});
   list.appendChild(feedEnd(s));feedCount();
   var n=fCount();$('fmore').textContent='\u22EF'+(n?' '+n:'');$('fmore').className=n?'btn icon on':'btn icon';
   [5,15,30].forEach(function(m){var b=$('fm'+m);if(b)b.className='chip'+(fMax===m?' on':'')});
@@ -358,7 +363,7 @@ function feedMore(){
   if(m.scrollHeight-m.scrollTop-m.clientHeight>500)return;
   var list=$('feedlist'),end=$('fend'),from=fShown;
   fShown=Math.min(fItems.length,fShown+15);
-  for(var i=from;i<fShown;i++)list.insertBefore(card(fItems[i],'feed'),end);
+  for(var i=from;i<fShown;i++){list.insertBefore(card(fItems[i],'feed'),end);putRecall(list,end,i+1)}
   list.replaceChild(feedEnd(null),end);feedCount();
   setTimeout(feedMore,50);
 }
@@ -587,7 +592,7 @@ function renderNotes(kb){
 var KINDS={text:'article',hl:'highlight',note:'my note',ai:'AI notes'};
 function askVis(){
   var on=askQ.length>0;
-  ['recall','chips','pathbox','keptlist'].forEach(function(n){$(n).style.display=on?'none':''});
+  ['chips','pathbox','keptlist'].forEach(function(n){$(n).style.display=on?'none':''});
   $('askres').style.display=on?'':'none';
 }
 function renderAsk(){
@@ -643,44 +648,29 @@ function renderS2(){$('s2state').textContent=(A.s2KeySet&&A.s2KeySet())?'A key i
 function renderGemini(){renderS2();
   $('gstate').textContent=(A.geminiKeySet&&A.geminiKeySet())?'A key is saved on this phone.':'No key yet.';
 }
-function renderRecall(){
-  var box=$('recall');box.textContent='';recallOn=false;
-  var cards=J(A.recall?A.recall():'[]');
-  if(!cards.length)return;
-  var b=el('button','btn main','Recall: '+cards.length+(cards.length===1?' card':' cards')+' for today');
-  b.style.width='100%';b.style.marginBottom='12px';
-  b.onclick=function(){runRecall(cards,box)};
-  box.appendChild(b);
-}
-function runRecall(list,box){
-  recallOn=true;box.textContent='';
-  var p=el('div','panel');box.appendChild(p);
-  var total=list.length,n=0;
-  function finish(){
-    recallOn=false;p.textContent='';
-    p.appendChild(el('div','label','Done for today'));p.appendChild(el('p',null,'Come back tomorrow.'));
-    var c=el('button','btn','Close');c.onclick=function(){render()};p.appendChild(c);
-  }
-  function ask(){
-    if(n>=list.length){finish();return}
-    var c=list[n];p.textContent='';
-    p.appendChild(el('div','label','Recall '+(n+1)+' of '+total));
-    p.appendChild(el('div','meta',c.title+' | '+c.source));
-    p.appendChild(el('h3',null,c.front));
-    var rv=el('button','btn main','Show answer');
-    rv.onclick=function(){
-      p.textContent='';
-      p.appendChild(el('div','label','Recall '+(n+1)+' of '+total));
-      p.appendChild(el('div','meta',c.title));
-      var a=el('p',null,c.back);a.style.whiteSpace='pre-wrap';p.appendChild(a);
-      var row=el('div','acts');
-      var ok=el('button','btn main','Got it');ok.onclick=function(){A.recallAnswer(c.id,true);n++;ask()};
-      var no=el('button','btn','Again tomorrow');no.onclick=function(){A.recallAnswer(c.id,false);n++;ask()};
-      row.appendChild(ok);row.appendChild(no);p.appendChild(row);
-    };
-    p.appendChild(rv);
-  }
-  ask();
+var recallOpen=0;
+/** A due recall card inside the Feed: question, Show answer, then Got it / Again tomorrow. It leaves the list once answered. */
+function recallCard(c){
+  var p=el('div','panel');
+  var revealed=false;
+  function done(msg){if(revealed)recallOpen=Math.max(0,recallOpen-1);recallOn=recallOpen>0;p.textContent='';p.appendChild(el('div','meta',msg));setTimeout(function(){if(p.parentNode)p.parentNode.removeChild(p)},900)}
+  p.appendChild(el('div','label','Recall'));
+  p.appendChild(el('div','meta',c.title+' | '+c.source));
+  p.appendChild(el('h3',null,c.front));
+  var rv=el('button','btn main','Show answer');
+  rv.onclick=function(){
+    revealed=true;recallOpen++;recallOn=true;
+    p.textContent='';
+    p.appendChild(el('div','label','Recall'));
+    p.appendChild(el('div','meta',c.title));
+    var a=el('p',null,c.back);a.style.whiteSpace='pre-wrap';p.appendChild(a);
+    var row=el('div','acts');
+    var ok=el('button','btn main','Got it');ok.onclick=function(){A.recallAnswer(c.id,true);done('Got it. See you later.')};
+    var no=el('button','btn','Again tomorrow');no.onclick=function(){A.recallAnswer(c.id,false);done('Again tomorrow.')};
+    row.appendChild(ok);row.appendChild(no);p.appendChild(row);
+  };
+  p.appendChild(rv);
+  return p;
 }
 window.sharedSaved=function(){show('kept')};
 function status(){

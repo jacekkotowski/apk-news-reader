@@ -208,7 +208,7 @@ How the four releases work, where the code is, and what is unproven.
 - [x] v1.6.1, 2026-11-23, found on his phone: Play said there was nothing to read (articles were taken for non-articles; `FeedParser.kindOf` returns an empty string for a plain article). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.6.1.
 
 Four small releases decided 2026-11-24 (approved by Jacek). Research behind them: unread counts and volume drive people away from RSS; saving is not learning; self-testing spaced over days works, highlights and summaries do not; questions work best next to the reading; people use local "related to this" lists, not whole graphs. v1.6 Listen to Anything was built before them (another session), so these take the next numbers.
-- [ ] v1.9: Recall in the Feed (due cards appear in the Feed scroll, one after about every 4 articles, answered in place; the "Recall: N cards" button in the Stash is removed).
+- [x] v1.9, 2026-11-24: Recall in the Feed (due cards appear in the Feed scroll, one after about every 4 articles, answered in place; the "Recall: N cards" button in the Stash is removed). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.9. Not tested on a phone.
 - [ ] v1.10: Builds on (one local line "Builds on: <kept title>" on a feed card, up to 3 at the end of an item; no Gemini).
 - [ ] v1.11: Quiet feeds ("kept K of N in 30 days" per source, one Mute suggestion for a source with 0 kept out of 20 or more).
 - [ ] v1.12: Week note (one Markdown note per week, written automatically, local, no Gemini, no button).
