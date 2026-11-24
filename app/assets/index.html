@@ -135,6 +135,37 @@ function fontSize(){var v=17;try{v=parseInt(localStorage.getItem('fs'))||17}catc
 function setFont(d){var v=Math.max(13,Math.min(28,fontSize()+d));try{localStorage.setItem('fs',v)}catch(e){}document.documentElement.style.setProperty('--fs',v+'px')}
 document.documentElement.style.setProperty('--fs',fontSize()+'px');
 var selNow={card:null,text:'',t:0};
+var relCache={},relQueue=[],relBusy=false;
+// "Builds on": kept items that share rare words with this one. Computed one at a time for the cards on screen, cached until the next refresh.
+function relGet(id,max,cb){
+  var k=id+':'+max;
+  if(relCache[k]){setTimeout(function(){cb(relCache[k])},0);return}
+  relQueue.push([k,id,max,cb]);if(!relBusy)relNext();
+}
+function relNext(){
+  var q=relQueue.shift();if(!q){relBusy=false;return}
+  relBusy=true;
+  setTimeout(function(){
+    var r=[];try{r=A.related?J(A.related(''+q[1],q[2])):[]}catch(e){}
+    relCache[q[0]]=r;q[3](r);relNext();
+  },30);
+}
+function relLine(it){
+  var d=el('div','why');d.style.display='none';
+  relGet(it.id,1,function(r){
+    if(!r.length||!d.parentNode)return;
+    d.style.display='';d.appendChild(document.createTextNode('Builds on: '));
+    var a=el('a',null,r[0].title);a.href='#';a.onclick=function(e){e.preventDefault();e.stopPropagation();if(r[0].link)openPage(r[0].link)};d.appendChild(a);
+  });
+  return d;
+}
+function relEnd(it,box){
+  relGet(it.id,3,function(r){
+    if(!r.length||!box.parentNode)return;
+    box.appendChild(el('div','label','Builds on'));
+    r.forEach(function(x){var b=el('button','btn',x.title);b.style.maxWidth='100%';b.style.display='block';b.style.marginBottom='6px';b.onclick=function(e){e.stopPropagation();if(x.link)openPage(x.link)};box.appendChild(b)});
+  });
+}
 function card(it,mode){
   var kept=(mode==='stash');
   var c=el('div','card');
@@ -144,6 +175,7 @@ function card(it,mode){
   var h=el('h3',null,it.title);c.appendChild(h);
   c.appendChild(el('p','ex',it.excerpt));
   if(it.why)c.appendChild(el('div','why',it.surprise?it.why:'Why this: '+it.why));
+  if(mode==='feed')c.appendChild(relLine(it));
   if(it.topic)c.appendChild(el('span','chip',it.topic));
   if(it.also&&it.also.length){
     var al=el('button','chip','+'+it.also.length+(it.also.length===1?' source':' sources')+' on this story');al.style.border='0';al.style.marginLeft='6px';
@@ -250,6 +282,7 @@ function card(it,mode){
       text.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();e.stopPropagation();if(a.href&&/^https?:/i.test(a.href))openPage(a.href)}});
       note=el('div','note');b.appendChild(note);
       paint();
+      var relBox=el('div','mine');b.appendChild(relBox);relEnd(it,relBox);
       aiBox=el('div','mine');b.appendChild(aiBox);
       mine=el('div','mine');b.appendChild(mine);
       readBtn=el('button','btn','Read full article');
@@ -678,7 +711,7 @@ function status(){
   if(!listenT&&A.listenState)listenPoll(0);
   $('stat').textContent=s.refreshing?'Refreshing...':(s.fresh!=null?s.fresh+' new'+(s.failed?', '+s.failed+' source(s) with errors':''):'');
   $('refresh').disabled=!!s.refreshing;
-  if(wasBusy&&!s.refreshing)pending=true;
+  if(wasBusy&&!s.refreshing){pending=true;relCache={}}
   wasBusy=!!s.refreshing;
   // never redraw under a card that is open: the reader would lose their place, a highlight or a note
   if(pending){if(recallOn||aiBusy){}else if(document.querySelector('.card.open')){if(!s.refreshing)$('stat').textContent='New items are ready; close the open card to show them'}else{pending=false;render()}}

@@ -32,6 +32,7 @@ public final class T {
         clusters();
         passages();
         feedMix();
+        related();
         listening();
         s2key();
         markdown();
@@ -722,6 +723,52 @@ public final class T {
 
     static String msg(String u) {
         try { FeedParser.validateUrl(u); return ""; } catch (FeedParser.FeedException e) { return e.getMessage(); }
+    }
+
+    /** Stands in for the database: kept items from related.txt, document frequency by prefix, passages = every item holding a word. */
+    static java.util.Map<Long, String> relDocs() throws Exception {
+        java.util.Map<Long, String> m = new java.util.LinkedHashMap<>();
+        for (String line : text("tests/fixtures/related.txt").split("\n")) { int i = line.indexOf('|'); if (i > 0) m.put(Long.parseLong(line.substring(0, i)), line.substring(i + 1)); }
+        return m;
+    }
+    static java.util.List<Long> relFind(java.util.Map<Long, String> docs, long self, String title, String hl, String body, int limit) {
+        java.util.Map<String, Integer> df = new java.util.HashMap<>();
+        java.util.List<String> cands = Related.candidates(title, hl, body);
+        for (String w : cands) { int d = 0; for (java.util.Map.Entry<Long, String> de : docs.entrySet()) { if (de.getKey() == self) continue; String t = de.getValue(); for (String x : new java.util.HashSet<>(Ranker.tokens(t))) if (x.startsWith(w)) { d++; break; } } df.put(w, d); }
+        java.util.List<String> words = Related.rarest(cands, df, docs.size());
+        java.util.List<Passages.Passage> ps = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<Long, String> e : docs.entrySet()) for (String x : Ranker.tokens(e.getValue())) { boolean hit = false; for (String w : words) if (x.startsWith(w)) hit = true; if (hit) { ps.add(new Passages.Passage(e.getKey(), "text", e.getValue())); break; } }
+        java.util.List<Long> out = new java.util.ArrayList<>();
+        for (Related.Hit h : Related.rank(self, words, ps, df, docs.size(), limit)) out.add(h.id);
+        return out;
+    }
+    static void related() throws Exception {
+        java.util.Map<Long, String> docs = relDocs();
+        eq("related: fixture has 8 kept items", 8, docs.size());
+        // a new article about Parquet row groups builds on the two kept Parquet items
+        java.util.List<Long> r = relFind(docs, 0, "Parquet column chunks and statistics", "", "How a reader skips row groups using statistics.", 3);
+        yes("related: a related pair is found (item 1)", r.contains(1L));
+        yes("related: and the second one (item 2)", r.contains(2L));
+        yes("related: sourdough is not related", !r.contains(5L));
+        // an unrelated article finds nothing
+        eq("related: unrelated article finds nothing", 0, relFind(docs, 0, "Mountain hiking in the Tatras", "", "Trails, huts and weather in summer.", 3).size());
+        // no self match: item 1 asked about itself never returns itself
+        java.util.List<Long> self = relFind(docs, 1, "Parquet stores columns", "", docs.get(1L), 3);
+        yes("related: never itself", !self.contains(1L));
+        yes("related: item 1 still finds item 2", self.contains(2L));
+        // an empty Stash returns nothing
+        eq("related: empty Stash", 0, relFind(new java.util.LinkedHashMap<Long, String>(), 0, "Parquet column chunks", "", "row groups", 3).size());
+        // generic words alone do not link: model and data are in half of the items
+        eq("related: generic words alone do not link", 0, relFind(docs, 0, "A model and its data", "", "The model needs data and more data.", 3).size());
+        // one shared rare word is not enough
+        eq("related: one rare word is not enough", 0, relFind(docs, 0, "Kubernetes in the cloud", "", "Plain hosting of services.", 3).size());
+        // two rare words link
+        yes("related: two rare words link", relFind(docs, 0, "Kubernetes operators", "", "A controller loop.", 3).contains(6L));
+        // Polish text
+        yes("related: Polish words match", relFind(docs, 0, "Rust: pożyczanie referencji", "", "Własność i czas życia w kompilatorze.", 3).contains(7L));
+        eq("related: match query", "parquet* OR column*", Related.matchQuery(java.util.Arrays.asList("parquet", "column")));
+        eq("related: no words, no query", "", Related.matchQuery(new java.util.ArrayList<String>()));
+        eq("related: limit is respected", 1, relFind(docs, 0, "Parquet column chunks and statistics", "", "row groups", 1).size());
     }
 
     static void feedMix() {

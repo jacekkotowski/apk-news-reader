@@ -1,0 +1,8 @@
+1|Parquet stores columns together, so a query that reads three columns skips the rest. Column pruning and row groups make Parquet fast for analytics.
+2|Row groups in Parquet hold column chunks with min and max statistics, which lets the engine skip whole chunks during a scan.
+3|Why model training needs good data. A model is only as good as the data behind the model.
+4|Understanding the model: how data shapes every model you build.
+5|Sourdough starter needs flour, water and patience. Feed the starter daily and bake on the weekend.
+6|Kubernetes operators watch custom resources and reconcile the cluster state with a controller loop.
+7|Zarządzanie pamięcią w Rust: własność, pożyczanie i czas życia referencji w kompilatorze.
+8|Model data pipeline notes: the model reads data from a data lake, the data is cleaned and the model is scored.

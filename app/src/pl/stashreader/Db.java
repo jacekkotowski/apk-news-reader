@@ -245,6 +245,63 @@ final class Db extends SQLiteOpenHelper {
         return a.toString();
     }
 
+    // ---- Builds on ----
+
+    private static final int REL_CANDIDATES = 25;
+
+    /** Kept items related to this one: [{id, title, link}], best first, at most limit. Empty when nothing links or FTS4 is missing. */
+    String relatedJson(long id, int limit) {
+        JSONArray out = new JSONArray();
+        try {
+            for (Related.Hit h : relatedHits(id, limit)) {
+                try (Cursor c = getReadableDatabase().rawQuery("SELECT title, link FROM items WHERE id=? AND state=" + KEPT, new String[]{"" + h.id})) {
+                    if (!c.moveToFirst()) continue;
+                    JSONObject o = new JSONObject();
+                    o.put("id", "" + h.id); o.put("title", c.getString(0)); o.put("link", c.getString(1));
+                    out.put(o);
+                }
+            }
+        } catch (Exception e) { return "[]"; }
+        return out.toString();
+    }
+
+    List<Related.Hit> relatedHits(long id, int limit) {
+        List<Related.Hit> none = new ArrayList<>();
+        try {
+            SQLiteDatabase d = getReadableDatabase();
+            int n = count("SELECT COUNT(*) FROM items WHERE state=" + KEPT + " AND id<>" + id);
+            if (n < 2) return none;
+            String title = "", text = "", hl = "";
+            try (Cursor c = d.rawQuery("SELECT title, article, html, excerpt FROM items WHERE id=?", new String[]{"" + id})) {
+                if (!c.moveToFirst()) return none;
+                title = c.getString(0);
+                String body = !c.getString(1).isEmpty() ? c.getString(1) : (!c.getString(2).isEmpty() ? c.getString(2) : c.getString(3));
+                text = Sanitizer.text(body);
+            }
+            StringBuilder hb = new StringBuilder();
+            try (Cursor h = d.rawQuery("SELECT text FROM highlights WHERE item_id=?", new String[]{"" + id})) { while (h.moveToNext()) hb.append(h.getString(0)).append(' '); }
+            hl = hb.toString();
+            flushIndex();
+            long lo = id * 1000, hi = id * 1000 + 999;
+            List<String> cands = Related.candidates(title, hl, text);
+            if (cands.size() > REL_CANDIDATES) cands = new ArrayList<>(cands.subList(0, REL_CANDIDATES));
+            Map<String, Integer> df = new HashMap<>();
+            for (String w : cands) {
+                try (Cursor c = d.rawQuery("SELECT COUNT(DISTINCT docid/1000) FROM fts WHERE fts MATCH ? AND docid NOT BETWEEN ? AND ?", new String[]{w + "*", "" + lo, "" + hi})) {
+                    df.put(w, c.moveToFirst() ? c.getInt(0) : 0);
+                }
+            }
+            List<String> words = Related.rarest(cands, df, n);
+            String match = Related.matchQuery(words);
+            if (match.isEmpty()) return none;
+            List<Passages.Passage> ps = new ArrayList<>();
+            try (Cursor c = d.rawQuery("SELECT docid, kind, text FROM fts WHERE fts MATCH ? AND docid NOT BETWEEN ? AND ? LIMIT 400", new String[]{match, "" + lo, "" + hi})) {
+                while (c.moveToNext()) ps.add(new Passages.Passage(c.getLong(0) / 1000, c.getString(1), c.getString(2)));
+            }
+            return Related.rank(id, words, ps, df, n, limit);
+        } catch (RuntimeException e) { return none; } // for example a phone without FTS4
+    }
+
     // ---- One Story, Many Sources ----
 
     /**
