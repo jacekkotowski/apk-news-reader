@@ -76,6 +76,10 @@ public class MainActivity extends Activity {
         }
         setContentView(root);
         applyTheme();
+        new Thread(() -> { // the note for last week, once, on the first start of a new week
+            String[] w = db.writeWeekNote(System.currentTimeMillis());
+            if (w != null && Exporter.enabled(this)) Exporter.writeText(this, w[0], w[1]);
+        }).start();
         web.loadUrl("file:///android_asset/index.html");
         refreshInBackground();
         handleShare(getIntent());
@@ -463,6 +467,7 @@ public class MainActivity extends Activity {
         }
         /** "" while the job runs, then "ok:..." or "err:..." once. */
         @JavascriptInterface public String geminiResult(String key) { String v = gemResults.remove(key); return v == null ? "" : v; }
+        @JavascriptInterface public String weekJson(String start) { try { return db.weekJson(Long.parseLong(start)); } catch (Exception e) { return "{}"; } }
         @JavascriptInterface public String pathJson(String topic) { return db.pathJson(topic); }
         @JavascriptInterface public void makeNotes(final String id) {
             gem("notes:" + id, () -> {

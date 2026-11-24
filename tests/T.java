@@ -34,6 +34,7 @@ public final class T {
         feedMix();
         related();
         quietFeeds();
+        weekNote();
         listening();
         s2key();
         markdown();
@@ -770,6 +771,79 @@ public final class T {
         eq("related: match query", "parquet* OR column*", Related.matchQuery(java.util.Arrays.asList("parquet", "column")));
         eq("related: no words, no query", "", Related.matchQuery(new java.util.ArrayList<String>()));
         eq("related: limit is respected", 1, relFind(docs, 0, "Parquet column chunks and statistics", "", "row groups", 1).size());
+    }
+
+    static void weekNote() {
+        java.util.TimeZone tz = java.util.TimeZone.getTimeZone("Europe/Warsaw");
+        java.util.Calendar c = java.util.Calendar.getInstance(tz);
+        c.clear(); c.set(2026, java.util.Calendar.NOVEMBER, 16, 0, 0, 0); // a Monday
+        long mon = c.getTimeInMillis();
+        long hour = 3600000L, day = 24 * hour;
+        // week bounds
+        eq("week: a Wednesday belongs to its Monday", mon, WeekNote.weekStart(mon + 2 * day + 5 * hour, tz));
+        eq("week: Monday 00:00 starts the week", mon, WeekNote.weekStart(mon, tz));
+        eq("week: Sunday 23:59 is still the same week", mon, WeekNote.weekStart(mon + 7 * day - 60000, tz));
+        eq("week: next Monday starts the next week", mon + 7 * day, WeekNote.weekStart(mon + 7 * day, tz));
+        eq("week: previous week", mon - 7 * day, WeekNote.previousWeek(mon, tz));
+        eq("week: title", "Week 2026-11-16 to 2026-11-22", WeekNote.title(mon, tz));
+        eq("week: file name", "2026-11-16 week.md", WeekNote.fileName(mon, tz));
+        // a week over the clock change in March keeps Monday dates
+        c.clear(); c.set(2026, java.util.Calendar.MARCH, 23, 0, 0, 0);
+        long marMon = c.getTimeInMillis();
+        eq("week: over the clock change the title still ends on Sunday", "Week 2026-03-23 to 2026-03-29", WeekNote.title(marMon, tz));
+        eq("week: previous week across the clock change is a Monday", "2026-03-16", MarkdownExport.day(WeekNote.previousWeek(marMon, tz), tz));
+
+        java.util.List<WeekNote.Item> kept = new java.util.ArrayList<>();
+        WeekNote.Item a = new WeekNote.Item(1, "Parquet in practice", "https://e.org/a", "Blog A", "data", mon + hour, "");
+        a.highlights.add("Row groups hold column chunks.");
+        WeekNote.Item b = new WeekNote.Item(2, "Parquet row groups", "https://e.org/b", "Blog B", "data", mon + day, "worth a re-read");
+        WeekNote.Item d = new WeekNote.Item(3, "Zarządzanie pamięcią w Rust: pożyczanie", "https://e.org/c", "Blog C", "rust", mon + 2 * day, "");
+        d.highlights.add("Żaden zły pożyczający\nnie przeżyje.");
+        WeekNote.Item e = new WeekNote.Item(4, "Old news", "https://e.org/old", "Blog D", "data", mon - day, "");
+        WeekNote.Item f = new WeekNote.Item(5, "Loose item", "", "Blog E", "", mon + 3 * day, "");
+        kept.add(a); kept.add(b); kept.add(d); kept.add(e); kept.add(f);
+        java.util.List<long[]> pairs = new java.util.ArrayList<>();
+        pairs.add(new long[]{1, 2}); pairs.add(new long[]{2, 1}); pairs.add(new long[]{2, 4}); pairs.add(new long[]{3, 3});
+        java.util.List<WeekNote.Again> again = new java.util.ArrayList<>();
+        again.add(new WeekNote.Again("What do you remember about this?", "Parquet in practice"));
+        String md = WeekNote.build(mon, tz, kept, pairs, again);
+        yes("week note: heading", md.contains("\n# Week 2026-11-16 to 2026-11-22\n"));
+        yes("week note: counts only the items kept that week", md.contains("You kept 4 items this week."));
+        yes("week note: an item kept the week before is left out", !md.contains("Old news"));
+        yes("week note: highlights are quotes", md.contains("> Row groups hold column chunks."));
+        yes("week note: a multi-line highlight stays quoted", md.contains("> Żaden zły pożyczający\n> nie przeżyje."));
+        yes("week note: your note", md.contains("My note: worth a re-read"));
+        yes("week note: Polish text is kept", md.contains("Zarządzanie pamięcią w Rust"));
+        yes("week note: the topic comes before its items", md.indexOf("## data") < md.indexOf("Parquet in practice") && md.indexOf("## rust") > md.indexOf("## data"));
+        yes("week note: no topic goes last under Other", md.indexOf("## Other") > md.indexOf("## rust"));
+        yes("week note: item with no link is a plain heading", md.contains("### Loose item\n"));
+        yes("week note: one builds-on line, later builds on earlier", md.contains("## Builds on\n\n- Parquet row groups builds on Parquet in practice\n"));
+        eq("week note: a pair with an item from another week or itself is dropped, and a repeated pair shows once", 1, md.split("builds on", -1).length - 1);
+        yes("week note: asked-again card", md.contains("## Asked again") && md.contains("- What do you remember about this? (Parquet in practice)"));
+        eq("week note: the same input gives the same text", md, WeekNote.build(mon, tz, kept, pairs, again));
+        eq("week note: the order of the input does not matter", md, WeekNote.build(mon, tz, new java.util.ArrayList<>(java.util.Arrays.asList(f, e, d, b, a)), pairs, again));
+        yes("week note: no time of writing inside", !md.contains("2026-11-24"));
+        // which week is due on a start
+        eq("week: on a Thursday the week before is due", mon - 7 * day, WeekNote.due(mon + 3 * day, tz, false));
+        eq("week: on the Monday itself too", mon - 7 * day, WeekNote.due(mon, tz, false));
+        eq("week: a written week is never due again", -1L, WeekNote.due(mon + 3 * day, tz, true));
+        // an empty week writes no note
+        eq("week note: an empty week gives no note", "", WeekNote.build(mon + 14 * day, tz, kept, pairs, again));
+        eq("week note: no items at all", "", WeekNote.build(mon, tz, new java.util.ArrayList<WeekNote.Item>(), null, null));
+        // without pairs and cards there are no such sections
+        String plain = WeekNote.build(mon, tz, kept, null, null);
+        yes("week note: no builds-on section without pairs", !plain.contains("## Builds on") && !plain.contains("## Asked again"));
+        // duplicate titles are told apart
+        java.util.List<WeekNote.Item> dup = new java.util.ArrayList<>();
+        dup.add(new WeekNote.Item(10, "Same title", "https://e.org/1", "Blog A", "data", mon + hour, ""));
+        dup.add(new WeekNote.Item(11, "Same title", "https://e.org/2", "Blog B", "data", mon + 2 * hour, ""));
+        dup.add(new WeekNote.Item(12, "Same title", "https://e.org/3", "Blog B", "data", mon + 3 * hour, ""));
+        java.util.List<long[]> dp = new java.util.ArrayList<>();
+        dp.add(new long[]{11, 10});
+        String dm = WeekNote.build(mon, tz, dup, dp, null);
+        yes("week note: duplicate titles carry their source", dm.contains("[Same title (Blog A)](https://e.org/1)") && dm.contains("[Same title (Blog B)](https://e.org/2)"));
+        yes("week note: the same title and source get a number", dm.contains("[Same title (Blog B) #2](https://e.org/3)"));
+        yes("week note: the builds-on line uses the same names", dm.contains("- Same title (Blog B) builds on Same title (Blog A)"));
     }
 
     static void quietFeeds() {

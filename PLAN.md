@@ -211,7 +211,7 @@ Four small releases decided 2026-11-24 (approved by Jacek). Research behind them
 - [x] v1.9, 2026-11-24: Recall in the Feed (due cards appear in the Feed scroll, one after about every 4 articles, answered in place; the "Recall: N cards" button in the Stash is removed). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.9. Not tested on a phone.
 - [x] v1.10, 2026-11-24: Builds on (one local line "Builds on: <kept title>" on a feed card, up to 3 at the end of an item; no Gemini). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.10. Not tested on a phone.
 - [x] v1.11, 2026-11-24: Quiet feeds ("kept K of N in 30 days" per source, one Mute suggestion for a source with 0 kept out of 20 or more). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.11. Not tested on a phone.
-- [ ] v1.12: Week note (one Markdown note per week, written automatically, local, no Gemini, no button).
+- [x] v1.12, 2026-11-24: Week note (one Markdown note per week, written automatically, local, no Gemini, no button). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.12. Not tested on a phone.
 Dropped by Jacek 2026-11-24: a concepts table, rabbit-hole searches, a typed-relation graph, a graph view, Gemini in the week note.
 
 ## 8. Open problems

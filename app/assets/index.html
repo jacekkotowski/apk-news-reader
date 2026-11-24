@@ -598,7 +598,8 @@ function renderNotes(kb){
   if(noteOpen){
     var o=noteOpen,back=el('button','btn','‹ Notes');back.onclick=function(){pageBack()};kb.appendChild(back);
     var md='',title='',link='',kept=false;
-    if(o.kind==='path'){var pp=J(A.pathJson(o.topic));md=pp.md||'';title='Learning path: '+o.topic}
+    if(o.kind==='week'){var wk=J(A.weekJson(o.start));md=stripFront(wk.md||'');title=o.title}
+    else if(o.kind==='path'){var pp=J(A.pathJson(o.topic));md=pp.md||'';title='Learning path: '+o.topic}
     else{var d=J(A.item(o.id));var nm=A.noteMarkdown?A.noteMarkdown(o.id):'';md=nm?stripFront(nm):(d.ai||'');title=o.title;link=d.link||'';kept=!!nm}
     if(o.kind==='path'){var h=el('h3',null,title);h.style.margin='12px 0 4px';kb.appendChild(h);kb.appendChild(el('div','label','Gemini, from what you kept'))}
     var t=el('div','text');t.style.marginTop='10px';t.innerHTML=md2html(md);
@@ -612,6 +613,9 @@ function renderNotes(kb){
   }
   backState();
   var any=false;
+  (n.weeks||[]).forEach(function(x){any=true;
+    var c=el('div','card');c.appendChild(el('div','meta','Week note'));c.appendChild(el('h3',null,x.title));
+    c.onclick=function(){noteOpen={kind:'week',start:x.start,title:x.title};render();document.querySelector('main').scrollTop=0};kb.appendChild(c)});
   (n.paths||[]).forEach(function(x){any=true;
     var c=el('div','card');c.appendChild(el('div','meta','Learning path | '+ago(x.created)));c.appendChild(el('h3',null,x.topic));
     c.onclick=function(){noteOpen={kind:'path',topic:x.topic};render();document.querySelector('main').scrollTop=0};kb.appendChild(c)});

@@ -35,7 +35,7 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 13); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 14); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
@@ -48,6 +48,7 @@ final class Db extends SQLiteOpenHelper {
         createPaths(d);
         createIndex(d);
         createListen(d);
+        createWeeks(d);
         try {
             JSONArray a = new JSONObject(readAsset("starter.json")).getJSONArray("feeds");
             for (int k = 0; k < a.length(); k++) {
@@ -114,6 +115,7 @@ final class Db extends SQLiteOpenHelper {
         }
         if (o < 11) d.execSQL("ALTER TABLE sources ADD COLUMN surprise_less INTEGER NOT NULL DEFAULT 0");
         if (o < 13) createListen(d);
+        if (o < 14) createWeeks(d);
         if (o < 12) { // full-text search over kept text, highlights and notes; every kept item is indexed on the first search
             createIndex(d);
             try { d.execSQL("INSERT OR IGNORE INTO fts_dirty SELECT id FROM items WHERE state=" + KEPT); } catch (RuntimeException ignored) { }
@@ -126,6 +128,11 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("CREATE VIRTUAL TABLE fts USING fts4(kind, text, notindexed=kind, tokenize=unicode61)");
             d.execSQL("CREATE TABLE fts_dirty(item_id INTEGER PRIMARY KEY)");
         } catch (RuntimeException e) { /* this phone's SQLite has no FTS4: the search says so */ }
+    }
+
+    /** One automatic note per week: start = Monday 00:00 in milliseconds. A row is written once and never changed. */
+    private void createWeeks(SQLiteDatabase d) {
+        d.execSQL("CREATE TABLE IF NOT EXISTS weeks(start INTEGER PRIMARY KEY, md TEXT NOT NULL, created INTEGER NOT NULL)");
     }
 
     private void createListen(SQLiteDatabase d) {
@@ -243,6 +250,54 @@ final class Db extends SQLiteOpenHelper {
             }
         } catch (Exception ignored) { }
         return a.toString();
+    }
+
+    // ---- Week note ----
+
+    /**
+     * On a start: writes the note for last week (Monday to Sunday, phone time zone) if anything was kept in it and no note exists yet.
+     * Returns {file name, text} when a note was just written, else null. A week that has a note is never touched again.
+     */
+    String[] writeWeekNote(long now) {
+        try {
+            java.util.TimeZone tz = java.util.TimeZone.getDefault();
+            SQLiteDatabase d = getWritableDatabase();
+            long start = WeekNote.due(now, tz, false);
+            try (Cursor c = d.rawQuery("SELECT 1 FROM weeks WHERE start=?", new String[]{"" + start})) {
+                if (c.moveToFirst()) return null;
+            }
+            long end = WeekNote.nextWeek(start, tz);
+            List<WeekNote.Item> items = new ArrayList<>();
+            try (Cursor c = d.rawQuery("SELECT i.id, i.title, i.link, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.kept_at, i.note FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + KEPT + " AND i.kept_at>=? AND i.kept_at<? ORDER BY i.kept_at, i.id", new String[]{"" + start, "" + end})) {
+                while (c.moveToNext()) items.add(new WeekNote.Item(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getLong(5), c.getString(6)));
+            }
+            if (items.isEmpty()) return null;
+            for (WeekNote.Item it : items) {
+                try (Cursor h = d.rawQuery("SELECT text FROM highlights WHERE item_id=? ORDER BY id", new String[]{"" + it.id})) { while (h.moveToNext()) it.highlights.add(h.getString(0)); }
+            }
+            List<long[]> pairs = new ArrayList<>();
+            for (int k = 0; k < items.size() && k < 60; k++) {
+                for (Related.Hit h : relatedHits(items.get(k).id, 3)) pairs.add(new long[]{items.get(k).id, h.id});
+            }
+            List<WeekNote.Again> again = new ArrayList<>();
+            try (Cursor c = d.rawQuery("SELECT COALESCE(h.text, c.front), i.title FROM cards c JOIN items i ON i.id=c.item_id LEFT JOIN highlights h ON h.id=c.hl_id WHERE c.last>=? AND c.last<? AND c.step=0", new String[]{"" + start, "" + end})) {
+                while (c.moveToNext()) again.add(new WeekNote.Again(c.getString(0), c.getString(1)));
+            }
+            String md = WeekNote.build(start, tz, items, pairs, again);
+            if (md.isEmpty()) return null;
+            ContentValues v = new ContentValues();
+            v.put("start", start); v.put("md", md); v.put("created", now);
+            if (d.insertWithOnConflict("weeks", null, v, SQLiteDatabase.CONFLICT_IGNORE) < 0) return null;
+            return new String[]{WeekNote.fileName(start, tz), md};
+        } catch (RuntimeException e) { return null; }
+    }
+
+    String weekJson(long start) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT md FROM weeks WHERE start=?", new String[]{"" + start})) {
+            JSONObject o = new JSONObject();
+            if (c.moveToFirst()) o.put("md", c.getString(0));
+            return o.toString();
+        } catch (Exception e) { return "{}"; }
     }
 
     // ---- Builds on ----
@@ -502,7 +557,12 @@ final class Db extends SQLiteOpenHelper {
         try (Cursor c = getReadableDatabase().rawQuery("SELECT topic, created FROM paths ORDER BY created DESC", null)) {
             while (c.moveToNext()) { JSONObject o = new JSONObject(); o.put("topic", c.getString(0)); o.put("created", c.getLong(1)); paths.put(o); }
         }
-        out.put("items", items); out.put("paths", paths);
+        JSONArray weeks = new JSONArray();
+        java.util.TimeZone tz = java.util.TimeZone.getDefault();
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT start FROM weeks ORDER BY start DESC", null)) {
+            while (c.moveToNext()) { JSONObject o = new JSONObject(); o.put("start", "" + c.getLong(0)); o.put("title", WeekNote.title(c.getLong(0), tz)); weeks.put(o); }
+        } catch (RuntimeException ignored) { }
+        out.put("items", items); out.put("paths", paths); out.put("weeks", weeks);
         return out.toString();
     }
     String itemLink(long id) {
