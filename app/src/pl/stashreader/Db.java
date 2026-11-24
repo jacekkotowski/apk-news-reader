@@ -909,11 +909,14 @@ final class Db extends SQLiteOpenHelper {
 
     String sourcesJson() throws Exception {
         JSONArray a = new JSONArray();
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT s.id, s.url, s.name, s.topic, s.custom, s.enabled, s.last_ok, s.last_error, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id), s.kind, s.query FROM sources s ORDER BY s.id", null)) {
+        long since = SourceStats.since(System.currentTimeMillis());
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT s.id, s.url, s.name, s.topic, s.custom, s.enabled, s.last_ok, s.last_error, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id), s.kind, s.query, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id AND x.fetched>=" + since + "), (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id AND x.state=" + KEPT + " AND x.fetched>=" + since + ") FROM sources s ORDER BY s.id", null)) {
             while (c.moveToNext()) {
                 JSONObject o = new JSONObject();
                 o.put("id", "" + c.getLong(0)); o.put("url", c.getString(1)); o.put("name", c.getString(2)); o.put("topic", c.getString(3));
                 o.put("custom", c.getInt(4) != 0); o.put("enabled", c.getInt(5) != 0); o.put("lastOk", c.getLong(6)); o.put("error", c.getString(7)); o.put("count", c.getInt(8)); o.put("kind", c.getString(9)); o.put("query", c.getString(10));
+                o.put("stats", SourceStats.line(c.getInt(12), c.getInt(11)));
+                o.put("mute", SourceStats.suggestMute(c.getInt(12), c.getInt(11), c.getInt(5) != 0));
                 a.put(o);
             }
         }

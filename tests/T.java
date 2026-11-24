@@ -33,6 +33,7 @@ public final class T {
         passages();
         feedMix();
         related();
+        quietFeeds();
         listening();
         s2key();
         markdown();
@@ -769,6 +770,17 @@ public final class T {
         eq("related: match query", "parquet* OR column*", Related.matchQuery(java.util.Arrays.asList("parquet", "column")));
         eq("related: no words, no query", "", Related.matchQuery(new java.util.ArrayList<String>()));
         eq("related: limit is respected", 1, relFind(docs, 0, "Parquet column chunks and statistics", "", "row groups", 1).size());
+    }
+
+    static void quietFeeds() {
+        eq("quiet: line", "kept 3 of 41 in 30 days", SourceStats.line(3, 41));
+        eq("quiet: no items, no line", "", SourceStats.line(0, 0));
+        eq("quiet: kept cannot exceed seen", "kept 5 of 5 in 30 days", SourceStats.line(9, 5));
+        yes("quiet: 0 of 20 is suggested", SourceStats.suggestMute(0, 20, true));
+        yes("quiet: 0 of 19 is not", !SourceStats.suggestMute(0, 19, true));
+        yes("quiet: 1 of 50 is not", !SourceStats.suggestMute(1, 50, true));
+        yes("quiet: a muted source is not suggested again", !SourceStats.suggestMute(0, 40, false));
+        eq("quiet: window starts 30 days back", 1000000000L - 30L * 86400000L, SourceStats.since(1000000000L));
     }
 
     static void feedMix() {

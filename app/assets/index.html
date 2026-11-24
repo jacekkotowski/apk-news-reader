@@ -347,7 +347,9 @@ function render(){
       var t=el('div','t');t.appendChild(el('span',null,x.name||(q?(KL[x.kind]||x.kind)+(x.query?': '+x.query:''):x.url)));
       var d=el('div',x.error?(x.error.indexOf('Note:')===0?'':'err'):(x.lastOk?'good':''),x.error?x.error:(x.lastOk?'OK, '+x.count+' items, updated '+ago(x.lastOk):'Not refreshed yet'));
       t.appendChild(d);
+      if(x.stats)t.appendChild(el('div',null,x.stats));
       t.appendChild(el('div',null,(x.topic?x.topic+' | ':'')+(q?((x.kind==='watch'||x.kind==='sitemap')?'checked at most once a day':'search, at most every 3 hours'):x.url)));
+      if(x.mute){var mb=el('button','btn','Mute');mb.title='Nothing from this source was kept in 30 days';mb.onclick=function(){A.setSourceEnabled(x.id,false);render()};t.appendChild(mb)}
       r.appendChild(t);
       if(x.custom||q){var rm=el('button','btn','Remove');rm.onclick=function(){A.removeSource(x.id);render()};r.appendChild(rm)}
       l.appendChild(r);

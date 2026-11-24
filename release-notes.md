@@ -1,17 +1,16 @@
-## Stash Reader 1.10: "Builds on"
+## Stash Reader 1.11: quiet feeds
 
-**Builds on**
-- A card in the Feed can show one line: **Builds on: <title of something you kept>**. When you open an item, up to **3** such titles are listed at its end under "Builds on". Tap one to read that kept item inside Stash.
-- It is worked out on the phone, with no Gemini and no network. The app takes about eight of the item's rarest key words (from its title, your highlights and the start of its text), looks for them in what you kept, and links only when **at least two** of those rare words are shared and their combined rarity is high enough. If nothing qualifies, nothing is shown: no filler.
-- It is computed only for the cards on screen, one at a time, and kept until the next refresh. It never points an item at itself.
+**Quiet feeds**
+- In **Sources**, every source line now says how much of it you keep, for example **kept 3 of 41 in 30 days**. "In 30 days" means items the app fetched from that source in the last 30 days; "kept" is how many of those you kept.
+- A source that gave **at least 20 items and none was kept** shows one **Mute** button. One tap turns the source off (the same as unticking its box). Tick the box again to turn it back on.
+- There is no other new button, and nothing is muted for you.
 
 **Try on the phone**
-1. Keep two or three articles on the same subject (for example two about Parquet). Refresh, and open the Feed: a new article on that subject should show "Builds on: ..." under its text.
-2. Open that card: at its end, "Builds on" lists up to 3 kept items. Tap one: it opens in the reader.
-3. A card about something you have never kept anything on shows no such line.
+1. Open Sources: sources that have items show "kept K of N in 30 days" under their status.
+2. A source you never keep from, with 20 or more items fetched, shows **Mute**. Tap it: the box becomes unticked and the button disappears.
+3. Tick the box again: the source is on, and the Mute suggestion returns only while the numbers still qualify.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The PC tests cover the word choice, the scoring rule and these cases: a related pair is found, an unrelated item is not, no self-match, an empty Stash returns nothing, and generic words alone do not link. The database query itself (SQLite FTS4) was not run on a PC or in the emulator.
-- With fewer than 2 other kept items nothing is shown. Words are matched by their start ("model" matches "models"), not by meaning, so a related piece in other words is not found.
-- If a phone lacks FTS4, the line simply never appears.
+- Nothing here has been tested on a real phone. The PC tests cover the counting rule and the 20-item limit; the database counts themselves were not run on a PC.
+- Only items still on the phone are counted: unread items older than 30 days are removed, so N can be lower than what a source really published. A new source needs a few weeks of history before it can be suggested.
 - Earlier limits still apply.

@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "1.10";
+    static final String VERSION = "1.11";
     static final String AGENT = "StashReader/" + VERSION;
     private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
