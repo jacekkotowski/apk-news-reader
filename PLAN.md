@@ -207,6 +207,13 @@ How the four releases work, where the code is, and what is unproven.
 - [x] v1.7, 2026-11-23, after his phone test: the Feed is endless (loads 15 more on scroll); 5/15/30 min is a reading-time filter, not a plan; surprises every 5th card. Reddit 404 fixed (subreddit feed address is `/new.rss`; Reddit and Semantic Scholar still answer 429 to unauthenticated apps, an S2 API key is the real fix). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.7.
 - [x] v1.6.1, 2026-11-23, found on his phone: Play said there was nothing to read (articles were taken for non-articles; `FeedParser.kindOf` returns an empty string for a plain article). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.6.1.
 
+Four small releases decided 2026-11-24 (approved by Jacek). Research behind them: unread counts and volume drive people away from RSS; saving is not learning; self-testing spaced over days works, highlights and summaries do not; questions work best next to the reading; people use local "related to this" lists, not whole graphs. v1.6 Listen to Anything was built before them (another session), so these take the next numbers.
+- [ ] v1.9: Recall in the Feed (due cards appear in the Feed scroll, one after about every 4 articles, answered in place; the "Recall: N cards" button in the Stash is removed).
+- [ ] v1.10: Builds on (one local line "Builds on: <kept title>" on a feed card, up to 3 at the end of an item; no Gemini).
+- [ ] v1.11: Quiet feeds ("kept K of N in 30 days" per source, one Mute suggestion for a source with 0 kept out of 20 or more).
+- [ ] v1.12: Week note (one Markdown note per week, written automatically, local, no Gemini, no button).
+Dropped by Jacek 2026-11-24: a concepts table, rabbit-hole searches, a typed-relation graph, a graph view, Gemini in the week note.
+
 ## 8. Open problems
 
 See prompts/run-report.md. In short: nothing was tested on a real phone; Reddit and Semantic Scholar could not be checked for real (HTTP 404 and 429 from the build computer); the Stash folder export, share sheet and text selection were not exercised in the emulator; steps 6 to 8 are not started.
@@ -235,3 +242,4 @@ How to work: plan first, ask Jacek the questions that matter, wait for his yes, 
 
 **Known problems carried over** (see section 8): removing an item from the Stash does not delete its exported file; two items with the same title kept on the same day share a file name; highlights are plain text, not positions; Reddit and Semantic Scholar often answer 429 or 404 to automated requests; Towards Data Science blocks reader mode (HTTP 403); on a YouTube consent page the add-by-address flow may fail (the feed address `youtube.com/feeds/videos.xml?channel_id=...` always works); the page-watch link finder is a heuristic.
 
+**Decided 2026-11-24 (Jacek):** move recall into the Feed, add "Builds on" lines, add quiet-feed counts with a Mute suggestion, and an automatic local week note. Dropped: a concepts table, rabbit-hole searches, a typed-relation graph, a graph view, Gemini in the week note. These four come before v1.6 Listen to Anything.
