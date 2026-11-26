@@ -584,6 +584,31 @@ final class Db extends SQLiteOpenHelper {
         touch(id);
     }
 
+    /** A swipe on the Feed: the unread items among these become kept or less. Nothing is erased yet, so restore() loses nothing. Returns the ids changed. */
+    List<Long> mark(List<Long> ids, boolean keep) {
+        List<Long> changed = new ArrayList<>();
+        SQLiteDatabase d = getWritableDatabase();
+        for (long id : ids) {
+            ContentValues v = new ContentValues(); v.put("state", keep ? KEPT : LESS);
+            if (keep) v.put("kept_at", System.currentTimeMillis());
+            if (d.update("items", v, "id=? AND state=" + NEW, new String[]{"" + id}) > 0) { changed.add(id); touch(id); }
+        }
+        return changed;
+    }
+
+    /** Undo of a swipe: the item is unread again. */
+    void restore(long id) {
+        ContentValues v = new ContentValues(); v.put("state", NEW); v.put("kept_at", 0);
+        getWritableDatabase().update("items", v, "id=?", new String[]{"" + id});
+        touch(id);
+    }
+
+    /** Once a "less" swipe is final the item no longer needs its text. */
+    void dropText(long id) {
+        ContentValues v = new ContentValues(); v.put("html", ""); v.put("article", "");
+        getWritableDatabase().update("items", v, "id=? AND state=" + LESS, new String[]{"" + id});
+    }
+
     private static JSONObject card(Cursor c) throws Exception {
         JSONObject o = new JSONObject();
         o.put("id", "" + c.getLong(0)); o.put("title", c.getString(1)); o.put("excerpt", c.getString(2)); o.put("pub", c.getLong(3));
@@ -666,7 +691,7 @@ final class Db extends SQLiteOpenHelper {
         getWritableDatabase().execSQL("UPDATE sources SET last_ok=0 WHERE kind IN ('" + QuerySource.S2 + "','" + QuerySource.RECS + "')");
     }
 
-    /** "Less like this" on a surprise: surprises from that source become rarer, and stop after three. */
+    /** A surprise swiped left: surprises from that source become rarer, and stop after three. */
     void surpriseLess(long item) {
         getWritableDatabase().execSQL("UPDATE sources SET surprise_less=surprise_less+1 WHERE id=(SELECT source_id FROM items WHERE id=?)", new Object[]{item});
     }

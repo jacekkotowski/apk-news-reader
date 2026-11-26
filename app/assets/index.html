@@ -13,7 +13,7 @@ header small{color:var(--dim);font-size:12px;flex:1;line-height:1.2}
 button{font:inherit;color:inherit}
 .btn{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:6px 14px;color:var(--text)}
 .btn.main{background:var(--accent);border-color:var(--accent);color:var(--bg);font-weight:600}
-main{flex:1;overflow-y:auto;padding:8px 16px 24px}
+main{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 16px 24px}
 nav{display:flex;border-top:1px solid var(--line)}
 nav button{flex:1;background:none;border:0;color:var(--dim);padding:14px 0}
 nav button.on{color:var(--gold);font-weight:700}
@@ -22,6 +22,7 @@ section{display:none}section.on{display:block}
 .meta{font-size:12.5px;color:var(--dim);display:flex;flex-wrap:wrap;gap:4px 10px}
 .meta b{color:var(--gold);font-weight:600}
 .card h3{font-size:18px;line-height:1.3;margin:6px 0;overflow-wrap:anywhere}
+.card.sw{touch-action:pan-y}.card.sw.open{touch-action:auto}.card.swr{border-color:var(--ok);box-shadow:inset 0 0 0 999px rgba(46,160,100,.14)}.card.swl{border-color:var(--bad);box-shadow:inset 0 0 0 999px rgba(224,70,55,.14)}.card.swr.go{box-shadow:inset 0 0 0 999px rgba(46,160,100,.38)}.card.swl.go{box-shadow:inset 0 0 0 999px rgba(224,70,55,.38)}
 .ex{color:var(--dim);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .open .ex{display:none}
 .why{font-size:12.5px;color:var(--dim);font-style:italic;margin-top:6px}
@@ -61,6 +62,7 @@ section{display:none}section.on{display:block}
 #pgmsg{position:absolute;left:16px;right:88px;bottom:28px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;display:none}
 #pbar{display:none;align-items:center;gap:8px;padding:6px 16px;border-top:1px solid var(--line);background:var(--card)}#pbar span{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}#pbar .btn{padding:4px 12px}
 h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);margin:14px 0 4px}
+#swbar{display:none;align-items:center;gap:8px;padding:8px 16px;border-top:1px solid var(--line);background:var(--card)}#swbar span{flex:1;min-width:0;font-size:14px}#swbar .btn{padding:4px 14px}
 </style></head><body>
 <header><h1>Stash Reader</h1><small id="stat"></small><button class="btn" id="refresh">Refresh</button></header>
 <main>
@@ -118,6 +120,7 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <div id="pg"><div id="pgbar"><button class="btn" id="pgback">&#x2039; Back</button><span id="pgtitle"></span></div><div id="pgbody" class="text"></div><div id="pgmsg"></div><button id="pgnote" title="Keep this page and make Gemini notes">&#x270E;</button></div>
 <div id="hlbar"><button class="btn main" id="hlbtn">Highlight selection</button></div>
 <div id="pbar"><span id="ptitle"></span><button class="btn" id="pplay">&#x23F8;</button><button class="btn" id="pnext">&#x23ED;</button><button class="btn" id="pstop">&#x2715;</button></div>
+<div id="swbar"><span id="swtext"></span><button class="btn" id="swundo">Undo</button></div>
 <nav><button data-t="feed" class="on">Feed</button><button data-t="kept">Stash</button><button data-t="topics">Topics</button><button data-t="sources">Sources</button></nav>
 <script src="Readability.js"></script>
 <script>
@@ -240,10 +243,6 @@ function card(it,mode){
     }
     if(canPlay&&!(d.article||d.full)){var pl2=el('button','btn','\u25B6 Read the summary aloud');pl2.onclick=function(e){e.stopPropagation();A.listenPlay(it.id);listenPoll(8)};row.appendChild(pl2)}
     if(d.link&&d.kind!=='video'){var o=el('button','btn',d.kind==='audio'?'Open episode page':'Open in browser');o.onclick=function(e){e.stopPropagation();A.openUrl(d.link)};row.appendChild(o)}
-    if(mode==='feed'&&!kept){
-      var dn=el('button','btn','Hide');dn.onclick=function(e){e.stopPropagation();A.done(it.id);gone(c)};row.appendChild(dn);
-      var ls=el('button','btn','Less like this');ls.onclick=function(e){e.stopPropagation();if(it.surprise&&A.surpriseLess)A.surpriseLess(it.id);A.less(it.id);gone(c)};row.appendChild(ls);
-    }
   }
   function renderAi(){
     aiBox.textContent='';
@@ -295,6 +294,7 @@ function card(it,mode){
     }
   }
   c.addEventListener('click',function(e){if(!c.classList.contains('open')||e.target===h||e.target.closest('.meta'))toggle()});
+  if(mode==='feed')swipeable(c,it,function(){return kept});
   return c;
 }
 document.addEventListener('selectionchange',function(){
@@ -307,6 +307,70 @@ $('hlbtn').addEventListener('touchstart',function(e){e.preventDefault()},{passiv
 $('hlbtn').addEventListener('mousedown',function(e){e.preventDefault()});
 $('hlbtn').onclick=function(){if(selNow.card&&selNow.text){selNow.card.addHighlight(selNow.text);selNow={card:null,text:'',t:0}}};
 function gone(c){var p=c.parentNode;p.removeChild(c);if(!p.querySelector('.card'))render()}
+
+//SWIPE-START
+// A swipe on a closed Feed card: right keeps it, left asks for less like it. Both take the card off the Feed.
+// It counts when the finger moved at least twice as far sideways as up or down, and at least 30% of the card width.
+function swipeable(c,it,isKept){
+  var x=0,y=0,dx=0,dy=0,on=false,drag=false;
+  c.classList.add('sw');
+  function far(){return Math.abs(dx)>=2*Math.abs(dy)&&Math.abs(dx)>=0.3*c.offsetWidth}
+  function reset(){on=drag=false;dx=dy=0;c.style.transform='';c.classList.remove('swr','swl','go')}
+  function move(t){
+    dx=t.clientX-x;dy=t.clientY-y;
+    if(dx<0&&isKept())dx=0; // a kept card cannot be swiped away as "less"
+  }
+  c.addEventListener('touchstart',function(e){
+    reset();if(e.touches.length!==1||c.classList.contains('open'))return;
+    on=true;x=e.touches[0].clientX;y=e.touches[0].clientY;
+  },{passive:true});
+  c.addEventListener('touchmove',function(e){
+    if(!on)return;
+    if(e.touches.length!==1){reset();return}
+    move(e.touches[0]);
+    if(!drag){
+      var ax=Math.abs(e.touches[0].clientX-x),ay=Math.abs(dy);
+      if(ay>10&&ay>ax){on=false;return} // the page is scrolling
+      if(ax<12||ax<ay)return;
+      drag=true;
+    }
+    c.style.transform='translateX('+dx+'px)';
+    c.classList.toggle('swr',dx>0);c.classList.toggle('swl',dx<0);c.classList.toggle('go',far());
+  },{passive:true});
+  c.addEventListener('touchend',function(e){
+    if(!drag){reset();return}
+    if(e.changedTouches.length)move(e.changedTouches[0]);
+    var go=far(),right=dx>0;reset();
+    if(go)swipeAway(c,it,right);
+  });
+  c.addEventListener('touchcancel',reset);
+}
+// The last swipe can be undone for 4 seconds; the same bar shows the one-time hint.
+var swLast=null,swT=0;
+function swHinted(){try{return localStorage.getItem('swhint')==='1'}catch(e){return true}}
+function swSeen(){try{localStorage.setItem('swhint','1')}catch(e){}}
+function swBar(text,undo){$('swtext').textContent=text;$('swundo').style.display=undo?'':'none';$('swbar').style.display=text?'flex':'none'}
+function swHint(){if(!swLast)swBar(tab==='feed'&&!swHinted()&&document.querySelector('#feedlist .card')?'Swipe right to keep, left for less':'',false)}
+// the swipe becomes final: the note file is written, the text of a "less" card is erased
+function swipeEnd(){clearTimeout(swT);if(swLast){swLast=null;if(A.swipeCommit)A.swipeCommit()}swHint()}
+function swipeAway(c,it,right){
+  swipeEnd();swSeen();
+  var ids=[it.id].concat((it.also||[]).map(function(x){return x.id})); // the same story from other sources goes too
+  if(A.swipe)A.swipe(ids.join(','),right,it.surprise?''+it.id:'');
+  swLast={card:c,list:c.parentNode,next:c.nextSibling};
+  swBar(right?'Kept':'Less like this',true);
+  swT=setTimeout(swipeEnd,4000);
+  gone(c);setTimeout(feedMore,50);status();
+}
+$('swundo').onclick=function(){
+  var u=swLast;if(!u)return;
+  swLast=null;clearTimeout(swT);if(A.swipeUndo)A.swipeUndo();
+  // back to its old place, unless the list was drawn again in the meantime
+  if(u.next&&u.next.parentNode===u.list)u.list.insertBefore(u.card,u.next);else render();
+  swHint();status();
+};
+$('swbar').onclick=function(){if(!swLast){swSeen();swBar('',false)}};
+//SWIPE-END
 
 function render(){
   var s=J(A.status());
@@ -329,7 +393,7 @@ function render(){
     }
     var shown=0;
     ki.forEach(function(it){if(topicFilter&&(it.topics||[]).indexOf(topicFilter)<0)return;shown++;kb.appendChild(card(it,'stash'))});
-    if(!shown)kb.appendChild(el('div','empty',ki.length?'Nothing kept under this topic.':'Nothing kept yet. Open a card in the Feed and press Keep, or highlight a passage.'));
+    if(!shown)kb.appendChild(el('div','empty',ki.length?'Nothing kept under this topic.':'Nothing kept yet. Swipe a card in the Feed to the right, or highlight a passage.'));
   }else if(tab==='topics'){
     var tl=$('topiclist');tl.textContent='';
     J(A.topics()).forEach(function(x){
@@ -370,7 +434,7 @@ function putRecall(list,before,n){while(fRi<fSlots.length&&fRi<fRecall.length&&f
 function feedEnd(s){
   var e=el('div','empty');e.id='fend';
   if(!fItems.length)e.textContent=fCount()>0||fMax?'Nothing matches. Open the filters and press Clear, or switch the time filter off.':(s&&s.refreshing?'Loading your sources...':'You have read everything new. Press Refresh later for more.');
-  else if(fShown>=fItems.length)e.textContent=fItems.length>=300?'That is the first 300. Hide some, or add a filter to see others.':'That is everything for now. Press Refresh later for more.';
+  else if(fShown>=fItems.length)e.textContent=fItems.length>=300?'That is the first 300. Swipe some away, or add a filter to see others.':'That is everything for now. Press Refresh later for more.';
   else e.textContent='Loading more...';
   return e;
 }
@@ -393,7 +457,7 @@ function renderFeed(s){
   list.appendChild(feedEnd(s));feedCount();
   var n=fCount();$('fmore').textContent='\u22EF'+(n?' '+n:'');$('fmore').className=n?'btn icon on':'btn icon';
   [5,15,30].forEach(function(m){var b=$('fm'+m);if(b)b.className='chip'+(fMax===m?' on':'')});
-  setTimeout(feedMore,50);
+  swHint();setTimeout(feedMore,50);
 }
 // the Feed is endless: reaching the end of what is shown adds 15 more
 function feedMore(){
@@ -729,7 +793,7 @@ function status(){
 function show(t){
   tab=t;pending=false;['feed','kept','topics','sources'].forEach(function(n){$(n).classList.toggle('on',n===t)});
   document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.t===t)});
-  render();document.querySelector('main').scrollTop=0;
+  swipeEnd();render();document.querySelector('main').scrollTop=0;
 }
 document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){show(b.dataset.t)}});
 $('refresh').onclick=function(){A.refresh();setTimeout(status,300)};

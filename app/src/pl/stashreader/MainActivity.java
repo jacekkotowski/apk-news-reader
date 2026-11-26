@@ -168,6 +168,22 @@ public class MainActivity extends Activity {
         web.evaluateJavascript("window.setTheme&&setTheme(" + dark() + ")", null);
     }
 
+    /** The last swipe, still open to Undo. */
+    private final Swipes swipes = new Swipes(new Swipes.Store() {
+        @Override public java.util.List<Long> mark(java.util.List<Long> ids, boolean keep) { return db.mark(ids, keep); }
+        @Override public void restore(long id) { db.restore(id); }
+        @Override public void export(long id) { sync(id); }
+        @Override public void dropText(long id) { db.dropText(id); }
+        @Override public void surpriseLess(long id) { db.surpriseLess(id); }
+    });
+
+    /** Leaving the app ends the Undo window, so a swipe is never left half done. */
+    @Override protected void onPause() {
+        swipes.commit();
+        web.evaluateJavascript("window.swipeEnd&&swipeEnd()", null);
+        super.onPause();
+    }
+
     private static final int PICK_FOLDER = 41;
 
     /** Rewrites the item's note file when an export folder is set. */
@@ -231,7 +247,13 @@ public class MainActivity extends Activity {
         @JavascriptInterface public String kept() { try { return db.keptJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public String item(String id) { try { return db.itemJson(Long.parseLong(id)); } catch (Exception e) { return "{}"; } }
         @JavascriptInterface public void keep(String id) { db.setState(Long.parseLong(id), Db.KEPT); sync(Long.parseLong(id)); }
-        @JavascriptInterface public void done(String id) { db.setState(Long.parseLong(id), Db.DONE); }
+        /** A swipe on a Feed card: right keeps it, left asks for less. ids is the card and its "+N sources" copies, comma separated. */
+        @JavascriptInterface public void swipe(String ids, boolean keep, String surpriseId) {
+            java.util.List<Long> surprise = Swipes.parse(surpriseId);
+            swipes.swipe(Swipes.parse(ids), keep, surprise.isEmpty() ? 0 : surprise.get(0));
+        }
+        @JavascriptInterface public void swipeUndo() { swipes.undo(); }
+        @JavascriptInterface public void swipeCommit() { swipes.commit(); }
         @JavascriptInterface public String highlights(String id) { try { return db.highlightsJson(Long.parseLong(id)); } catch (Exception e) { return "[]"; } }
         /** Adds a highlight (this keeps the item) and returns true when something was stored. */
         @JavascriptInterface public boolean addHighlight(String id, String text) { boolean ok = db.addHighlight(Long.parseLong(id), text); if (ok) sync(Long.parseLong(id)); return ok; }
@@ -264,9 +286,6 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> web.evaluateJavascript("window.exportMsg&&exportMsg(" + JSONObject.quote(m) + ")", null));
             }, "export-all").start();
         }
-        @JavascriptInterface public void less(String id) { db.setState(Long.parseLong(id), Db.LESS); }
-        /** "Less like this" on a surprise card: surprises from its source become rarer. */
-        @JavascriptInterface public void surpriseLess(String id) { try { db.surpriseLess(Long.parseLong(id)); } catch (RuntimeException ignored) { } }
         @JavascriptInterface public String topics() { try { return db.topicsJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public boolean addTopic(String phrase) { return db.addTopic(phrase); }
         @JavascriptInterface public void setTopicWeight(String id, int w) { db.setTopicWeight(Long.parseLong(id), w); }

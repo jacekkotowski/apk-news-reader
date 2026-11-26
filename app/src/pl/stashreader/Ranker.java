@@ -15,7 +15,7 @@ import java.util.Set;
  * Explainable ranking, no Android imports and no learning model:
  * score = topic match (BM25 on title and summary, times the topic weight)
  *       + a boost for words that appear in items you kept
- *       - a penalty for words that appear in items marked "Less like this"
+ *       - a penalty for words that appear in items marked less (swiped left)
  *       + a small freshness term.
  * Every item comes with a short sentence saying why it is where it is.
  */
@@ -121,7 +121,7 @@ final class Ranker {
             double ls = similarity(less, p);
             if (ls > 0) {
                 score -= LESS_WEIGHT * ls;
-                if (ls >= 0.25) why.add("Lowered: similar to items you marked Less like this (" + join(overlap(less, p), 3) + ")");
+                if (ls >= 0.25) why.add("Lowered: similar to items you swiped left (" + join(overlap(less, p), 3) + ")");
             }
 
             double ageDays = p.doc.pub > 0 ? Math.max(0, (now - p.doc.pub) / 86400000.0) : 30;

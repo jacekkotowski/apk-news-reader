@@ -1,7 +1,8 @@
 #!/bin/bash
 # Runs inside the emulator job: installs the APK, starts it, looks at the result.
 # Pictures: smoke.png (feed), smoke_open.png (a card opened), smoke_reader1.png (after "Read full article"),
-# smoke_stash.png (after Keep), smoke_topics.png (Topics tab), smoke2.png to smoke4.png (Sources tab). logcat.txt is the log.
+# smoke_stash.png (after Keep), smoke_topics.png (Topics tab), smoke2.png to smoke4.png (Sources tab),
+# smoke_swipe.png (the Feed after a swipe). logcat.txt is the log.
 cd "$(dirname "$0")/.."
 adb install -r StashReader.apk || exit 1
 adb logcat -c
@@ -57,6 +58,13 @@ adb exec-out screencap -p > smoke3.png
 adb shell input swipe $((W / 2)) $((H * 80 / 100)) $((W / 2)) $((H * 15 / 100)) 400
 sleep 1
 adb exec-out screencap -p > smoke4.png
+# Back to the Feed: swipe a card to the right (keep). The Undo bar stays for 4 seconds, so look at once.
+adb shell input tap $((W / 8)) $((H * 96 / 100))
+sleep 3
+adb shell input swipe $((W * 12 / 100)) $((H * 40 / 100)) $((W * 88 / 100)) $((H * 40 / 100)) 250
+if [ -n "$(find_text "Undo")" ]; then echo "Swipe: the Undo bar is shown"; else echo "Swipe: the Undo bar was not seen"; fi
+adb exec-out screencap -p > smoke_swipe.png
+sleep 6
 # A link shared from another app lands in the Stash.
 adb shell 'am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.SUBJECT "Smoke share test" --es android.intent.extra.TEXT "https://www.tidyverse.org/blog/" -n pl.stashreader/.MainActivity' 2>&1 | tr -d '' | head -5
 sleep 6

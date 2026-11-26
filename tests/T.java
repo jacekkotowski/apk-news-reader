@@ -24,6 +24,7 @@ public final class T {
         shareAndRecall();
         gemini();
         feedFilter();
+        swipes();
         starter();
         discovery();
         pageText();
@@ -135,6 +136,51 @@ public final class T {
         yes("export: path note has front matter and the path", pn.startsWith("---\ntitle: ") && pn.contains("# Learning path: tidymodels") && pn.contains("## Order to learn"));
         eq("export: path file name", "Path - Power BI DAX.md", MarkdownExport.pathFileName("Power BI / DAX"));
         eq("export: path file name for an empty topic", "Path - topic.md", MarkdownExport.pathFileName("///"));
+    }
+
+    static void swipes() {
+        final java.util.List<String> log = new java.util.ArrayList<>();
+        final java.util.Set<Long> read = new java.util.HashSet<>(); // ids that are no longer unread
+        Swipes s = new Swipes(new Swipes.Store() {
+            @Override public java.util.List<Long> mark(java.util.List<Long> ids, boolean keep) {
+                java.util.List<Long> out = new java.util.ArrayList<>();
+                for (long id : ids) if (read.add(id)) { out.add(id); log.add((keep ? "keep " : "less ") + id); }
+                return out;
+            }
+            @Override public void restore(long id) { read.remove(id); log.add("restore " + id); }
+            @Override public void export(long id) { log.add("export " + id); }
+            @Override public void dropText(long id) { log.add("drop " + id); }
+            @Override public void surpriseLess(long id) { log.add("surprise " + id); }
+        });
+        eq("swipe ids: list, spaces, junk and repeats", java.util.Arrays.asList(3L, 4L), Swipes.parse(" 3,x, 4 ,3,-2,0,"));
+        yes("swipe ids: empty or null", Swipes.parse("").isEmpty() && Swipes.parse(null).isEmpty());
+
+        s.swipe(Swipes.parse("1,2"), true, 0);
+        eq("swipe right: marked at once, no file yet", "[keep 1, keep 2]", log.toString());
+        log.clear(); s.undo();
+        eq("swipe right undone: restored, no file", "[restore 1, restore 2]", log.toString());
+        log.clear(); s.commit(); s.undo();
+        eq("swipe: nothing left after undo", "[]", log.toString());
+
+        s.swipe(Swipes.parse("1,2"), true, 0); log.clear(); s.commit();
+        eq("swipe right final: every copy gets its file", "[export 1, export 2]", log.toString());
+        log.clear(); s.commit(); s.undo();
+        eq("swipe: a final swipe cannot be undone or repeated", "[]", log.toString());
+
+        s.swipe(Swipes.parse("5"), false, 5);
+        eq("swipe left: marked at once, nothing erased or counted yet", "[less 5]", log.toString());
+        log.clear(); s.undo();
+        eq("swipe left on a surprise undone: not counted", "[restore 5]", log.toString());
+        s.swipe(Swipes.parse("5,6"), false, 5); log.clear();
+        s.swipe(Swipes.parse("7"), true, 0);
+        eq("swipe: the next swipe makes the one before final", "[drop 5, drop 6, surprise 5, keep 7]", log.toString());
+        log.clear(); s.undo();
+        eq("swipe: only the last swipe is undone", "[restore 7]", log.toString());
+
+        log.clear(); s.swipe(Swipes.parse("1,8"), false, 1); s.commit();
+        eq("swipe: an item no longer unread is left alone", "[less 8, drop 8]", log.toString());
+        log.clear(); s.swipe(Swipes.parse("1"), true, 0); s.commit();
+        eq("swipe: nothing changed, nothing to finish", "[]", log.toString());
     }
 
     static void feedFilter() {
@@ -534,7 +580,7 @@ public final class T {
         java.util.List<String> less = java.util.Arrays.asList("Cooking pasta with salt", "Pasta recipes at home");
         java.util.List<Ranker.Scored> rl = Ranker.rank(rankDocs(now), new java.util.ArrayList<Ranker.Topic>(), none, less, now);
         eq("less like this: the pasta post sinks to the bottom", 3L, rl.get(rl.size() - 1).id);
-        yes("less like this: the reason says so", byId(rl, 3).why.contains("Less like this"));
+        yes("less like this: the reason says so", byId(rl, 3).why.contains("swiped left"));
 
         java.util.List<Ranker.Scored> ph = Ranker.rank(java.util.Arrays.asList(
             new Ranker.Doc(10, "Business intelligence", "power plants and a bi weekly meeting", now),

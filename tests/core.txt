@@ -19,3 +19,4 @@ FeedMix.java
 Related.java
 SourceStats.java
 WeekNote.java
+Swipes.java
