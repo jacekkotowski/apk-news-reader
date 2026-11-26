@@ -12,10 +12,9 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Explainable ranking, no Android imports and no learning model:
+ * Explainable ranking, no Android imports:
  * score = topic match (BM25 on title and summary, times the topic weight)
- *       + a boost for words that appear in items you kept
- *       - a penalty for words that appear in items marked less (swiped left)
+ *       + what the Learner learned from items you kept and swiped left (words, source, topic, kind; capped)
  *       + a small freshness term.
  * Every item comes with a short sentence saying why it is where it is.
  */
@@ -23,16 +22,20 @@ final class Ranker {
     private Ranker() {}
 
     static final double K1 = 1.2, B = 0.75, TITLE_TIMES = 3, PHRASE_BONUS = 0.75;
-    static final double KEPT_WEIGHT = 3.0, LESS_WEIGHT = 4.0, FRESH_WEIGHT = 1.5, FRESH_DAYS = 3.0;
-    static final int PROFILE_TERMS = 40;
+    static final double FRESH_WEIGHT = 1.5, FRESH_DAYS = 3.0;
     /** Items recommended from papers you kept get this much extra, and their reason comes first. */
     static final double BECAUSE_BONUS = 1.5;
 
     static final class Topic { final String phrase; final double weight; Topic(String p, double w) { phrase = p; weight = w; } }
     static final class Doc {
         final long id; final String title, text, because; final long pub;
+        final long sourceId; final String source, kind;
         Doc(long id, String title, String text, long pub) { this(id, title, text, pub, ""); }
-        Doc(long id, String title, String text, long pub, String because) { this.id = id; this.title = title; this.text = text; this.pub = pub; this.because = because == null ? "" : because; }
+        Doc(long id, String title, String text, long pub, String because) { this(id, title, text, pub, because, 0, "", ""); }
+        Doc(long id, String title, String text, long pub, String because, long sourceId, String source, String kind) {
+            this.id = id; this.title = title; this.text = text; this.pub = pub; this.because = because == null ? "" : because;
+            this.sourceId = sourceId; this.source = source == null ? "" : source; this.kind = kind == null ? "" : kind;
+        }
     }
     static final class Scored { long id; double score; String why; boolean topicHit; }
 
@@ -74,8 +77,16 @@ final class Ranker {
         }
     }
 
-    /** Ranks the documents, best first. Equal scores keep the newer item first. */
+    /** Ranks with kept and less texts only (no source, no dates): every text counts as labelled now. */
     static List<Scored> rank(List<Doc> docs, List<Topic> topics, List<String> keptTexts, List<String> lessTexts, long now) {
+        List<Learner.Label> labels = new ArrayList<>();
+        for (String t : keptTexts) labels.add(new Learner.Label("", t, 0, "", now, true));
+        for (String t : lessTexts) labels.add(new Learner.Label("", t, 0, "", now, false));
+        return rank(docs, topics, labels, now);
+    }
+
+    /** Ranks the documents, best first. Equal scores keep the newer item first. */
+    static List<Scored> rank(List<Doc> docs, List<Topic> topics, List<Learner.Label> labels, long now) {
         List<Prepared> ps = new ArrayList<>();
         Map<String, Integer> df = new HashMap<>();
         double totalLen = 0;
@@ -87,7 +98,10 @@ final class Ranker {
         }
         double avg = ps.isEmpty() ? 1 : Math.max(1, totalLen / ps.size());
         int n = ps.size();
-        Map<String, Double> kept = profile(keptTexts), less = profile(lessTexts);
+        List<Map<String, Double>> feats = new ArrayList<>();
+        for (Doc d : docs) feats.add(Learner.features(d.title, d.text, d.sourceId, d.kind, topics));
+        Learner.Model model = Learner.build(labels, topics, feats, now);
+        int at = 0;
 
         List<Scored> out = new ArrayList<>();
         for (Prepared p : ps) {
@@ -112,17 +126,10 @@ final class Ranker {
                 why.add(b.toString());
             }
 
-            List<String> keptWords = overlap(kept, p);
-            double ks = similarity(kept, p);
-            if (ks > 0) {
-                score += KEPT_WEIGHT * ks;
-                if (ks >= 0.25 && !keptWords.isEmpty()) why.add("Like items you kept (" + join(keptWords, 3) + ")");
-            }
-            double ls = similarity(less, p);
-            if (ls > 0) {
-                score -= LESS_WEIGHT * ls;
-                if (ls >= 0.25) why.add("Lowered: similar to items you swiped left (" + join(overlap(less, p), 3) + ")");
-            }
+            Learner.Result learned = model.score(feats.get(at++), p.doc.source);
+            score += learned.score;
+            if (!learned.up.isEmpty()) why.add(learned.up);
+            if (!learned.down.isEmpty()) why.add(learned.down);
 
             double ageDays = p.doc.pub > 0 ? Math.max(0, (now - p.doc.pub) / 86400000.0) : 30;
             double fresh = FRESH_WEIGHT / (1 + ageDays / FRESH_DAYS);
@@ -183,50 +190,6 @@ final class Ranker {
         double s = sum / terms.size();
         if (terms.size() > 1 && p.lower.contains(t.phrase.toLowerCase(Locale.ROOT).trim())) s += PHRASE_BONUS;
         return s * t.weight;
-    }
-
-    /** The most characteristic words of a set of texts, each with a weight between 0 and 1. */
-    static Map<String, Double> profile(List<String> texts) {
-        Map<String, Integer> count = new HashMap<>();
-        for (String x : texts) for (String t : new HashSet<>(tokens(x))) count.merge(t, 1, Integer::sum);
-        List<Map.Entry<String, Integer>> es = new ArrayList<>(count.entrySet());
-        Collections.sort(es, new Comparator<Map.Entry<String, Integer>>() {
-            @Override public int compare(Map.Entry<String, Integer> a, Map.Entry<String, Integer> b) {
-                int c = Integer.compare(b.getValue(), a.getValue());
-                return c != 0 ? c : a.getKey().compareTo(b.getKey());
-            }
-        });
-        Map<String, Double> out = new HashMap<>();
-        if (es.isEmpty()) return out;
-        double top = es.get(0).getValue();
-        // a word seen in one text only is too weak to steer anything once there are several texts
-        int min = texts.size() >= 3 ? 2 : 1;
-        for (int i = 0; i < es.size() && out.size() < PROFILE_TERMS; i++) {
-            if (es.get(i).getValue() < min) break;
-            out.put(es.get(i).getKey(), es.get(i).getValue() / top);
-        }
-        return out;
-    }
-
-    private static double similarity(Map<String, Double> profile, Prepared p) {
-        if (profile.isEmpty()) return 0;
-        double s = 0;
-        for (Map.Entry<String, Double> e : profile.entrySet()) if (p.tf.containsKey(e.getKey())) s += e.getValue();
-        return Math.min(1, s / 4.0);
-    }
-
-    private static List<String> overlap(Map<String, Double> profile, Prepared p) {
-        List<Map.Entry<String, Double>> hit = new ArrayList<>();
-        for (Map.Entry<String, Double> e : profile.entrySet()) if (p.tf.containsKey(e.getKey())) hit.add(e);
-        Collections.sort(hit, new Comparator<Map.Entry<String, Double>>() {
-            @Override public int compare(Map.Entry<String, Double> a, Map.Entry<String, Double> b) {
-                int c = Double.compare(b.getValue(), a.getValue());
-                return c != 0 ? c : a.getKey().compareTo(b.getKey());
-            }
-        });
-        List<String> out = new ArrayList<>();
-        for (Map.Entry<String, Double> e : hit) out.add(e.getKey());
-        return out;
     }
 
     private static String join(List<String> l, int max) { return join(l, max, ", "); }

@@ -29,6 +29,7 @@ public final class T {
         discovery();
         pageText();
         ranking();
+        learner();
         fitting();
         clusters();
         passages();
@@ -589,6 +590,69 @@ public final class T {
         java.util.List<Ranker.Scored> sc = Ranker.rank(java.util.Arrays.asList(new Ranker.Doc(20, "Claude is an assistant", "nothing about the other word", now)), java.util.Arrays.asList(new Ranker.Topic("Claude Code", 3)), none, none, now);
         yes("phrase: a topic needs all of its words", !sc.get(0).why.contains("Matches"));
         eq("empty input gives an empty list", 0, Ranker.rank(new java.util.ArrayList<Ranker.Doc>(), t1, none, none, now).size());
+    }
+
+    static void learner() {
+        long now = 1794700000000L, day = 86400000L;
+        java.util.List<Ranker.Topic> none = new java.util.ArrayList<>();
+        java.util.List<java.util.Map<String, Double>> pool = new java.util.ArrayList<>();
+        String[] feed = {"Weekly data roundup", "New data on rainfall", "Football scores tonight", "Cheap flights to Rome", "Data and duckdb tricks", "Garden tools on sale"};
+        for (int i = 0; i < feed.length; i++) pool.add(Learner.features(feed[i], "", 10 + i, "", none));
+
+        // decay: the same kept item counts less when it was kept half a year ago
+        java.util.List<Learner.Label> fresh = new java.util.ArrayList<>(), old = new java.util.ArrayList<>();
+        for (java.util.List<Learner.Label> l : java.util.Arrays.asList(fresh, old)) {
+            l.add(new Learner.Label("Pasta at home", "", 1, "", now, true));
+            l.add(new Learner.Label("Rome by train", "", 2, "", now, true));
+            l.add(new Learner.Label("Birds in winter", "", 3, "", now, true));
+        }
+        fresh.add(new Learner.Label("Duckdb tricks", "", 4, "", now, true));
+        fresh.add(new Learner.Label("More duckdb", "", 4, "", now, true));
+        old.add(new Learner.Label("Duckdb tricks", "", 4, "", now - 180 * day, true));
+        old.add(new Learner.Label("More duckdb", "", 4, "", now - 180 * day, true));
+        double wf = Learner.build(fresh, none, pool, now).weight("w:duckdb"), wo = Learner.build(old, none, pool, now).weight("w:duckdb");
+        yes("learner: a kept word raises items", wf > 0);
+        yes("learner: an interest from half a year ago weighs less", wo < wf);
+
+        // a word as common in kept items as in items swiped left weighs about nothing
+        java.util.List<Learner.Label> both = new java.util.ArrayList<>();
+        String[] k = {"data tools for teams", "data in schools", "data and rivers"}, l = {"data about celebrities", "data on lotteries", "data of horoscopes"};
+        for (String x : k) both.add(new Learner.Label(x, "", 1, "", now, true));
+        for (String x : l) both.add(new Learner.Label(x, "", 2, "", now, false));
+        yes("learner: a word in both kept and less items weighs about 0", Math.abs(Learner.build(both, none, pool, now).weight("w:data")) < 0.05);
+        yes("learner: a word seen once among several labels does not steer", Learner.build(both, none, pool, now).weight("w:river") == 0);
+
+        // a source you keep swiping left sinks, even with words it has never used before
+        java.util.List<Learner.Label> src = new java.util.ArrayList<>();
+        String[] gone = {"Celebrity news", "Royal wedding gossip", "Reality show finale"};
+        for (String x : gone) src.add(new Learner.Label(x, "", 12, "", now - day, false));
+        src.add(new Learner.Label("Rivers of Europe", "", 20, "", now, true));
+        src.add(new Learner.Label("Mountain trails", "", 21, "", now, true));
+        src.add(new Learner.Label("Lakes in autumn", "", 22, "", now, true));
+        Learner.Model ms = Learner.build(src, none, pool, now);
+        Learner.Result r = ms.score(Learner.features("Something completely different", "", 12, "", none), "Gossip Daily");
+        yes("learner: a source swiped left lowers its new items", r.score < -0.5);
+        eq("learner: the reason names the source", "Lowered: you often swipe away items from Gossip Daily", r.down);
+
+        // caps: however much matches, the learned part stays within bounds
+        java.util.List<Learner.Label> many = new java.util.ArrayList<>();
+        for (int i = 0; i < 20; i++) many.add(new Learner.Label("alpha beta gamma delta epsilon zeta eta theta", "", 30, "video", now, true));
+        Learner.Result big = Learner.build(many, none, pool, now).score(Learner.features("alpha beta gamma delta epsilon zeta eta theta", "", 30, "video", none), "X");
+        yes("learner: the total is capped", big.score <= Learner.TOTAL_CAP + 1e-9);
+        yes("learner: many words together are capped", big.score <= Learner.WORDS_CAP + Learner.SOURCE_CAP + Learner.KIND_CAP + 1e-9);
+        eq("learner: when the words weigh more than the source, the words are named", "Like items you kept (alpha, beta, delta)", big.up);
+        eq("learner: nothing learned adds nothing", 0.0, Learner.build(new java.util.ArrayList<Learner.Label>(), none, pool, now).score(pool.get(0), "X").score);
+
+        // in the ranking: an item from a source you keep rises above an equally fresh one
+        java.util.List<Ranker.Doc> docs = new java.util.ArrayList<>();
+        docs.add(new Ranker.Doc(1, "Notes on soil", "x", now, "", 40, "Blog A", ""));
+        docs.add(new Ranker.Doc(2, "Notes on clay", "x", now, "", 41, "Blog B", ""));
+        for (int i = 3; i <= 6; i++) docs.add(new Ranker.Doc(i, "Other note " + i, "x", now - day, "", 40 + i, "Blog " + i, ""));
+        java.util.List<Learner.Label> kb = new java.util.ArrayList<>();
+        kb.add(new Learner.Label("Hedges", "", 41, "", now, true)); kb.add(new Learner.Label("Ponds", "", 41, "", now, true));
+        java.util.List<Ranker.Scored> rs = Ranker.rank(docs, none, kb, now);
+        eq("learner: the kept source comes first", 2L, rs.get(0).id);
+        yes("learner: and says why", rs.get(0).why.contains("You keep a lot from Blog B"));
     }
 
     static void markdown() {

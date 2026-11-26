@@ -572,7 +572,7 @@ final class Db extends SQLiteOpenHelper {
     void setState(long id, int state) {
         ContentValues v = new ContentValues(); v.put("state", state);
         // a finished item no longer needs its text; the row stays so the item is not offered again
-        if (state == KEPT) v.put("kept_at", System.currentTimeMillis());
+        if (state == KEPT || state == LESS) v.put("kept_at", System.currentTimeMillis());
         if (state == DONE || state == LESS) { v.put("html", ""); v.put("article", ""); }
         SQLiteDatabase d = getWritableDatabase();
         if (state == KEPT) { // keep the first kept date when an item is kept again
@@ -590,7 +590,7 @@ final class Db extends SQLiteOpenHelper {
         SQLiteDatabase d = getWritableDatabase();
         for (long id : ids) {
             ContentValues v = new ContentValues(); v.put("state", keep ? KEPT : LESS);
-            if (keep) v.put("kept_at", System.currentTimeMillis());
+            v.put("kept_at", System.currentTimeMillis()); // for a less item: when it was swiped left, so the Learner can let it fade
             if (d.update("items", v, "id=? AND state=" + NEW, new String[]{"" + id}) > 0) { changed.add(id); touch(id); }
         }
         return changed;
@@ -642,7 +642,7 @@ final class Db extends SQLiteOpenHelper {
                 if (f.maxMins > 0 && mins > f.maxMins) continue;
                 info.put(id, new Ranker.Cand(mins, c.getLong(11), c.getString(5)));
                 cards.put(id, o);
-                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3), c.getString(8)));
+                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3), c.getString(8), c.getLong(11), c.getString(5), o.getString("kind")));
             }
         }
         JSONArray a = new JSONArray();
@@ -651,7 +651,7 @@ final class Db extends SQLiteOpenHelper {
         java.util.Set<Long> surprises = new java.util.HashSet<>();
         // Newest still scores: the score picks the surprises, and the other cards stay in date order without a reason line
         if (!f.newest || f.plain()) {
-            List<Ranker.Scored> ranked = Ranker.rank(docs, topics, texts(KEPT), texts(LESS), System.currentTimeMillis());
+            List<Ranker.Scored> ranked = Ranker.rank(docs, topics, labels(), System.currentTimeMillis());
             if (f.newest) ranked = Ranker.inOrder(ranked, docs);
             if (f.plain()) {
                 for (Ranker.Pick p : Ranker.mix(ranked, info, surprisePenalties())) {
@@ -696,10 +696,14 @@ final class Db extends SQLiteOpenHelper {
         getWritableDatabase().execSQL("UPDATE sources SET surprise_less=surprise_less+1 WHERE id=(SELECT source_id FROM items WHERE id=?)", new Object[]{item});
     }
 
-    private List<String> texts(int state) {
-        List<String> out = new ArrayList<>();
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT title || ' ' || excerpt FROM items WHERE state=" + state + " ORDER BY id DESC LIMIT 200", null)) {
-            while (c.moveToNext()) out.add(c.getString(0));
+    /** What the Learner learns from: the last 300 kept items and the last 300 swiped left, each with its source and date. */
+    private List<Learner.Label> labels() {
+        List<Learner.Label> out = new ArrayList<>();
+        for (int state : new int[]{KEPT, LESS}) {
+            String order = state == KEPT ? "i.kept_at DESC, i.id DESC" : "i.id DESC";
+            try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, CASE WHEN i.kept_at>0 THEN i.kept_at ELSE i.fetched END FROM items i WHERE i.state=" + state + " ORDER BY " + order + " LIMIT 300", null)) {
+                while (c.moveToNext()) out.add(new Learner.Label(c.getString(0), c.getString(1), c.getLong(2), FeedParser.kindOf(c.getString(3), c.getString(4)), c.getLong(5), state == KEPT));
+            }
         }
         return out;
     }

@@ -1,24 +1,19 @@
-## Stash Reader 1.14: swipe to keep or to clear
+## Stash Reader 1.15: the Feed learns from your swipes
 
-**Swipe a card in the Feed**
-- **Right (green)**: the card is **kept** and goes to the Stash.
-- **Left (red)**: **less like this**. The card goes, and similar ones are ranked lower. On a surprise card, surprises from that source also become rarer.
-- A swipe counts when the finger moves at least 30% of the card width, and clearly sideways (twice as far sideways as up or down). Anything else scrolls the page as before.
-- **Undo** is offered for 4 seconds. The note file of a kept card is written only after that, so an undone swipe leaves no file. Leaving the app, changing the tab or swiping again ends the Undo window.
-- A card with **+N sources on this story** takes the other copies with it. Swiping it right keeps **all of them**.
-- Recall cards and open cards do not swipe. A card you already kept can only be swiped right, which just clears it from the Feed.
-
-**Fewer buttons**
-- **Hide** and **Less like this** are gone from the three-dots menu. **Keep** stays in the opened card.
-- A hint, "Swipe right to keep, left for less", is shown until your first swipe (or until you tap it).
+**What changed**
+- The app now learns from three things: the **source**, the **words** and the **topics** of what you swipe right (keep) and left (less).
+- **Sources count.** Keep a lot from one blog and its new posts rise. Keep swiping one site left and its posts sink, even on subjects it has never covered before.
+- **Common words count little.** A word that is everywhere in your Feed (say "data") barely moves anything. A word that is as common in what you keep as in what you swipe left counts for nothing.
+- **Old interests fade.** A swipe counts half as much after 60 days, so the Feed follows what you read now.
+- **Your topics still lead.** What the app learns is capped, so it cannot push your own topics aside.
+- **The "Why this" line says what it learned.** For example "You keep a lot from R-bloggers", "Like items you kept (duckdb, parquet)", or "Lowered: you often swipe away items from X".
 
 **Try on the phone**
-1. Scroll the Feed up and down as usual: no card should move sideways.
-2. Swipe one card right and one left. Check the colours, and that Undo brings the card back.
-3. Swipe right, wait a few seconds, then look in the Stash and in your notes folder.
+1. Swipe a few posts from one source left on different days, then refresh. Its posts should drop, and the "Why this" line should say why.
+2. Keep two or three posts from a blog you like and look for "You keep a lot from ...".
 
 **Known limits**
-- How the swipe **feels** (distance, colours, no accidental swipes while scrolling) has not been tested on a real phone. The PC tests cover the rules with simulated finger movements, and the emulator test makes one swipe to see that the app does not crash.
-- There is no longer a way to hide a card without teaching the app something: swipe it left, or leave it, and it expires after 30 days.
-- If the phone kills the app during the 4 seconds without warning, a kept card has no note file until you change it or press Export all.
+- Not tested on a real phone. The PC tests cover the rules: fading, learning a source, a shared word weighing nothing, and the caps.
+- The app needs at least two swipes on a source or a word before it acts on it, once you have three or more swipes on that side.
+- Items you skip are not used yet. That comes in 1.16.
 - Earlier limits still apply.
