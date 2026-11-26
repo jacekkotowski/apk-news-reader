@@ -188,7 +188,9 @@ Four releases planned 2026-11-23 (approved by Jacek): v1.3 notes anywhere and a 
 
 ## 8a. State after v1.6 (2026-11-23, read this first)
 
-How the four releases work, where the code is, and what is unproven.
+How the four releases work, where the code is, and what is unproven. Later releases are added here as they are built.
+
+- **Remembered sort (v1.13).** `localStorage` key `sort` (`savedNewest` / `saveSort` in index.html). Newest is a sort, not a filter: neither `fCount()` nor `FeedFilter.Filters.count()` counts it, so `plain()` stays true and Clear keeps it. In `Db.feedJson` Newest still ranks, then `Ranker.inOrder` puts the items back into date order before `Ranker.mix`, so the score only picks the surprises; only surprise cards show a reason line. All links take the accent colour (one global `a` rule).
 
 - **Feed, endless with surprises (v1.7; replaced Fit My Time of v1.4.2, which froze one list a day and was dropped after his test).** `Db.feedJson` ranks, groups clusters, and for the plain Feed (no filter, `Filters.plain()`) `Ranker.mix` (core, tested) puts a surprise at every 5th place: no topic hit, 12 min or less, quality = score + length at least 0.4, source not turned down (`sources.surprise_less`, 3 means none). The reading-time chips are a filter (`Filters.maxMins`, a video counts 10 min, a podcast 20). index.html shows 15 cards and adds 15 when scrolled near the end (`feedMore`); the bridge call is `feedFiltered(..., maxMins)`.
 - **Clusters (v1.5.1).** `Clusters.group` (core): last 3 days, same link key or titles sharing at least 3 key words and 55% of the shorter title. `Db.collapse` keeps the best-ranked member and attaches the others as `also`. Known weakness: similar headlines of different stories merge.
@@ -213,6 +215,9 @@ Four small releases decided 2026-11-24 (approved by Jacek). Research behind them
 - [x] v1.11, 2026-11-24: Quiet feeds ("kept K of N in 30 days" per source, one Mute suggestion for a source with 0 kept out of 20 or more). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.11. Not tested on a phone.
 - [x] v1.12, 2026-11-24: Week note (one Markdown note per week, written automatically, local, no Gemini, no button). Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.12. Not tested on a phone.
 Dropped by Jacek 2026-11-24: a concepts table, rabbit-hole searches, a typed-relation graph, a graph view, Gemini in the week note.
+
+Five releases decided 2026-11-26 after his test of v1.12 (approved by Jacek): v1.13 links and sort, v1.14 swipe, v1.15 a scorer that learns, v1.16 quiet signals, exploring surprises and stricter clusters, v1.17 a richer week note.
+- [x] v1.13, 2026-11-26: links readable in dark mode; the Newest sort is remembered. Release https://github.com/jacekkotowski/apk-news-reader/releases/tag/v1.13. Not tested on a phone.
 
 ## 8. Open problems
 

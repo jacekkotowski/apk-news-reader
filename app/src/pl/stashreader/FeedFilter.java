@@ -17,16 +17,17 @@ final class FeedFilter {
         /** 0 = every source. */
         long source;
         String query = "";
+        /** The sort, not a filter: date order instead of best match. */
         boolean newest;
         /** 0 = any length; else only items of at most this many minutes (a video counts 10, a podcast 20). */
         int maxMins;
 
-        /** No filter and the default order: the plain Feed, where surprises are mixed in. */
+        /** No filter, in either order: the plain Feed, where surprises are mixed in. */
         boolean plain() { return count() == 0; }
 
-        /** How many filters are on, for the number shown on the filter button. Sorting counts as one. */
+        /** How many filters are on, for the number shown on the filter button. Sorting does not count. */
         int count() {
-            return (type.isEmpty() ? 0 : 1) + (topic.isEmpty() ? 0 : 1) + (source == 0 ? 0 : 1) + (query.trim().isEmpty() ? 0 : 1) + (newest ? 1 : 0);
+            return (type.isEmpty() ? 0 : 1) + (topic.isEmpty() ? 0 : 1) + (source == 0 ? 0 : 1) + (query.trim().isEmpty() ? 0 : 1);
         }
     }
 

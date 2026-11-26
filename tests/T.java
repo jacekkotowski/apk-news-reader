@@ -155,7 +155,9 @@ public final class T {
         yes("filter: search also reads the text", FeedFilter.accept(q, "", false, 1, "Title", "about a random forest model"));
         yes("filter: blank search is no filter", FeedFilter.accept(new FeedFilter.Filters(), "", false, 1, "a", "b") && new FeedFilter.Filters().count() == 0);
         FeedFilter.Filters all = new FeedFilter.Filters(); all.type = "video"; all.topic = "x"; all.source = 3; all.query = "dax"; all.newest = true;
-        eq("filter: count of filters on", 5, all.count());
+        eq("filter: count of filters on, the sort not counted", 4, all.count());
+        FeedFilter.Filters newest = new FeedFilter.Filters(); newest.newest = true;
+        yes("filter: the Newest sort alone is no filter and keeps the plain Feed", newest.count() == 0 && newest.plain() && FeedFilter.accept(newest, "", false, 1, "a", "b"));
         yes("filter: all together", FeedFilter.accept(all, "video", true, 3, "DAX tips", "") && !FeedFilter.accept(all, "video", true, 4, "DAX tips", "") && !FeedFilter.accept(all, "video", true, 3, "Power BI", ""));
         yes("filter: null filters accept", FeedFilter.accept(null, "", false, 1, "a", "b"));
         long now = 1800000000000L;
@@ -466,6 +468,18 @@ public final class T {
         yes("mix: a source turned down three times gives none", !byPick(m, 105).surprise && !byPick(m, 105).why.startsWith("Surprise"));
         yes("mix: a kept-like item says why", byPick(m, 102).why.contains("like items you kept") || !byPick(m, 102).surprise);
         yes("mix: regular items keep their own why", byPick(m, 3).why.equals("Matches your topics: x"));
+
+        // the Newest sort: the scored items go back into date order (here: highest id is newest) and surprises still mix in
+        java.util.List<Ranker.Doc> byDate = new java.util.ArrayList<>();
+        for (int i = ranked.size() - 1; i >= 0; i--) byDate.add(new Ranker.Doc(ranked.get(i).id, "t", "x", ranked.get(i).id));
+        java.util.List<Ranker.Pick> nm = Ranker.mix(Ranker.inOrder(ranked, byDate), info, pen);
+        eq("newest mix: every item appears once", ranked.size(), nm.size());
+        yes("newest mix: the fifth place is still a surprise", nm.get(4).surprise);
+        java.util.List<Long> regular = new java.util.ArrayList<>(), sorted = new java.util.ArrayList<>();
+        for (Ranker.Pick k : nm) if (!k.surprise) regular.add(k.id);
+        sorted.addAll(regular);
+        java.util.Collections.sort(sorted, java.util.Collections.reverseOrder());
+        eq("newest mix: the other cards stay newest first", sorted, regular);
 
         java.util.Map<Long, Integer> pen1 = new java.util.HashMap<>();
         pen1.put(7L, 2);

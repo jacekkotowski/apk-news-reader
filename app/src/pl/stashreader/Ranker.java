@@ -147,6 +147,15 @@ final class Ranker {
         return out;
     }
 
+    /** The scored items put back into the order of the documents (the Newest sort: the caller passes them by date). */
+    static List<Scored> inOrder(List<Scored> scored, List<Doc> docs) {
+        Map<Long, Scored> by = new HashMap<>();
+        for (Scored s : scored) by.put(s.id, s);
+        List<Scored> out = new ArrayList<>();
+        for (Doc d : docs) if (by.containsKey(d.id)) out.add(by.get(d.id));
+        return out;
+    }
+
     /** Topics (any weight) whose words all appear in the text, for tagging an exported note. */
     static List<String> matchedTopics(String text, List<Topic> topics) {
         Set<String> have = new HashSet<>(tokens(text));

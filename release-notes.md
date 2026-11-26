@@ -1,19 +1,18 @@
-## Stash Reader 1.12: a note for every week
+## Stash Reader 1.13: readable links, and the sort is remembered
 
-**Week note**
-- On the **first start in a new week** (weeks run Monday to Sunday, in the phone's time zone) the app writes **one Markdown note about last week**, if you kept anything in it. It is named like `2026-11-16 week.md` (the Monday) and starts with `# Week 2026-11-16 to 2026-11-22`.
-- Inside: what you kept, grouped by topic (a link, your highlights as `>` quotes, and your note); a **Builds on** section with pairs of items kept that week where one builds on the other (the same local matching as the "Builds on" line); and the **recall cards you answered "Again tomorrow"** that week.
-- It is written on the phone with no Gemini and no button. It appears in the **Notes** view of the Stash ("Week note") and is written to your notes folder like the other notes.
-- "Kept that week" is by the day you pressed Keep, not by the article's publish date. A week with nothing kept gets no note. Once a week has its note it is never rewritten.
+**Links in dark mode**
+- Every link now uses the app's accent colour. Before, the "Builds on" link on a Feed card was dark blue on a dark blue card.
+
+**Newest stays on**
+- If you choose **Newest** in the filters, it is still on the next time you start the app. **Clear** removes the filters and leaves the sort as it is.
+- Newest is now a sort, not a filter: the filter button shows no number for it.
+- With Newest, a **surprise** still appears at about every fifth card (when no filter is on). The other cards are newest first and have no "Why this" line, as before.
 
 **Try on the phone**
-1. Keep an item or two, highlight a passage, add a note. The note for that week appears the next time the app starts on or after the following Monday. (To see it sooner, set the phone's date to the next Monday and start the app.)
-2. Stash, Notes: a "Week note" card should be at the top. Open it and check the groups and the quotes. In your notes folder there should be a matching `... week.md` file.
-3. Start the app again the same week: nothing changes and no second note is made.
+1. In dark mode, find a card with a "Builds on" line. The link should be easy to read.
+2. Open the filters, choose Newest, close the app completely and start it again: Newest should still be selected.
+3. Press Clear: Newest stays. Choose Best match to go back.
 
 **Known limits**
-- Nothing here has been tested on a real phone. The PC tests cover the week bounds (including the March clock change), an empty week, duplicate titles, Polish text, the same text on a rerun, and that a written week is not due again. The database part (the new `weeks` table, reading kept items and recall answers, the upgrade from the older database) was not run on a PC.
-- Only last week is written. If the app is not opened for several weeks, the weeks in between get no note.
-- A recall card counts as "Again" if its last answer in that week left it at the first step, so a card answered "Again" and then "Got it" the same week is not listed.
-- If the notes folder is not set up when the note is written, the note is in the Notes view only; it is not written to the folder later.
+- The dark-mode colours and the remembered sort have not been tested on a real phone.
 - Earlier limits still apply.

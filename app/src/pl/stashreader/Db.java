@@ -596,7 +596,7 @@ final class Db extends SQLiteOpenHelper {
     /** The unread items, ordered by the explainable score. Each card carries a "why" sentence. */
     String feedJson() throws Exception { return feedJson(new FeedFilter.Filters()); }
 
-    /** Same, but only the cards that pass the reader's filters; "newest" skips the score and orders by date. */
+    /** Same, but only the cards that pass the reader's filters; "newest" orders by date instead of the score. */
     String feedJson(FeedFilter.Filters f) throws Exception {
         List<Ranker.Topic> topics = topicList();
         String want = f.topic.toLowerCase(java.util.Locale.ROOT);
@@ -624,15 +624,21 @@ final class Db extends SQLiteOpenHelper {
         List<Long> order = new ArrayList<>();
         Map<Long, String> whys = new HashMap<>();
         java.util.Set<Long> surprises = new java.util.HashSet<>();
-        if (f.newest) {
-            for (Ranker.Doc d : docs) order.add(d.id);
-        } else {
+        // Newest still scores: the score picks the surprises, and the other cards stay in date order without a reason line
+        if (!f.newest || f.plain()) {
             List<Ranker.Scored> ranked = Ranker.rank(docs, topics, texts(KEPT), texts(LESS), System.currentTimeMillis());
+            if (f.newest) ranked = Ranker.inOrder(ranked, docs);
             if (f.plain()) {
-                for (Ranker.Pick p : Ranker.mix(ranked, info, surprisePenalties())) { order.add(p.id); whys.put(p.id, p.why); if (p.surprise) surprises.add(p.id); }
+                for (Ranker.Pick p : Ranker.mix(ranked, info, surprisePenalties())) {
+                    order.add(p.id);
+                    if (p.surprise) surprises.add(p.id);
+                    if (p.surprise || !f.newest) whys.put(p.id, p.why);
+                }
             } else {
                 for (Ranker.Scored r : ranked) { order.add(r.id); whys.put(r.id, r.why); }
             }
+        } else {
+            for (Ranker.Doc d : docs) order.add(d.id);
         }
         Map<Long, JSONArray> also = collapse(order);
         for (long id : order) {

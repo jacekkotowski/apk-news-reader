@@ -6,6 +6,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:16px/1.45 system-ui,sans-serif}
 body{display:flex;flex-direction:column}
+a{color:var(--accent)}
 header{display:flex;align-items:center;gap:8px;padding:10px 16px 6px}
 header h1{font-size:20px;margin:0;white-space:nowrap}
 header small{color:var(--dim);font-size:12px;flex:1;line-height:1.2}
@@ -29,7 +30,7 @@ section{display:none}section.on{display:block}
 .open .body{display:block}
 .label{font-size:12px;color:var(--gold);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
 :root{--fs:17px}.text{font-size:var(--fs);line-height:1.6}.tools{display:flex;gap:8px;justify-content:flex-end;margin-bottom:6px}.tools .btn{padding:2px 12px}.note{color:var(--bad);font-size:13px;margin-top:8px}
-.text a{color:var(--accent)}.text pre{overflow-x:auto;background:var(--chip);padding:8px;border-radius:8px;font-size:14px}
+.text pre{overflow-x:auto;background:var(--chip);padding:8px;border-radius:8px;font-size:14px}
 .text code{background:var(--chip);padding:0 4px;border-radius:4px;font-size:.9em}.text pre code{padding:0;background:none}
 .text blockquote{margin:8px 0;padding-left:12px;border-left:3px solid var(--line);color:var(--dim)}
 .text table{border-collapse:collapse;display:block;overflow-x:auto}.text td,.text th{border:1px solid var(--line);padding:3px 6px}
@@ -122,7 +123,10 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
 <script>
 var A=window.Android||{feed:function(){return '[]'},kept:function(){return '[]'},sources:function(){return '[]'},status:function(){return '{}'},item:function(){return '{}'},version:function(){return 'dev'}};
 var KL={};
-var fF={type:'',topic:'',source:'0',query:'',newest:false},fT=0;
+// the sort is remembered between starts; it orders the Feed, it is not a filter
+function savedNewest(){try{return localStorage.getItem('sort')==='newest'}catch(e){return false}}
+function saveSort(v){try{localStorage.setItem('sort',v)}catch(e){}}
+var fF={type:'',topic:'',source:'0',query:'',newest:savedNewest()},fT=0;
 var askQ='',askT=0,notesOn=false,noteOpen=null,pgStack=[],aiBusy=0,recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
@@ -359,7 +363,7 @@ function render(){
     var sel=$('hours');if(sel&&A.refreshHours)sel.value=''+A.refreshHours();
   }
 }
-function fCount(){return (fF.type?1:0)+(fF.topic?1:0)+(fF.source!=='0'?1:0)+(fF.query.trim()?1:0)+(fF.newest?1:0)}
+function fCount(){return (fF.type?1:0)+(fF.topic?1:0)+(fF.source!=='0'?1:0)+(fF.query.trim()?1:0)}
 var fItems=[],fShown=15,fSig='',fMax=0,fRecall=[],fSlots=[],fRi=0;
 // due recall cards sit among the articles: card k after (k+1)*4 articles, or at the end of a short list
 function putRecall(list,before,n){while(fRi<fSlots.length&&fRi<fRecall.length&&fSlots[fRi]<=n){list.insertBefore(recallCard(fRecall[fRi]),before);fRi++}}
@@ -439,9 +443,9 @@ function buildOpts(){
   J(A.sources?A.sources():'[]').filter(function(x){return x.enabled}).sort(function(a,b){return (a.name||a.url).toLowerCase()<(b.name||b.url).toLowerCase()?-1:1}).forEach(function(x){var op=el('option',null,x.name||x.url);op.value=x.id;sel.appendChild(op)});
   sel.value=fF.source;sel.onchange=function(){fF.source=sel.value;renderFeed(J(A.status()))};
   o.appendChild(sel);
-  chips('Sort',[['best','Best match'],['newest','Newest']],function(){return fF.newest?'newest':'best'},function(v){fF.newest=(v==='newest')});
+  chips('Sort',[['best','Best match'],['newest','Newest']],function(){return fF.newest?'newest':'best'},function(v){fF.newest=(v==='newest');saveSort(fF.newest?'newest':'best')});
   var clr=el('button','btn','Clear');clr.style.marginTop='10px';
-  clr.onclick=function(){fF={type:'',topic:'',source:'0',query:'',newest:false};buildPanel();renderFeed(J(A.status()))};
+  clr.onclick=function(){fF={type:'',topic:'',source:'0',query:'',newest:fF.newest};buildPanel();renderFeed(J(A.status()))};
   o.appendChild(clr);
 }
 function gstart(key,done){
