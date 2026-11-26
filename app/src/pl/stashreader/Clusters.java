@@ -11,7 +11,7 @@ import java.util.Set;
 /**
  * One Story, Many Sources: groups items from the last few days that are about the same thing. No Android imports.
  * Two items belong together when they have the same link (ignoring "www", tracking parameters and a trailing slash),
- * or when their titles share most of their key words.
+ * or when their titles share most of their key words, at least two of them rare among the titles of those days.
  */
 final class Clusters {
     private Clusters() {}
@@ -21,6 +21,9 @@ final class Clusters {
     static final int MIN_SHARED = 3;
     static final double MIN_SHARE = 0.55;
     static final int MAX_ITEMS = 700;
+    /** A word is common when more than this share of the titles (and more than COMMON_MIN titles) hold it. */
+    static final double COMMON_SHARE = 0.1;
+    static final int COMMON_MIN = 5, MIN_RARE = 2;
 
     static final class Item {
         final long id; final String title, link, source; final long pub;
@@ -44,8 +47,12 @@ final class Clusters {
             Integer j = firstByLink.get(k);
             if (j == null) firstByLink.put(k, i); else union(parent, i, j);
         }
+        // a word in many titles ("ai", "data") says nothing about the story: two titles must also share rare words
+        Map<String, Integer> df = new HashMap<>();
+        for (Set<String> w : words) for (String t : w) df.merge(t, 1, Integer::sum);
+        double cut = Math.max(COMMON_MIN, COMMON_SHARE * n);
         for (int i = 0; i < n; i++) {
-            for (int j = i + 1; j < n; j++) if (similar(words.get(i), words.get(j))) union(parent, i, j);
+            for (int j = i + 1; j < n; j++) if (similar(words.get(i), words.get(j)) && rareShared(words.get(i), words.get(j), df, cut) >= MIN_RARE) union(parent, i, j);
         }
         Map<Integer, List<Item>> groups = new HashMap<>();
         List<Integer> order = new ArrayList<>();
@@ -65,6 +72,12 @@ final class Clusters {
         int shared = 0;
         for (String w : a) if (b.contains(w)) shared++;
         return shared >= MIN_SHARED && shared >= MIN_SHARE * min && shared >= 0.5 * Math.max(a.size(), b.size());
+    }
+
+    static int rareShared(Set<String> a, Set<String> b, Map<String, Integer> df, double cut) {
+        int n = 0;
+        for (String w : a) if (b.contains(w) && df.get(w) <= cut) n++;
+        return n;
     }
 
     /** A link without scheme, "www.", fragment, trailing slash and tracking parameters (utm_*, fbclid, gclid, ref), lower case. */

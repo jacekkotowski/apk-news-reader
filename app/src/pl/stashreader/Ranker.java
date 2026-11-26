@@ -37,7 +37,7 @@ final class Ranker {
             this.sourceId = sourceId; this.source = source == null ? "" : source; this.kind = kind == null ? "" : kind;
         }
     }
-    static final class Scored { long id; double score; String why; boolean topicHit; }
+    static final class Scored { long id; double score; String why; boolean topicHit; boolean unknown; }
 
     private static final Set<String> STOP = new HashSet<>(Arrays.asList(("a an and are as at be been but by can for from had has have how i if in into is it its of on or our "
         + "so than that the their then there these they this to up was we were what when which who will with you your not no more most new one also about after all any "
@@ -127,6 +127,7 @@ final class Ranker {
             }
 
             Learner.Result learned = model.score(feats.get(at++), p.doc.source);
+            sc.unknown = p.doc.sourceId > 0 && model.heard(p.doc.sourceId) < UNKNOWN_BELOW;
             score += learned.score;
             if (!learned.up.isEmpty()) why.add(learned.up);
             if (!learned.down.isEmpty()) why.add(learned.down);
@@ -202,6 +203,8 @@ final class Ranker {
     // ---- Surprise Me: about every fifth card of the Feed is a surprise ----
 
     static final double SURPRISE_MIN = 0.4, SURPRISE_PENALTY = 0.8;
+    /** A source the app has heard less than this much about (kept, less and quiet signals) counts as unknown; its surprises come first. */
+    static final double UNKNOWN_BELOW = 2, UNKNOWN_BONUS = 0.5;
     static final int BLOCK_AFTER = 3, SURPRISE_EVERY = 5, SURPRISE_MAX_MINS = 12;
 
     /** What the Feed needs to know about one item besides its score. */
@@ -221,7 +224,8 @@ final class Ranker {
     /**
      * The whole Feed in order: the ranked items, with a surprise at every fifth place (the fifth, tenth ...) while there are any.
      * A surprise matches none of your topics, is fresh or like what you kept (score plus a little for length, at least SURPRISE_MIN),
-     * is short (12 minutes or less), and comes from a source you have not turned down three times.
+     * is short (12 minutes or less), and comes from a source you have not turned down three times. Sources the app knows little
+ * about get a small head start, so the surprises explore instead of repeating what you already see.
      */
     static List<Pick> mix(List<Scored> ranked, Map<Long, Cand> info, Map<Long, Integer> penalty) {
         final Map<Long, Double> quality = new HashMap<>();
@@ -232,7 +236,8 @@ final class Ranker {
             int pen = penalty.containsKey(c.sourceId) ? penalty.get(c.sourceId) : 0;
             double q = s.score + 0.3 * Math.min(c.mins, 10) / 10.0 - SURPRISE_PENALTY * pen;
             if (pen >= BLOCK_AFTER || q < SURPRISE_MIN) continue;
-            quality.put(s.id, q);
+            // explore: among good enough surprises, the ones from sources the app knows little about go first
+            quality.put(s.id, q + (s.unknown ? UNKNOWN_BONUS : 0));
             cands.add(s);
         }
         Collections.sort(cands, new Comparator<Scored>() {
@@ -259,6 +264,7 @@ final class Ranker {
         p.id = s.id; p.surprise = surprise;
         if (!surprise) p.why = s.why;
         else if (s.why.startsWith("Like items you kept")) p.why = "Surprise: matches none of your topics; " + s.why.substring(0, 1).toLowerCase(Locale.ROOT) + s.why.substring(1);
+        else if (s.unknown) p.why = "Surprise: matches none of your topics, and the app knows little about " + c.source + " yet";
         else p.why = "Surprise: matches none of your topics, but it is recent and from " + c.source;
         return p;
     }

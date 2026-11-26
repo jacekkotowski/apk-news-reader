@@ -277,6 +277,8 @@ function card(it,mode){
   };
   function toggle(){
     var open=c.classList.toggle('open');
+    // quiet signal: an article that stays open for half a minute
+    if(open&&mode==='feed'&&A.opened&&!c.__rd)setTimeout(function(){if(!c.__rd&&c.classList.contains('open')&&document.body.contains(c)){c.__rd=1;A.opened(it.id)}},30000);
     if(open&&!loaded){loaded=true;
       d=J(A.item(it.id));
       acts=el('div','acts top');b.appendChild(acts);
@@ -294,7 +296,7 @@ function card(it,mode){
     }
   }
   c.addEventListener('click',function(e){if(!c.classList.contains('open')||e.target===h||e.target.closest('.meta'))toggle()});
-  if(mode==='feed')swipeable(c,it,function(){return kept});
+  if(mode==='feed'){swipeable(c,it,function(){return kept});seenWatch(c,it.id)}
   return c;
 }
 document.addEventListener('selectionchange',function(){
@@ -372,7 +374,20 @@ $('swundo').onclick=function(){
 $('swbar').onclick=function(){if(!swLast){swSeen();swBar('',false)}};
 //SWIPE-END
 
+// quiet signal: a Feed card that was at least 60% on screen for 1.5 s counts as looked at
+var seenQ=[],seenObs=null,seenT={};
+function seenWatch(c,id){
+  if(!A.seen||!window.IntersectionObserver)return;
+  if(!seenObs)seenObs=new IntersectionObserver(function(es){es.forEach(function(e){var t=e.target,k=t.__sid;
+    if(e.isIntersecting&&e.intersectionRatio>=0.6){if(!seenT[k])seenT[k]=setTimeout(function(){delete seenT[k];if(seenObs)seenObs.unobserve(t);seenQ.push(k);seenFlush(false)},1500)}
+    else if(seenT[k]){clearTimeout(seenT[k]);delete seenT[k]}})},{root:document.querySelector('main'),threshold:[0,0.6]});
+  c.__sid=id;seenObs.observe(c);
+}
+function seenFlush(all){if(!seenQ.length||(!all&&seenQ.length<5))return;var q=seenQ;seenQ=[];try{A.seen(q.join(','))}catch(e){}}
+function seenReset(){for(var k in seenT)clearTimeout(seenT[k]);seenT={};if(seenObs){seenObs.disconnect();seenObs=null}seenFlush(true)}
+document.addEventListener('visibilitychange',function(){if(document.hidden)seenFlush(true)});
 function render(){
+  seenReset();
   var s=J(A.status());
   if(tab==='feed'){
     renderFeed(s);

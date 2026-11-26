@@ -35,12 +35,12 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 14); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 15); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '', surprise_less INTEGER NOT NULL DEFAULT 0)");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '')");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '', seen INTEGER NOT NULL DEFAULT 0, opened_at INTEGER NOT NULL DEFAULT 0)");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
         createHighlights(d);
@@ -116,6 +116,10 @@ final class Db extends SQLiteOpenHelper {
         if (o < 11) d.execSQL("ALTER TABLE sources ADD COLUMN surprise_less INTEGER NOT NULL DEFAULT 0");
         if (o < 13) createListen(d);
         if (o < 14) createWeeks(d);
+        if (o < 15) { // quiet signals: when a card was first looked at in the Feed, and when its article was read for half a minute
+            d.execSQL("ALTER TABLE items ADD COLUMN seen INTEGER NOT NULL DEFAULT 0");
+            d.execSQL("ALTER TABLE items ADD COLUMN opened_at INTEGER NOT NULL DEFAULT 0");
+        }
         if (o < 12) { // full-text search over kept text, highlights and notes; every kept item is indexed on the first search
             createIndex(d);
             try { d.execSQL("INSERT OR IGNORE INTO fts_dirty SELECT id FROM items WHERE state=" + KEPT); } catch (RuntimeException ignored) { }
@@ -705,7 +709,31 @@ final class Db extends SQLiteOpenHelper {
                 while (c.moveToNext()) out.add(new Learner.Label(c.getString(0), c.getString(1), c.getLong(2), FeedParser.kindOf(c.getString(3), c.getString(4)), c.getLong(5), state == KEPT));
             }
         }
+        // quiet signals from the last 30 days, for items you neither kept nor swiped left
+        long now = System.currentTimeMillis(), since = now - 30L * 86400000L;
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, i.seen, i.opened_at FROM items i WHERE i.state IN (" + NEW + "," + DONE + ") AND ((i.opened_at>?) OR (i.opened_at=0 AND i.seen>? AND i.seen<?)) ORDER BY i.id DESC LIMIT 1000",
+                new String[]{"" + since, "" + since, "" + (now - 86400000L)})) {
+            while (c.moveToNext()) {
+                boolean read = c.getLong(6) > 0;
+                // a card looked at less than a day ago may still be opened, so it does not count yet
+                out.add(new Learner.Label(c.getString(0), c.getString(1), c.getLong(2), FeedParser.kindOf(c.getString(3), c.getString(4)), read ? c.getLong(6) : c.getLong(5), read,
+                    read ? Learner.READ_WEIGHT : Learner.SEEN_WEIGHT, !read));
+            }
+        }
         return out;
+    }
+
+    /** Cards looked at in the Feed (ids in a comma separated list): only the first look is stored. */
+    void markSeen(List<Long> ids) {
+        if (ids.isEmpty()) return;
+        StringBuilder in = new StringBuilder();
+        for (long id : ids) { if (in.length() > 0) in.append(','); in.append(id); }
+        getWritableDatabase().execSQL("UPDATE items SET seen=" + System.currentTimeMillis() + " WHERE seen=0 AND id IN (" + in + ")");
+    }
+
+    /** An article read for at least half a minute. */
+    void markOpened(long id) {
+        getWritableDatabase().execSQL("UPDATE items SET opened_at=" + System.currentTimeMillis() + " WHERE opened_at=0 AND id=" + id);
     }
 
     private List<Ranker.Topic> topicList() {

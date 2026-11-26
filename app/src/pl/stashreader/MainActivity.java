@@ -254,6 +254,10 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public void swipeUndo() { swipes.undo(); }
         @JavascriptInterface public void swipeCommit() { swipes.commit(); }
+        /** Feed cards that were on screen for a moment (quiet signal; the ids come from the page). */
+        @JavascriptInterface public void seen(String ids) { db.markSeen(Swipes.parse(ids)); }
+        /** An opened article stayed open for half a minute (quiet signal). */
+        @JavascriptInterface public void opened(String id) { try { db.markOpened(Long.parseLong(id)); } catch (NumberFormatException ignored) { } }
         @JavascriptInterface public String highlights(String id) { try { return db.highlightsJson(Long.parseLong(id)); } catch (Exception e) { return "[]"; } }
         /** Adds a highlight (this keeps the item) and returns true when something was stored. */
         @JavascriptInterface public boolean addHighlight(String id, String text) { boolean ok = db.addHighlight(Long.parseLong(id), text); if (ok) sync(Long.parseLong(id)); return ok; }

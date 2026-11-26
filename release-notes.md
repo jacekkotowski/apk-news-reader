@@ -1,19 +1,22 @@
-## Stash Reader 1.15: the Feed learns from your swipes
+## Stash Reader 1.16: it also learns from what you skip and what you read
 
-**What changed**
-- The app now learns from three things: the **source**, the **words** and the **topics** of what you swipe right (keep) and left (less).
-- **Sources count.** Keep a lot from one blog and its new posts rise. Keep swiping one site left and its posts sink, even on subjects it has never covered before.
-- **Common words count little.** A word that is everywhere in your Feed (say "data") barely moves anything. A word that is as common in what you keep as in what you swipe left counts for nothing.
-- **Old interests fade.** A swipe counts half as much after 60 days, so the Feed follows what you read now.
-- **Your topics still lead.** What the app learns is capped, so it cannot push your own topics aside.
-- **The "Why this" line says what it learned.** For example "You keep a lot from R-bloggers", "Like items you kept (duckdb, parquet)", or "Lowered: you often swipe away items from X".
+**Quiet signals**
+- A card you **look at in the Feed** (most of it on screen for a moment) and never open counts as a very small "less" for **its source**. It teaches no words.
+- An article you **read for half a minute** without keeping it counts as a small "more" for its source and its words.
+- Both are compared with how often a source appears in your Feed. A blog that fills half your Feed and half of what you scroll past loses almost nothing. A source you skip far more often than it appears slowly sinks.
+- A card counts only after a day, so you can still come back to it.
+
+**Surprises that explore**
+- The surprise card (every 5th) now prefers sources the app knows little about. The card says "the app knows little about X yet". Swipe it left if you don't want more like it.
+
+**One story, many sources, stricter**
+- Two headlines are joined into one story only if they share at least two words that are not common across your Feed. Before, "AI tools for data teams" and "AI model helps data teams" could be merged.
 
 **Try on the phone**
-1. Swipe a few posts from one source left on different days, then refresh. Its posts should drop, and the "Why this" line should say why.
-2. Keep two or three posts from a blog you like and look for "You keep a lot from ...".
+1. Scroll the Feed normally for a few days. Sources you always pass by should drift down.
+2. Watch the surprise cards: they should come from sources you rarely see.
 
 **Known limits**
-- Not tested on a real phone. The PC tests cover the rules: fading, learning a source, a shared word weighing nothing, and the caps.
-- The app needs at least two swipes on a source or a word before it acts on it, once you have three or more swipes on that side.
-- Items you skip are not used yet. That comes in 1.16.
+- Not tested on a real phone. The PC tests cover the rules with made-up data, and the emulator test only checks that the app starts and swipes without crashing.
+- Only cards shown in the Feed (not Stash, not search) are counted as seen.
 - Earlier limits still apply.

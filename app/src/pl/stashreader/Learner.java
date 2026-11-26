@@ -20,6 +20,11 @@ import java.util.Map;
  * So a word that is common everywhere ("data") weighs little, and a word as common in kept as in less items weighs 0.
  * Each label counts 0.5^(age / 60 days), so old interests fade. Each feature and each group of features is capped,
  * so what you learned never outweighs your own topics by much.
+ *
+ * Quiet signals (v1.16) are labels with a small weight: a card you looked at in the Feed and never opened is a weak
+ * "less" for its source only (SEEN_WEIGHT); an article you read for at least half a minute without keeping it is a
+ * weak "kept" (READ_WEIGHT). Because every rate is compared with the Feed, a source that fills half the Feed and
+ * half of what you scroll past loses nothing.
  */
 final class Learner {
     private Learner() {}
@@ -28,6 +33,7 @@ final class Learner {
     static final double WORD_CAP = 1.5, WORDS_CAP = 2.5, SOURCE_CAP = 1.5, TOPIC_CAP = 0.75, KIND_CAP = 0.5, TOTAL_CAP = 3.5;
     /** A reason is shown when its part of the score is at least this large. */
     static final double SHOW = 0.75, SHOW_SOURCE = 0.5;
+    static final double SEEN_WEIGHT = 0.15, READ_WEIGHT = 0.3;
 
     /** One thing you told the app: an item kept or swiped left. weight below 1 and sourceOnly are for quiet signals. */
     static final class Label {
@@ -76,6 +82,12 @@ final class Learner {
             return Math.max(0, Math.log(rate / q));
         }
 
+        /** How much the app has heard about a source: kept, less and quiet signals together, without fading. */
+        double heard(long sourceId) {
+            String f = "s:" + sourceId;
+            return (keptN.containsKey(f) ? keptN.get(f) : 0) + (lessN.containsKey(f) ? lessN.get(f) : 0);
+        }
+
         /** The learned part of an item's score. sourceName is used only in the reason. */
         Result score(Map<String, Double> feats, String sourceName) {
             final Map<String, Double> part = new HashMap<>();
@@ -121,7 +133,8 @@ final class Learner {
                 if (l.sourceId > 0) { c.merge("s:" + l.sourceId, w, Double::sum); n.merge("s:" + l.sourceId, l.weight, Double::sum); }
                 continue;
             }
-            if (l.kept) { m.keptAll += w; m.keptLabels++; } else { m.lessAll += w; m.lessLabels++; }
+            if (l.kept) m.keptAll += w; else m.lessAll += w;
+            if (l.weight >= 1) { if (l.kept) m.keptLabels++; else m.lessLabels++; } // a quiet signal is not a whole label
             for (String f : features(l.title, l.text, l.sourceId, l.kind, topics).keySet()) {
                 c.merge(f, w, Double::sum);
                 n.merge(f, l.weight, Double::sum);

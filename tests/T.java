@@ -381,6 +381,13 @@ public final class T {
         eq("link key: bare host is empty", "", Clusters.linkKey("https://blog.example.org/"));
         eq("link key: not a web address", "", Clusters.linkKey("mailto:a@b.c"));
         eq("clusters: no items, no groups", 0, Clusters.group(new java.util.ArrayList<Clusters.Item>(), now).size());
+        java.util.List<Clusters.Item> big = new java.util.ArrayList<>();
+        big.add(new Clusters.Item(101, "AI model helps data teams", "https://a.example/1", "A", now - 3600000L));
+        big.add(new Clusters.Item(102, "AI tools for data teams", "https://b.example/2", "B", now - 3600000L));
+        for (int i = 0; i < 60; i++) big.add(new Clusters.Item(200 + i, "AI and data teams, story " + (1000 + i), "https://c.example/" + i, "C", now - 7200000L));
+        boolean apart = true;
+        for (java.util.List<Clusters.Item> c : Clusters.group(big, now)) { java.util.Set<Long> x = new java.util.HashSet<>(); for (Clusters.Item i : c) x.add(i.id); if (x.contains(101L) && x.contains(102L)) apart = false; }
+        yes("clusters: titles that share only common words are different stories", apart);
     }
 
 
@@ -534,6 +541,14 @@ public final class T {
         for (Ranker.Pick k : Ranker.mix(ranked, info, pen1)) if (k.id == 101 && k.surprise) b101 = true;
         yes("mix: two turn-downs lower a source but 1.4 - 1.6 is under the bar", !b101);
 
+        java.util.List<Ranker.Scored> ex = new java.util.ArrayList<>();
+        java.util.Map<Long, Ranker.Cand> exi = new java.util.HashMap<>();
+        for (long i = 1; i <= 4; i++) { ex.add(sc(i, 9, true, "Matches your topics: x")); exi.put(i, new Ranker.Cand(3, 1, "Blog A")); }
+        ex.add(sc(201, 1.4, false, "Recent")); exi.put(201L, new Ranker.Cand(4, 7, "Known Blog"));
+        Ranker.Scored nw = sc(202, 1.1, false, "Recent"); nw.unknown = true; ex.add(nw); exi.put(202L, new Ranker.Cand(4, 8, "New Blog"));
+        java.util.List<Ranker.Pick> em = Ranker.mix(ex, exi, pen);
+        eq("explore: the surprise slot goes to a source the app knows little about", 202L, em.get(4).id);
+        eq("explore: and says so", "Surprise: matches none of your topics, and the app knows little about New Blog yet", em.get(4).why);
         eq("mix: a short list has no surprise slot", 0, countSurprises(Ranker.mix(ranked.subList(0, 4), info, pen)));
         eq("mix: empty input", 0, Ranker.mix(new java.util.ArrayList<Ranker.Scored>(), new java.util.HashMap<Long, Ranker.Cand>(), new java.util.HashMap<Long, Integer>()).size());
         eq("minutes: article is capped", 40, Ranker.minutes("article", 90));
@@ -642,6 +657,25 @@ public final class T {
         yes("learner: many words together are capped", big.score <= Learner.WORDS_CAP + Learner.SOURCE_CAP + Learner.KIND_CAP + 1e-9);
         eq("learner: when the words weigh more than the source, the words are named", "Like items you kept (alpha, beta, delta)", big.up);
         eq("learner: nothing learned adds nothing", 0.0, Learner.build(new java.util.ArrayList<Learner.Label>(), none, pool, now).score(pool.get(0), "X").score);
+
+        // quiet signals: cards you scroll past teach only about their source, and only relative to how much of the Feed it fills
+        java.util.List<java.util.Map<String, Double>> qp = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) qp.add(Learner.features("Item " + i, "", i < 5 ? 50 : 51 + i, "", none)); // source 50 fills half the Feed
+        java.util.List<Learner.Label> q1 = new java.util.ArrayList<>();
+        for (int i = 0; i < 20; i++) q1.add(new Learner.Label("Skipped thing " + i, "", 60, "", now, false, Learner.SEEN_WEIGHT, true));
+        for (int i = 0; i < 3; i++) q1.add(new Learner.Label("Kept " + i, "", 70 + i, "", now, true));
+        Learner.Model qm = Learner.build(q1, none, qp, now);
+        yes("quiet: a source you always scroll past sinks", qm.weight("s:60") < -0.5);
+        yes("quiet: scrolled-past cards teach no words", qm.weight("w:skipped") == 0);
+        java.util.List<Learner.Label> q2 = new java.util.ArrayList<>();
+        for (int i = 0; i < 10; i++) q2.add(new Learner.Label("Seen " + i, "", i < 5 ? 50 : 51 + i, "", now, false, Learner.SEEN_WEIGHT, true));
+        yes("quiet: a source skipped as often as it appears loses little", Learner.build(q2, none, qp, now).weight("s:50") > -0.3);
+        yes("quiet: one look is not enough to act on", Learner.build(q2, none, qp, now).weight("s:52") == 0);
+        java.util.List<Learner.Label> q3 = new java.util.ArrayList<>();
+        for (int i = 0; i < 8; i++) q3.add(new Learner.Label("Long read about soil " + i, "", 80, "", now, true, Learner.READ_WEIGHT, false));
+        Learner.Model rm = Learner.build(q3, none, qp, now);
+        yes("quiet: articles you read for a while raise their source and words", rm.weight("s:80") > 0 && rm.weight("w:soil") > 0);
+        yes("quiet: heard counts quiet signals", Math.abs(rm.heard(80) - 8 * Learner.READ_WEIGHT) < 1e-9 && rm.heard(99) == 0);
 
         // in the ranking: an item from a source you keep rises above an equally fresh one
         java.util.List<Ranker.Doc> docs = new java.util.ArrayList<>();
