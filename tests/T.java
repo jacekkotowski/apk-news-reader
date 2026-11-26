@@ -981,6 +981,36 @@ public final class T {
         eq("week note: the same input gives the same text", md, WeekNote.build(mon, tz, kept, pairs, again));
         eq("week note: the order of the input does not matter", md, WeekNote.build(mon, tz, new java.util.ArrayList<>(java.util.Arrays.asList(f, e, d, b, a)), pairs, again));
         yes("week note: no time of writing inside", !md.contains("2026-11-24"));
+        // v1.17: threads, links to the notes, tags, to remember, a sentence, your own words, the closing line
+        yes("week note: items that build on each other form a thread named by shared rare words", md.contains("## Thread: parquet, group\n"));
+        yes("week note: a threaded item is not repeated under its topic", md.split("### \\[Parquet in practice\\]", -1).length == 2 && !md.contains("## data\n"));
+        yes("week note: topics become tags", md.contains("tags:\n  - data\n  - rust\n  - stash/week\n"));
+        java.util.List<WeekNote.Item> wk = new java.util.ArrayList<>();
+        WeekNote.Item w1 = new WeekNote.Item(21, "Rivers in spring", "https://e.org/r", "Blog A", "nature", mon + hour, "");
+        w1.file = "2026-11-16 Rivers in spring.md"; w1.topics.add("Open Data");
+        w1.highlights.add("Short one."); w1.highlights.add("A river carries more sediment in spring than in any other season.");
+        WeekNote.Item w2 = new WeekNote.Item(22, "Lakes", "https://e.org/l", "Blog B", "nature", mon + 2 * hour, "");
+        w2.text = "Lakes are fed by rivers and by rain, and they store heat for weeks after summer ends. Other things happen too, of course, in many places.";
+        WeekNote.Item w3 = new WeekNote.Item(23, "Odd #name", "", "Blog C", "", mon + 3 * hour, "");
+        w3.file = "2026-11-16 Odd #name.md";
+        wk.add(w1); wk.add(w2); wk.add(w3);
+        WeekNote.Extra ex = new WeekNote.Extra();
+        ex.seen = 40; ex.quiet.add("Gossip Daily"); ex.quiet.add("Ads Weekly"); ex.answer = "Rivers move\nmore in spring.";
+        String m2 = WeekNote.build(mon, tz, wk, null, null, ex);
+        yes("week note: a link to the item's own note", m2.contains("Note: [[2026-11-16 Rivers in spring]]\n"));
+        yes("week note: no link when the file name would break it", !m2.contains("[[2026-11-16 Odd"));
+        yes("week note: the first highlight and how many more", m2.contains("> Short one.\n\n(1 more highlight in the note)"));
+        yes("week note: with no note or highlight, a sentence from the article, said so", m2.contains("Sentence from the article: “Lakes are fed by rivers and by rain, and they store heat for weeks after summer ends.”"));
+        yes("week note: to remember picks a highlight of the right length", m2.contains("## To remember") && m2.contains("- A river carries more sediment in spring than in any other season. (Rivers in spring)") && !m2.contains("- Short one."));
+        yes("week note: a topic with a space becomes a tag with a dash", m2.contains("  - open-data\n"));
+        yes("week note: the closing line", m2.contains("You kept 3 and looked at 40 other cards in the Feed. Quietest sources: Gossip Daily, Ads Weekly."));
+        yes("week note: your own words come right under the heading", m2.contains("# Week 2026-11-16 to 2026-11-22\n\n## In my words\n\nRivers move more in spring.\n\nYou kept 3 items"));
+        String noAns = WeekNote.build(mon, tz, wk, null, null, new WeekNote.Extra());
+        eq("week note: an answer added later gives the same note", m2.replace("\n\nYou kept 3 and looked at 40 other cards in the Feed. Quietest sources: Gossip Daily, Ads Weekly.", ""), WeekNote.withAnswer(noAns, "Rivers move more in spring."));
+        eq("week note: a second answer replaces the first", WeekNote.withAnswer(noAns, "B"), WeekNote.withAnswer(WeekNote.withAnswer(noAns, "A"), "B"));
+        eq("week note: an empty answer removes it", noAns, WeekNote.withAnswer(WeekNote.withAnswer(noAns, "A"), ""));
+        eq("week note: tag of a number alone", "", WeekNote.tag("2026"));
+        eq("week note: three to remember at most, one per item", 1, WeekNote.toRemember(WeekNote.inWeek(mon, tz, wk), null).size());
         // which week is due on a start
         eq("week: on a Thursday the week before is due", mon - 7 * day, WeekNote.due(mon + 3 * day, tz, false));
         eq("week: on the Monday itself too", mon - 7 * day, WeekNote.due(mon, tz, false));

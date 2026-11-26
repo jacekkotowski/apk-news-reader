@@ -490,6 +490,14 @@ public class MainActivity extends Activity {
         }
         /** "" while the job runs, then "ok:..." or "err:..." once. */
         @JavascriptInterface public String geminiResult(String key) { String v = gemResults.remove(key); return v == null ? "" : v; }
+        @JavascriptInterface public String weekAsk() { return db.weekAskJson(System.currentTimeMillis()); }
+        /** Saves your line for last week (empty = skip) and rewrites the week's note file. */
+        @JavascriptInterface public void weekAnswer(String start, String text) {
+            try {
+                final String[] w = db.weekAnswer(Long.parseLong(start), text);
+                if (w != null && Exporter.enabled(MainActivity.this)) new Thread(() -> Exporter.writeText(MainActivity.this, w[0], w[1]), "week-answer").start();
+            } catch (NumberFormatException ignored) { }
+        }
         @JavascriptInterface public String weekJson(String start) { try { return db.weekJson(Long.parseLong(start)); } catch (Exception e) { return "{}"; } }
         @JavascriptInterface public String pathJson(String topic) { return db.pathJson(topic); }
         @JavascriptInterface public void makeNotes(final String id) {

@@ -467,6 +467,7 @@ function renderFeed(s){
   recallOpen=0;recallOn=false;fRi=0;
   fRecall=fCount()||fMax?[]:J(A.recall?A.recall():'[]');
   fSlots=fRecall.length?J(A.recallSlots(fItems.length,fRecall.length)):[];
+  if(!fCount()&&!fMax)putWeek(list);
   putRecall(list,null,0);
   fItems.slice(0,fShown).forEach(function(it,i){list.appendChild(card(it,'feed'));putRecall(list,null,i+1)});
   list.appendChild(feedEnd(s));feedCount();
@@ -772,6 +773,22 @@ function renderGemini(){renderS2();
 }
 var recallOpen=0;
 /** A due recall card inside the Feed: question, Show answer, then Got it / Again tomorrow. It leaves the list once answered. */
+// the Monday question: one line in your own words about last week, saved at the top of the week note
+function putWeek(list){
+  if(!A.weekAsk)return;
+  var w=J(A.weekAsk());if(!w.start)return;
+  var p=el('div','panel');
+  p.appendChild(el('div','label','Your week'));
+  p.appendChild(el('div','meta',w.title));
+  p.appendChild(el('h3',null,'What did you learn last week?'));
+  var t=document.createElement('textarea');t.rows=3;t.placeholder='One or two sentences, in your own words';t.style.width='100%';t.style.boxSizing='border-box';p.appendChild(t);
+  var row=el('div','acts');
+  function done(msg){p.textContent='';p.appendChild(el('div','meta',msg));setTimeout(function(){if(p.parentNode)p.parentNode.removeChild(p)},1200)}
+  var sv=el('button','btn main','Save');sv.onclick=function(){var v=t.value.trim();if(!v){t.focus();return}A.weekAnswer(w.start,v);done('Saved at the top of the week note.')};
+  var sk=el('button','btn','Skip');sk.onclick=function(){A.weekAnswer(w.start,'');done('Skipped. It will not ask again for this week.')};
+  row.appendChild(sv);row.appendChild(sk);p.appendChild(row);
+  list.appendChild(p);
+}
 function recallCard(c){
   var p=el('div','panel');
   var revealed=false;

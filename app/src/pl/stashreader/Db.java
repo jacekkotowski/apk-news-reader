@@ -35,7 +35,7 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 15); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 16); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
@@ -116,6 +116,10 @@ final class Db extends SQLiteOpenHelper {
         if (o < 11) d.execSQL("ALTER TABLE sources ADD COLUMN surprise_less INTEGER NOT NULL DEFAULT 0");
         if (o < 13) createListen(d);
         if (o < 14) createWeeks(d);
+        if (o >= 14 && o < 16) { // your own line for the week, and whether the Monday card was answered or skipped
+            d.execSQL("ALTER TABLE weeks ADD COLUMN answer TEXT NOT NULL DEFAULT ''");
+            d.execSQL("ALTER TABLE weeks ADD COLUMN asked INTEGER NOT NULL DEFAULT 0");
+        }
         if (o < 15) { // quiet signals: when a card was first looked at in the Feed, and when its article was read for half a minute
             d.execSQL("ALTER TABLE items ADD COLUMN seen INTEGER NOT NULL DEFAULT 0");
             d.execSQL("ALTER TABLE items ADD COLUMN opened_at INTEGER NOT NULL DEFAULT 0");
@@ -136,7 +140,7 @@ final class Db extends SQLiteOpenHelper {
 
     /** One automatic note per week: start = Monday 00:00 in milliseconds. A row is written once and never changed. */
     private void createWeeks(SQLiteDatabase d) {
-        d.execSQL("CREATE TABLE IF NOT EXISTS weeks(start INTEGER PRIMARY KEY, md TEXT NOT NULL, created INTEGER NOT NULL)");
+        d.execSQL("CREATE TABLE IF NOT EXISTS weeks(start INTEGER PRIMARY KEY, md TEXT NOT NULL, created INTEGER NOT NULL, answer TEXT NOT NULL DEFAULT '', asked INTEGER NOT NULL DEFAULT 0)");
     }
 
     private void createListen(SQLiteDatabase d) {
@@ -272,12 +276,21 @@ final class Db extends SQLiteOpenHelper {
             }
             long end = WeekNote.nextWeek(start, tz);
             List<WeekNote.Item> items = new ArrayList<>();
-            try (Cursor c = d.rawQuery("SELECT i.id, i.title, i.link, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.kept_at, i.note FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + KEPT + " AND i.kept_at>=? AND i.kept_at<? ORDER BY i.kept_at, i.id", new String[]{"" + start, "" + end})) {
-                while (c.moveToNext()) items.add(new WeekNote.Item(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getLong(5), c.getString(6)));
+            List<Ranker.Topic> topics = topicList();
+            try (Cursor c = d.rawQuery("SELECT i.id, i.title, i.link, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.kept_at, i.note, i.excerpt, i.article FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + KEPT + " AND i.kept_at>=? AND i.kept_at<? ORDER BY i.kept_at, i.id", new String[]{"" + start, "" + end})) {
+                while (c.moveToNext()) {
+                    WeekNote.Item it = new WeekNote.Item(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getLong(5), c.getString(6));
+                    String art = c.getString(8);
+                    it.text = art != null && !art.isEmpty() ? Sanitizer.text(art) : c.getString(7);
+                    it.topics.addAll(Ranker.matchedTopics(it.title + " " + c.getString(7), topics));
+                    items.add(it);
+                }
             }
             if (items.isEmpty()) return null;
             for (WeekNote.Item it : items) {
-                try (Cursor h = d.rawQuery("SELECT text FROM highlights WHERE item_id=? ORDER BY id", new String[]{"" + it.id})) { while (h.moveToNext()) it.highlights.add(h.getString(0)); }
+                try (Cursor h = d.rawQuery("SELECT id, text FROM highlights WHERE item_id=? ORDER BY id", new String[]{"" + it.id})) { while (h.moveToNext()) { it.highlightIds.add(h.getLong(0)); it.highlights.add(h.getString(1)); } }
+                MarkdownExport.Note n = noteFor(it.id);
+                if (n != null) it.file = MarkdownExport.fileName(n, tz);
             }
             List<long[]> pairs = new ArrayList<>();
             for (int k = 0; k < items.size() && k < 60; k++) {
@@ -287,13 +300,51 @@ final class Db extends SQLiteOpenHelper {
             try (Cursor c = d.rawQuery("SELECT COALESCE(h.text, c.front), i.title FROM cards c JOIN items i ON i.id=c.item_id LEFT JOIN highlights h ON h.id=c.hl_id WHERE c.last>=? AND c.last<? AND c.step=0", new String[]{"" + start, "" + end})) {
                 while (c.moveToNext()) again.add(new WeekNote.Again(c.getString(0), c.getString(1)));
             }
-            String md = WeekNote.build(start, tz, items, pairs, again);
+            WeekNote.Extra extra = new WeekNote.Extra();
+            try (Cursor c = d.rawQuery("SELECT COUNT(*) FROM items WHERE seen>=? AND seen<? AND state<>" + KEPT, new String[]{"" + start, "" + end})) {
+                if (c.moveToFirst() && c.getInt(0) > 0) extra.seen = c.getInt(0);
+            }
+            if (extra.seen > 0) {
+                try (Cursor c = d.rawQuery("SELECT CASE WHEN s.name='' THEN s.url ELSE s.name END, COUNT(*) n FROM items i JOIN sources s ON s.id=i.source_id WHERE i.seen>=? AND i.seen<? AND i.state<>" + KEPT
+                        + " AND NOT EXISTS (SELECT 1 FROM items k WHERE k.source_id=i.source_id AND k.state=" + KEPT + " AND k.kept_at>=? AND k.kept_at<?) GROUP BY i.source_id HAVING n>=5 ORDER BY n DESC LIMIT 3",
+                        new String[]{"" + start, "" + end, "" + start, "" + end})) {
+                    while (c.moveToNext()) extra.quiet.add(c.getString(0));
+                }
+            }
+            String md = WeekNote.build(start, tz, items, pairs, again, extra);
             if (md.isEmpty()) return null;
+            // the highlights under "To remember" come back as recall cards now
+            for (WeekNote.Pick p : WeekNote.toRemember(WeekNote.inWeek(start, tz, items), pairs)) {
+                if (p.index < p.item.highlightIds.size()) d.execSQL("UPDATE cards SET due=MIN(due, ?) WHERE hl_id=?", new Object[]{now, p.item.highlightIds.get(p.index)});
+            }
             ContentValues v = new ContentValues();
             v.put("start", start); v.put("md", md); v.put("created", now);
             if (d.insertWithOnConflict("weeks", null, v, SQLiteDatabase.CONFLICT_IGNORE) < 0) return null;
             return new String[]{WeekNote.fileName(start, tz), md};
         } catch (RuntimeException e) { return null; }
+    }
+
+    /** The Monday question: {start, title} of last week's note while it is unanswered and less than 7 days old, else {}. */
+    String weekAskJson(long now) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT start FROM weeks WHERE asked=0 AND created>? ORDER BY start DESC LIMIT 1", new String[]{"" + (now - 7 * Recall.DAY)})) {
+            JSONObject o = new JSONObject();
+            if (c.moveToFirst()) { o.put("start", "" + c.getLong(0)); o.put("title", WeekNote.title(c.getLong(0), java.util.TimeZone.getDefault())); }
+            return o.toString();
+        } catch (Exception e) { return "{}"; }
+    }
+
+    /** Your answer to the Monday question goes at the top of the week note; an empty answer just closes the question. Returns {file name, text} to write, or null. */
+    String[] weekAnswer(long start, String answer) {
+        String a = answer == null ? "" : answer.trim();
+        if (a.length() > 2000) a = a.substring(0, 2000);
+        SQLiteDatabase d = getWritableDatabase();
+        String md = null;
+        try (Cursor c = d.rawQuery("SELECT md FROM weeks WHERE start=?", new String[]{"" + start})) { if (c.moveToFirst()) md = c.getString(0); }
+        if (md == null) return null;
+        ContentValues v = new ContentValues(); v.put("asked", 1);
+        if (!a.isEmpty()) { md = WeekNote.withAnswer(md, a); v.put("md", md); v.put("answer", a); }
+        d.update("weeks", v, "start=?", new String[]{"" + start});
+        return a.isEmpty() ? null : new String[]{WeekNote.fileName(start, java.util.TimeZone.getDefault()), md};
     }
 
     String weekJson(long start) {
