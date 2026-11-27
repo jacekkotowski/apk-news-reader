@@ -82,6 +82,7 @@ public class MainActivity extends Activity {
         }).start();
         web.loadUrl("file:///android_asset/index.html");
         refreshInBackground();
+        NoteWorker.kick(this); // notes still waiting from an earlier start
         handleShare(getIntent());
         // the first start with the automatic folder writes the notes of everything already kept
         if (Exporter.auto(this) && !prefs.getBoolean("autoExported", false)) {
@@ -138,7 +139,7 @@ public class MainActivity extends Activity {
                 android.widget.Toast.makeText(MainActivity.this, id < 0 ? "That link could not be saved" : "Saved to Stash", android.widget.Toast.LENGTH_SHORT).show();
                 if (id >= 0) web.evaluateJavascript("window.sharedSaved&&sharedSaved()", null);
             });
-            if (id >= 0) sync(id);
+            if (id >= 0) { sync(id); NoteWorker.kept(MainActivity.this, id); }
         }, "share").start();
     }
 
@@ -172,7 +173,7 @@ public class MainActivity extends Activity {
     private final Swipes swipes = new Swipes(new Swipes.Store() {
         @Override public java.util.List<Long> mark(java.util.List<Long> ids, boolean keep) { return db.mark(ids, keep); }
         @Override public void restore(long id) { db.restore(id); }
-        @Override public void export(long id) { sync(id); }
+        @Override public void export(long id) { sync(id); NoteWorker.kept(MainActivity.this, id); } // the swipe is final: notes may be made now
         @Override public void dropText(long id) { db.dropText(id); }
         @Override public void surpriseLess(long id) { db.surpriseLess(id); }
     });
@@ -246,7 +247,7 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public String kept() { try { return db.keptJson(); } catch (Exception e) { return "[]"; } }
         @JavascriptInterface public String item(String id) { try { return db.itemJson(Long.parseLong(id)); } catch (Exception e) { return "{}"; } }
-        @JavascriptInterface public void keep(String id) { db.setState(Long.parseLong(id), Db.KEPT); sync(Long.parseLong(id)); }
+        @JavascriptInterface public void keep(String id) { long i = Long.parseLong(id); db.setState(i, Db.KEPT); sync(i); NoteWorker.kept(MainActivity.this, i); }
         /** A swipe on a Feed card: right keeps it, left asks for less. ids is the card and its "+N sources" copies, comma separated. */
         @JavascriptInterface public void swipe(String ids, boolean keep, String surpriseId) {
             java.util.List<Long> surprise = Swipes.parse(surpriseId);
@@ -260,7 +261,7 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void opened(String id) { try { db.markOpened(Long.parseLong(id)); } catch (NumberFormatException ignored) { } }
         @JavascriptInterface public String highlights(String id) { try { return db.highlightsJson(Long.parseLong(id)); } catch (Exception e) { return "[]"; } }
         /** Adds a highlight (this keeps the item) and returns true when something was stored. */
-        @JavascriptInterface public boolean addHighlight(String id, String text) { boolean ok = db.addHighlight(Long.parseLong(id), text); if (ok) sync(Long.parseLong(id)); return ok; }
+        @JavascriptInterface public boolean addHighlight(String id, String text) { boolean ok = db.addHighlight(Long.parseLong(id), text); if (ok) { sync(Long.parseLong(id)); NoteWorker.kept(MainActivity.this, Long.parseLong(id)); } return ok; }
         @JavascriptInterface public void setHighlightNote(String hid, String note) { long h = Long.parseLong(hid); db.setHighlightNote(h, note); sync(db.highlightItem(h)); }
         @JavascriptInterface public void removeHighlight(String hid) { long h = Long.parseLong(hid); long item = db.highlightItem(h); db.removeHighlight(h); sync(item); }
         @JavascriptInterface public void setNote(String id, String note) { db.setNote(Long.parseLong(id), note); sync(Long.parseLong(id)); }
@@ -473,6 +474,7 @@ public class MainActivity extends Activity {
             String v = k == null ? "" : k.trim();
             if (!v.isEmpty() && (v.length() < 20 || v.length() > 200 || v.matches(".*\\s.*"))) return "That does not look like an API key.";
             prefs.edit().putString("geminiKey", v).apply();
+            if (!v.isEmpty()) NoteWorker.kick(MainActivity.this);
             return "";
         }
         @JavascriptInterface public boolean s2KeySet() { return !prefs.getString("s2Key", "").isEmpty(); }
@@ -510,43 +512,22 @@ public class MainActivity extends Activity {
         }
         @JavascriptInterface public String weekJson(String start) { try { return db.weekJson(Long.parseLong(start)); } catch (Exception e) { return "{}"; } }
         @JavascriptInterface public String pathJson(String topic) { return db.pathJson(topic); }
+        /** Make notes, pressed by the reader: 3 recall questions. The notes made on their own after a keep use the same function. */
         @JavascriptInterface public void makeNotes(final String id) {
             gem("notes:" + id, () -> {
                 long item = Long.parseLong(id);
-                String[] in = db.notesInput(item);
-                if (in == null) throw new Gemini.GeminiException("That item is gone.");
-                String kind = FeedParser.kindOf(in[1], in[4]);
-                if (kind.equals("audio")) throw new Gemini.GeminiException("Notes are not made for podcast episodes.");
-                String topics = db.topicNames(), request, basis;
-                if (kind.equals("video")) {
-                    request = Gemini.notesRequest(topics, in[0], in[1], "");
-                    basis = "the video";
-                } else {
-                    String text = Sanitizer.text(in[2]);
-                    basis = "the saved article";
-                    if (text.length() < 400 && !in[1].isEmpty()) {
-                        try { text = Sanitizer.text(Sanitizer.clean(Refresher.fetchPage(in[1]), 400000)); basis = "the page text"; } catch (Exception e) { text = ""; }
-                    }
-                    if (text.length() < 400) { text = Sanitizer.text(in[3]); basis = "the feed excerpt only"; }
-                    if (text.length() < 200) throw new Gemini.GeminiException("There is not enough text to make notes from. Try Read full article first.");
-                    request = Gemini.notesRequest(topics, in[0], "", text);
-                }
-                Gemini.Notes n = Gemini.parseNotes(Gemini.ask(apiKey(), request, Refresher.AGENT));
-                db.saveAi(item, "*Based on " + basis + ".*\n\n" + n.md, n.questions);
-                sync(item);
-                return "Notes saved.";
+                db.setWanted(item, 0); // the worker leaves it alone
+                return NoteWorker.make(MainActivity.this, item, 3);
             });
         }
+        /** Learn fast: a learning path of checked free material for one topic (it may have nothing kept yet). */
         @JavascriptInterface public void makePath(final String topic) {
-            gem("path:" + topic, () -> {
-                String material = db.pathMaterial(topic);
-                if (material.isEmpty()) throw new Gemini.GeminiException("Nothing is kept under this topic yet.");
-                Gemini.Path p = Gemini.parsePath(Gemini.ask(apiKey(), Gemini.pathRequest(topic, db.topicNames(), material), Refresher.AGENT));
-                db.savePath(topic, p.md, p.searches);
-                String e = Exporter.writeText(MainActivity.this, MarkdownExport.pathFileName(topic), MarkdownExport.pathNote(topic, p.md, System.currentTimeMillis(), java.util.TimeZone.getDefault()));
-                return e.isEmpty() ? "Learning path saved." : "Learning path saved. " + e;
-            });
+            gem("path:" + topic, () -> PathMaker.make(MainActivity.this, topic));
         }
+        /** The next step of the path in use, for the plain Feed: {card, slot} or {}. */
+        @JavascriptInterface public String pathNext(int articles) { return db.pathNextJson(articles); }
+        /** "Gemini today: N notes, M path searches". */
+        @JavascriptInterface public String geminiToday() { return NoteWorker.todayLine(MainActivity.this); }
         @JavascriptInterface public void openUrl(String url) {
             if (url == null || !(url.startsWith("https://") || url.startsWith("http://"))) return;
             runOnUiThread(() -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))));

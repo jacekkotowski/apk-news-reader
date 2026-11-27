@@ -21,3 +21,5 @@ SourceStats.java
 WeekNote.java
 Swipes.java
 Learner.java
+PathFinder.java
+AutoNotes.java

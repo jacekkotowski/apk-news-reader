@@ -1,0 +1,31 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "parts": [
+          {
+            "text": "{\n  \"steps\": [\n    {\n      \"step\": \"Introduction to DuckDB\",\n      \"why\": \"Understand what DuckDB is and why it is revolutionizing local analytical data processing.\",\n      \"resources\": [\n        {\n          \"title\": \"DuckDB Tutorial for Beginners\",\n          \"url\": \"https://www.youtube.com/watch?v=J9Hj_Zl5p50\",\n          \"kind\": \"video\",\n          \"minutes\": 15\n        },\n        {\n          \"title\": \"DuckDB Documentation Introduction\",\n          \"url\": \"https://duckdb.org/docs/\",\n          \"kind\": \"docs\",\n          \"minutes\": 10\n        }\n      ],\n      \"search\": \"DuckDB tutorial for beginners\"\n    },\n    {\n      \"step\": \"DuckDB with Python and Pandas\",\n      \"why\": \"Learn how to integrate DuckDB into a data science workflow using Python and Pandas DataFrames.\",\n      \"resources\": [\n        {\n          \"title\": \"DuckDB Python API Tutorial\",\n          \"url\": \"https://www.youtube.com/watch?v=wz6W096K1_U\",\n          \"kind\": \"video\",\n          \"minutes\": 20\n        },\n        {\n          \"title\": \"Python API Documentation\",\n          \"url\": \"https://duckdb.org/docs/api/python/overview.html\",\n          \"kind\": \"docs\",\n          \"minutes\": 15\n        }\n      ],\n      \"search\": \"DuckDB Python Pandas tutorial\"\n    },\n    {\n      \"step\": \"Querying Parquet and CSV Files\",\n      \"why\": \"Master reading and analyzing large CSV and Parquet files directly without importing them first.\",\n      \"resources\": [\n        {\n          \"title\": \"Query Parquet with DuckDB\",\n          \"url\": \"https://www.youtube.com/watch?v=5rT88qYJ9sY\",\n          \"kind\": \"video\",\n          \"minutes\": 18\n        },\n        {\n          \"title\": \"Data Import Documentation\",\n          \"url\": \"https://duckdb.org/docs/data/csv\",\n          \"kind\": \"docs\",\n          \"minutes\": 10\n        }\n      ],\n      \"search\": \"DuckDB query parquet CSV\"\n    },\n    {\n      \"step\": \"DuckDB in Power BI\",\n      \"why\": \"Connect DuckDB to Power BI to supercharge your dashboard performance using the ODBC driver.\",\n      \"resources\": [\n        {\n          \"title\": \"DuckDB Power BI Integration\",\n          \"url\": \"https://www.youtube.com/watch?v=6YhS9HkG3_M\",\n          \"kind\": \"video\",\n          \"minutes\": 15\n        },\n        {\n          \"title\": \"BI Dashboard Documentation\",\n          \"url\": \"https://duckdb.org/docs/guides/bi/powerbi\",\n          \"kind\": \"docs\",\n          \"minutes\": 10\n        }\n      ],\n      \"search\": \"DuckDB Power BI integration\"\n    },\n    {\n      \"step\": \"Advanced SQL and Window Functions\",\n      \"why\": \"Leverage advanced analytical SQL features in DuckDB to handle complex data science transformations.\",\n      \"resources\": [\n        {\n          \"title\": \"Advanced SQL in DuckDB\",\n          \"url\": \"https://www.youtube.com/watch?v=8M6W096K1_U\",\n          \"kind\": \"video\",\n          \"minutes\": 25\n        },\n        {\n          \"title\": \"SQL Functions Documentation\",\n          \"url\": \"https://duckdb.org/docs/sql/functions/aggregates\",\n          \"kind\": \"docs\",\n          \"minutes\": 15\n        }\n      ],\n      \"search\": \"DuckDB advanced SQL functions\"\n    }\n  ],\n  \"channels\": [\n    {\n      \"name\": \"DuckDB\",\n      \"url\": \"https://www.youtube.com/@DuckDB\"\n    },\n    {\n      \"name\": \"FreeCodeCamp\",\n      \"url\": \"https://www.youtube.com/@freecodecamp\"\n    },\n    {\n      \"name\": \"Data School\",\n      \"url\": \"https://www.youtube.com/@dataschool\"\n    }\n  ]\n}",
+            "thoughtSignature": "EpYBCpMBAVjVB3td/XlRjgBY4eZ8IxFn0ah8GyahYsuk0c5ER9qlypv93BHLKtBzOjw8XwnNb2bfxQSiJ5fgHQNbPHyRF22tVfEZ+YwyL7Zk6a9HrInWxdxgcQ4Pn9RtrWMQRALy1WJRKEpCEdDkJwRtl5JvvP6+aKKOGCLiq1IQY2LYGv1oVXMTNnjRNeO5+aF/DOCCs9FH"
+          }
+        ],
+        "role": "model"
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 202,
+    "candidatesTokenCount": 1012,
+    "totalTokenCount": 1214,
+    "promptTokensDetails": [
+      {
+        "modality": "TEXT",
+        "tokenCount": 202
+      }
+    ],
+    "serviceTier": "standard"
+  },
+  "modelVersion": "gemini-3.5-flash-lite",
+  "responseId": "5G0Ja_zoKqCFkdUPoZ6VgAU"
+}

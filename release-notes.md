@@ -1,32 +1,36 @@
-## Stash Reader 1.18: swipe open articles, OpenAlex, a finer learner, lighter video notes
+## Stash Reader 1.19: notes on keep, and Learn fast
 
-**Swipe an open article**
-- An open Feed card swipes like a closed one: right keeps it, left asks for less, with Undo.
-- The swipe does not start on a code block, a table, a text field or a button, and not while text is selected. Code and tables still scroll sideways.
-- A kept card still cannot be swiped left. A note you are typing is saved before the card leaves.
+**Notes on their own after a keep**
+- When you keep something (a swipe right once Undo has passed, Keep, a highlight, a shared link), the app asks Gemini for short notes in the background, with one recall question.
+- One request a minute, at most 30 notes a day. When Gemini says its free limit is reached, notes stop until the next day. Podcasts are left out, and so is anything that already has notes.
+- A short article is loaded from its page first, as Make notes does. Make notes stays on the three dots for items kept before 1.19, and still asks for three questions.
+- New recall cards from notes are spread out: at most 5 of them become due on one day, the rest wait for later days.
+- Sources, Settings shows one line: "Gemini today: N notes, M path searches".
 
-**OpenAlex, a new place to search**
-- In **Sources**, "Add a search or watch a page" now lists **OpenAlex**: papers from the last 365 days, newest first, with abstract (when OpenAlex has one) and citation count.
-- It works without a key. A free key from openalex.org gives a larger daily budget: paste it under **Settings, OpenAlex (optional)**. It is sent only to OpenAlex and stays on the phone.
-- Records dated in the future are left out. A live search showed that without this limit the whole first page was dated ahead, up to a year.
+**Learn fast: a learning path for any topic**
+- In **Topics**, tap a topic, then **Make a learning path for ...**. It works for a topic with nothing kept yet: add the topic (for example Meshtastic), tap it, press the button.
+- Gemini plans 5 to 8 steps from zero to useful, from free material: YouTube first, then free courses, then official documentation. Things you already kept on the topic are reused.
+- **Every link is checked before it is shown.** Videos through YouTube's own oEmbed answer (real title and channel), pages by loading them and reading their title. Dead links and links whose title does not fit are left out.
+- Gemini without Google Search makes up most YouTube addresses (in a test on 27 November all 16 of them were fake), so the app also looks for each step's video on the search page of YouTube channels that it checked. A step with nothing checked shows a "Search YouTube" link instead.
+- The path is a row in **Sources** ("Learning path: topic"). Its steps are normal cards: open, keep, swipe, notes, recall, week note and Builds on all work. They are not counted as new, do not expire while the path is on, and do not appear in the Feed list.
+- In the plain Feed, the next step of the path you used last appears once, after about 6 articles, labelled "Next step in ...". Swipe right keeps it; swipe left skips that resource and does not teach the Feed that you dislike the topic.
+- The path view in Topics shows the steps in order, with a tick for each kept item (tap the circle to tick it). Under the path, channels that appear twice or more have an **Add channel** button.
+- Making a path again archives the old one: kept items stay in the Stash, and the old .md note stays in your folder (path notes now have the date in their name).
 
-**A finer learner**
-- The Feed now also learns from the **author** (when the feed names one) and from an article's **length** (under 4 minutes, 4 to 12, over 12). So it can tell a good article from a poor one on the same subject from the same source.
-- A card may say "You keep a lot by ..." or "Lowered: you often swipe away items by ...".
-
-**Lighter video notes**
-- **Make notes** on a video asks Gemini to read it at low resolution and to take the notes mainly from what is said. This uses fewer tokens of your free limit.
+**Also**
+- Pages that answer with a permanent redirect (HTTP 308, used by some documentation sites) now load.
 
 **Try on the phone**
-1. Open a card with a long article, swipe it right, then press Undo. Try to scroll a code block sideways, and select some text.
-2. Add an OpenAlex search in Sources, for example "causal inference". Look at what arrives.
-3. Make notes for a video and check that they are still good.
+1. Keep two articles and one video, wait a few minutes, and look for "AI notes" on them and for "Gemini today" in Sources.
+2. Add the topic "Meshtastic" in Topics, tap it, and make a learning path. Open a step, keep it, and look at the ticks.
+3. Scroll the Feed: after about 6 articles there should be "Next step in Meshtastic".
 
 **Known limits**
-- Not tested on a real phone. The swipe rules are tested with stand-in page elements, not by touch.
-- OpenAlex was asked live from a PC, not from the app. It searches titles, abstracts and full texts, newest first, so some results are only loosely related. Many of the newest records have no abstract.
-- The new video setting was not sent to Gemini; only the request text is tested.
-- Authors come from RSS and Atom feeds (blogs, arXiv, Reddit, YouTube). Other searches name none. Items already on the phone get an author only if their feed still lists them.
-- A card's length comes from the text the app has: an item that arrives as a summary counts as short until the full article is loaded. Videos and podcasts have no length for the learner.
-- The database moves to version 17 the first time 1.18 starts. There is no way back to an older version without reinstalling.
+- Not tested on a real phone. The new screens were looked at in a desktop browser with stand-in data.
+- **Google Search inside Gemini is not in the free tier** of the Gemini 3 models (Google's price list, and a live test on 27 November that answered HTTP 429). The app tries it, and after that answer asks without it for a week. With a paid key the app would get real links from Google Search; that path was only tested with a hand-written answer.
+- Without Google Search, many steps end with documentation pages and fewer videos than planned. A video is taken from a channel's search page only when its title has the topic and words of the step, so some steps show only the "Search YouTube" link.
+- Reading a channel's search page depends on how YouTube builds that page today (both the desktop and the mobile page are read); if YouTube changes it, steps get fewer videos, never wrong ones.
+- Gemini's free tier, its daily limits and the search grounding rules can change at any time.
+- Notes made on their own run while the app is open (or in memory); a keep made just before closing the app is noted at the next start.
+- The database moves to version 18 the first time 1.19 starts. There is no way back to an older version without reinstalling.
 - Earlier limits still apply.

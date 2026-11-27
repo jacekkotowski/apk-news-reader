@@ -12,6 +12,12 @@ final class FeedMix {
      * Card k goes after (k+1)*EVERY articles; when the list is shorter, the card goes at the end.
      * Never more than the daily cap, and no cards means an empty answer (the feed is unchanged).
      */
+    /** The next step of a learning path goes after this many articles. */
+    static final int PATH_AT = 6;
+
+    /** How many articles come before the learning path card: PATH_AT, or all of them in a shorter list. */
+    static int pathSlot(int articles) { return Math.max(0, Math.min(articles, PATH_AT)); }
+
     static int[] slots(int articles, int cards) {
         int n = Math.max(0, Math.min(cards, Recall.DAILY_CAP));
         int[] s = new int[n];

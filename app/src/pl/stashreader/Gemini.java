@@ -24,13 +24,13 @@ final class Gemini {
     /** Characters of article text sent at most. */
     static final int MAX_TEXT = 30000;
 
-    static final class GeminiException extends Exception { GeminiException(String m) { super(m); } }
+    static class GeminiException extends Exception { GeminiException(String m) { super(m); } }
+    /** HTTP 429 or RESOURCE_EXHAUSTED: the free limit is used up for now (or the feature is not in the free tier). */
+    static final class Limit extends GeminiException { Limit(String m) { super(m); } }
 
     static final class Notes { String md = ""; final List<String[]> questions = new ArrayList<>(); }
-    static final class Path { String md = ""; final List<String[]> searches = new ArrayList<>(); }
 
     private static final String NOTES_SCHEMA = "{\"type\":\"OBJECT\",\"properties\":{\"notes_md\":{\"type\":\"STRING\"},\"questions\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{\"q\":{\"type\":\"STRING\"},\"a\":{\"type\":\"STRING\"}},\"required\":[\"q\",\"a\"]}}},\"required\":[\"notes_md\",\"questions\"]}";
-    private static final String PATH_SCHEMA = "{\"type\":\"OBJECT\",\"properties\":{\"path_md\":{\"type\":\"STRING\"},\"searches\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{\"kind\":{\"type\":\"STRING\"},\"query\":{\"type\":\"STRING\"}},\"required\":[\"kind\",\"query\"]}}},\"required\":[\"path_md\",\"searches\"]}";
 
     /** JSON string contents: quotes, backslashes and control characters escaped. */
     static String esc(String s) {
@@ -57,13 +57,25 @@ final class Gemini {
         return "{\"contents\":[{\"parts\":[" + partsJson + "]}]" + cfg + "}";
     }
 
+    /** A request that may use Google Search; the JSON is then asked for in the text, since a schema is not promised together with the tool. */
+    private static String searchRequest(String partsJson) {
+        return "{\"contents\":[{\"parts\":[" + partsJson + "]}],\"tools\":[{\"google_search\":{}}]}";
+    }
+
     private static String textPart(String t) { return "{\"text\":\"" + esc(t) + "\"}"; }
 
     /** A tiny request to check that the key is accepted. */
     static String pingRequest() { return request(textPart("Reply with the single word OK."), null); }
 
-    /** Study notes. For a video pass its YouTube address and an empty text; for an article pass the text and an empty address. */
-    static String notesRequest(String topics, String title, String videoUrl, String articleText) {
+    /** Study notes with 3 recall questions. */
+    static String notesRequest(String topics, String title, String videoUrl, String articleText) { return notesRequest(topics, title, videoUrl, articleText, 3); }
+
+    /**
+     * Study notes. For a video pass its YouTube address and an empty text; for an article pass the text and an empty address.
+     * questions: how many recall questions to ask for (notes made on their own, after a keep, ask for 1).
+     */
+    static String notesRequest(String topics, String title, String videoUrl, String articleText, int questions) {
+        int nq = Math.max(1, Math.min(5, questions));
         boolean video = videoUrl != null && !videoUrl.isEmpty();
         String what = video ? "video" : "article";
         String p = "You are helping me study. I am learning: " + (topics.isEmpty() ? "data science" : topics) + ". "
@@ -71,7 +83,7 @@ final class Gemini {
                 + "Return JSON with notes_md and questions. notes_md is Markdown with exactly these sections: "
                 + "'## Key ideas' (5 short bullets), '## Quotes' (up to 3 short quotes" + (video ? ", each with an mm:ss timestamp" : "") + "), "
                 + "'## Why it matters for me' (2 sentences; tie it to my topics only if it really fits), '## Try next' (2 bullets). "
-                + "questions holds 3 recall questions, each with a short answer. "
+                + "questions holds " + (nq == 1 ? "1 recall question" : nq + " recall questions") + ", each with a short answer. "
                 + "Use only what the " + what + " says; do not invent anything."
                 + (video ? " Take the notes mainly from what is said in the video." : "");
         // low resolution: the notes come from the speech, and a video then costs far fewer tokens
@@ -81,17 +93,32 @@ final class Gemini {
         return request(textPart(p + "\n\n--- ARTICLE ---\n" + t), NOTES_SCHEMA);
     }
 
-    /** A learning path from what was kept on one topic: titles, sources and highlighted passages, never private notes. */
-    static String pathRequest(String topic, String topics, String material) {
-        String p = "I am learning " + topic + (topics.isEmpty() ? "" : " (my other topics: " + topics + ")") + ". "
-                + "Below is what I kept on this topic: titles, sources and passages I highlighted. Make a learning path from it. "
-                + "Return JSON with path_md and searches. path_md is Markdown with '## Order to learn' (a numbered list of the titles I kept, "
-                + "each with one line on why it comes at that point; group them as Basics, Core and Advanced where that fits) and "
-                + "'## Gaps' (3 to 5 bullets on what is missing). searches has up to 4 suggestions to fill the gaps, "
-                + "each with kind 'arxiv' or 'hn' and query of 2 to 4 words. Use only the items listed; do not invent titles.";
-        String m = material == null ? "" : material;
-        if (m.length() > MAX_TEXT) m = m.substring(0, MAX_TEXT);
-        return request(textPart(p + "\n\n--- WHAT I KEPT ---\n" + m), PATH_SCHEMA);
+    private static final String PLAN_SCHEMA = "{\"type\":\"OBJECT\",\"properties\":{\"steps\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{"
+            + "\"step\":{\"type\":\"STRING\"},\"why\":{\"type\":\"STRING\"},\"search\":{\"type\":\"STRING\"},\"resources\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{"
+            + "\"title\":{\"type\":\"STRING\"},\"url\":{\"type\":\"STRING\"},\"kind\":{\"type\":\"STRING\"},\"minutes\":{\"type\":\"INTEGER\"}},\"required\":[\"title\",\"url\",\"kind\"]}}},"
+            + "\"required\":[\"step\",\"why\",\"resources\"]}},\"channels\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{\"name\":{\"type\":\"STRING\"},\"url\":{\"type\":\"STRING\"}},\"required\":[\"name\",\"url\"]}}},"
+            + "\"required\":[\"steps\",\"channels\"]}";
+
+    /**
+     * A learning path from zero to useful on one topic, made of free material: YouTube first, then free courses, then official docs.
+     * material: titles, links and highlights kept on the topic (never private notes); may be empty.
+     * search: let Gemini use Google Search (not in the free tier of Gemini 3 models); the JSON is then asked for in the text.
+     */
+    static String pathRequest(String topic, String topics, String material, boolean search) {
+        String m = material == null ? "" : material.trim();
+        if (m.length() > 15000) m = m.substring(0, 15000);
+        String p = "I want to learn " + topic + " fast, from zero to useful." + (topics.isEmpty() ? "" : " My other topics: " + topics + ".") + " "
+                + (m.isEmpty() ? "I have not kept anything on it yet. " : "Below is what I already kept on it: titles, links and passages I highlighted. Reuse an item where it fits, with its link. ")
+                + "Make a learning path of 5 to 8 steps, in order. For each step give: step (a short name), why (one sentence), "
+                + "search (a YouTube search phrase of 2 to 5 words for this step), and resources: 1 to 3 free resources, "
+                + "YouTube videos first, then free courses or MOOCs, then official documentation. "
+                + (search ? "Use Google Search to find them and give each one's real address. " : "Give only resources you are sure exist, with their exact full address. ")
+                + "YouTube videos as https://www.youtube.com/watch?v=ID. kind is one of video, course, docs, article. minutes is your estimate of the time it takes. "
+                + "Also give channels: 2 to 4 YouTube channels that teach this topic well, each with name and its channel address (https://www.youtube.com/@handle). "
+                + "Do not invent titles or links; leave a resource out when you are not sure."
+                + (search ? " Answer with one JSON object only, no other text: {\"steps\":[{\"step\":\"\",\"why\":\"\",\"search\":\"\",\"resources\":[{\"title\":\"\",\"url\":\"\",\"kind\":\"\",\"minutes\":0}]}],\"channels\":[{\"name\":\"\",\"url\":\"\"}]}" : "");
+        String part = textPart(m.isEmpty() ? p : p + "\n\n--- WHAT I KEPT ---\n" + m);
+        return search ? searchRequest(part) : request(part, PLAN_SCHEMA);
     }
 
     /** A question answered from numbered passages only. passages: {title, text}. The answer is plain text with [1], [2] citations. */
@@ -113,7 +140,11 @@ final class Gemini {
     static String replyText(int code, String body) throws GeminiException {
         Object root = parseOrNull(body == null ? "" : body);
         Map<String, Object> o = Json.obj(root);
-        if (code != 200 || (o != null && o.get("error") != null)) throw new GeminiException(errorMessage(code, body));
+        if (code != 200 || (o != null && o.get("error") != null)) {
+            Map<String, Object> e = o == null ? null : Json.obj(o.get("error"));
+            if (code == 429 || Json.str(e, "status").equals("RESOURCE_EXHAUSTED")) throw new Limit(errorMessage(code, body));
+            throw new GeminiException(errorMessage(code, body));
+        }
         if (o == null) throw new GeminiException("Gemini's answer could not be read");
         List<Object> cands = Json.list(o.get("candidates"));
         StringBuilder out = new StringBuilder();
@@ -135,7 +166,7 @@ final class Gemini {
         try { return Json.parse(t); } catch (RuntimeException e) { return null; }
     }
 
-    private static String stripFences(String t) {
+    static String stripFences(String t) {
         String s = t.trim();
         if (s.startsWith("```")) {
             int nl = s.indexOf('\n');
@@ -160,21 +191,6 @@ final class Gemini {
         return n;
     }
 
-    static Path parsePath(String text) throws GeminiException {
-        Map<String, Object> o = Json.obj(parseOrNull(stripFences(text)));
-        if (o == null) throw new GeminiException("Gemini's learning path could not be read");
-        Path p = new Path();
-        p.md = Json.str(o, "path_md").trim();
-        if (p.md.isEmpty()) throw new GeminiException("Gemini returned an empty learning path");
-        List<Object> ss = Json.list(o.get("searches"));
-        if (ss != null) for (Object s : ss) {
-            Map<String, Object> m = Json.obj(s);
-            String kind = Json.str(m, "kind").trim().toLowerCase(java.util.Locale.ROOT), q = Json.str(m, "query").trim();
-            if ((kind.equals("arxiv") || kind.equals("hn")) && !q.isEmpty() && q.length() <= 80 && p.searches.size() < 4) p.searches.add(new String[]{kind, q});
-        }
-        return p;
-    }
-
     /** A short sentence for a failed call. */
     static String errorMessage(int code, String body) {
         String msg = "", status = "";
@@ -190,7 +206,10 @@ final class Gemini {
     }
 
     /** Sends one request and returns the model's text. The key goes in a header, never in the address. */
-    static String ask(String key, String requestJson, String agent) throws IOException, GeminiException {
+    static String ask(String key, String requestJson, String agent) throws IOException, GeminiException { return askFull(key, requestJson, agent)[0]; }
+
+    /** {the model's text, the whole answer}: the answer also holds the Google Search sources when the tool was used. */
+    static String[] askFull(String key, String requestJson, String agent) throws IOException, GeminiException {
         HttpURLConnection h = (HttpURLConnection) new URL(ENDPOINT).openConnection();
         try {
             h.setConnectTimeout(15000); h.setReadTimeout(120000);
@@ -208,7 +227,8 @@ final class Gemini {
                     for (int n; (n = i.read(b)) > 0; ) { buf.write(b, 0, n); if (buf.size() > 2000000) throw new IOException("Gemini's answer is too large"); }
                 }
             }
-            return replyText(code, new String(buf.toByteArray(), StandardCharsets.UTF_8));
+            String body = new String(buf.toByteArray(), StandardCharsets.UTF_8);
+            return new String[]{replyText(code, body), body};
         } finally { h.disconnect(); }
     }
 }

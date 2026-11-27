@@ -77,12 +77,11 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
   <div id="askres"></div>
   <button class="btn" id="playq" style="display:none;margin-bottom:10px"></button>
   <div id="chips" class="chips"></div>
-  <div id="pathbox"></div>
   <div id="keptlist"></div>
 </section>
 <section id="topics">
   <div class="add"><input id="topic" type="text" placeholder="Add a topic, e.g. causal inference" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="addtopic">Add</button></div>
-  <p class="meta">Weight 0 switches a topic off, 5 is the strongest. The feed is ordered by these topics, by what you keep, and by freshness.</p>
+  <p class="meta">Weight 0 switches a topic off, 5 is the strongest. The feed is ordered by these topics, by what you keep, and by freshness. Tap a topic for its learning path.</p>
   <div id="topiclist"></div>
 </section>
 <section id="sources">
@@ -103,10 +102,11 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
     <select id="rate" class="btn" style="margin-bottom:14px"><option value="80">Slower (0.8x)</option><option value="100">Normal (1x)</option><option value="120">1.2x</option><option value="150">1.5x</option><option value="180">1.8x</option></select>
     <div class="label" style="margin-top:14px">Gemini (optional)</div>
     <div class="meta" id="gstate"></div>
+    <div class="meta" id="gtoday"></div>
     <div class="add"><input id="gkey" type="password" placeholder="Paste your Gemini API key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="gsave">Save</button></div>
     <div class="acts"><button class="btn" id="gtest">Test key</button><button class="btn" id="gclear">Remove key</button></div>
     <div id="gmsg" class="note"></div>
-    <p class="meta">A free key from aistudio.google.com adds Make notes and learning paths. Free tier: Google may use what you send. Only public links, article text, titles and highlights are sent, never your notes. The key stays on this phone.</p>
+    <p class="meta">A free key from aistudio.google.com adds notes and learning paths. What you keep gets short notes on its own, with one recall question (at most one a minute and 30 a day; podcasts are left out). Free tier: Google may use what you send. Only public links, article text, titles and highlights are sent, never your notes. The key stays on this phone.</p>
     <div class="label" style="margin-top:14px">Semantic Scholar (optional)</div>
     <div class="meta" id="s2state"></div>
     <div class="add"><input id="s2key" type="password" placeholder="Paste your Semantic Scholar API key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="s2save">Save</button></div>
@@ -136,7 +136,7 @@ var KL={};
 function savedNewest(){try{return localStorage.getItem('sort')==='newest'}catch(e){return false}}
 function saveSort(v){try{localStorage.setItem('sort',v)}catch(e){}}
 var fF={type:'',topic:'',source:'0',query:'',newest:savedNewest()},fT=0;
-var askQ='',askT=0,notesOn=false,noteOpen=null,pgStack=[],aiBusy=0,recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
+var topicOpen='',askQ='',askT=0,notesOn=false,noteOpen=null,pgStack=[],aiBusy=0,recallOn=false,pending=false,tab='feed',wasBusy=false,lastSig='',topicFilter='';
 function setTheme(d){document.documentElement.setAttribute('data-theme',d?'dark':'light')}
 try{setTheme(A.dark&&A.dark())}catch(e){}
 function J(s){try{return JSON.parse(s)}catch(e){return []}}
@@ -182,6 +182,7 @@ function relEnd(it,box){
 function card(it,mode){
   var kept=(mode==='stash');
   var c=el('div','card');
+  if(it.path)c.appendChild(el('div','label','Next step in '+it.path+(it.step?' | '+it.step:'')));
   var m=el('div','meta');m.appendChild(el('b',null,it.source));m.appendChild(el('span',null,ago(it.pub)));m.appendChild(el('span',null,it.kind==='video'?'video':it.kind==='audio'?'podcast':it.mins+' min'));
   if(it.hl)m.appendChild(el('span',null,it.hl+' highlight'+(it.hl>1?'s':'')));
   c.appendChild(m);
@@ -404,7 +405,7 @@ function render(){
   }else if(tab==='kept'){
     $('folder').textContent=(A.exportFolder&&A.exportFolder())||'not set';
     $('autofolder').style.display=(A.autoFolderAvailable&&A.autoFolderAvailable())?'':'none';
-    renderPath();askVis();renderQueueBtn();
+    askVis();renderQueueBtn();
     var kb=$('keptlist');kb.textContent='';
     if(notesOn){renderNotes(kb);return}
     var ki=J(A.kept());
@@ -423,25 +424,27 @@ function render(){
     var tl=$('topiclist');tl.textContent='';
     J(A.topics()).forEach(function(x){
       var r=el('div','src');
-      var t=el('div','t');t.appendChild(el('span',null,x.phrase));r.appendChild(t);
+      var t=el('div','t');t.appendChild(el('span',null,x.phrase));if(x.path)t.appendChild(el('div',null,'Learning path: '+x.path));r.appendChild(t);
+      t.onclick=function(){topicOpen=topicOpen===x.phrase?'':x.phrase;render()};
       var minus=el('button','btn','-');minus.onclick=function(){A.setTopicWeight(x.id,x.weight-1);render()};
       var w=el('span','wt',''+x.weight);
       var plus=el('button','btn','+');plus.onclick=function(){A.setTopicWeight(x.id,x.weight+1);render()};
       var rm=el('button','btn','x');rm.onclick=function(){A.removeTopic(x.id);render()};
       r.appendChild(minus);r.appendChild(w);r.appendChild(plus);r.appendChild(rm);
       tl.appendChild(r);
+      if(topicOpen===x.phrase){var pb=el('div');tl.appendChild(pb);renderPath(x.phrase,pb)}
     });
   }else{
     var l=$('srclist');l.textContent='';
     J(A.sources()).sort(function(a,b){return (b.error?1:0)-(a.error?1:0)}).forEach(function(x){
       var r=el('div','src');
       var cb=el('input');cb.type='checkbox';cb.checked=x.enabled;cb.onchange=function(){A.setSourceEnabled(x.id,cb.checked);status()};r.appendChild(cb);
-      var q=x.kind&&x.kind!=='rss';
+      var q=x.kind&&x.kind!=='rss',isPath=x.kind==='path';
       var t=el('div','t');t.appendChild(el('span',null,x.name||(q?(KL[x.kind]||x.kind)+(x.query?': '+x.query:''):x.url)));
-      var d=el('div',x.error?(x.error.indexOf('Note:')===0?'':'err'):(x.lastOk?'good':''),x.error?x.error:(x.lastOk?'OK, '+x.count+' items, updated '+ago(x.lastOk):'Not refreshed yet'));
+      var d=isPath?el('div','good',x.keptAll+' of '+x.count+' kept, made '+ago(x.lastOk)):el('div',x.error?(x.error.indexOf('Note:')===0?'':'err'):(x.lastOk?'good':''),x.error?x.error:(x.lastOk?'OK, '+x.count+' items, updated '+ago(x.lastOk):'Not refreshed yet'));
       t.appendChild(d);
       if(x.stats)t.appendChild(el('div',null,x.stats));
-      t.appendChild(el('div',null,(x.topic?x.topic+' | ':'')+(q?((x.kind==='watch'||x.kind==='sitemap')?'checked at most once a day':'search, at most every 3 hours'):x.url)));
+      t.appendChild(el('div',null,isPath?'learning path, see Topics; Remove archives it, kept items stay':(x.topic?x.topic+' | ':'')+(q?((x.kind==='watch'||x.kind==='sitemap')?'checked at most once a day':'search, at most every 3 hours'):x.url)));
       if(x.mute){var mb=el('button','btn','Mute');mb.title='Nothing from this source was kept in 30 days';mb.onclick=function(){A.setSourceEnabled(x.id,false);render()};t.appendChild(mb)}
       r.appendChild(t);
       if(x.custom||q){var rm=el('button','btn','Remove');rm.onclick=function(){A.removeSource(x.id);render()};r.appendChild(rm)}
@@ -453,7 +456,9 @@ function render(){
   }
 }
 function fCount(){return (fF.type?1:0)+(fF.topic?1:0)+(fF.source!=='0'?1:0)+(fF.query.trim()?1:0)}
-var fItems=[],fShown=15,fSig='',fMax=0,fRecall=[],fSlots=[],fRi=0;
+var fItems=[],fShown=15,fSig='',fMax=0,fRecall=[],fSlots=[],fRi=0,fPath=null;
+// the next step of the learning path in use: one card after about 6 articles, in the plain Feed only
+function putPath(list,before,n){if(fPath&&fPath.card&&n>=fPath.slot){var p=fPath.card;fPath=null;list.insertBefore(card(p,'feed'),before)}}
 // due recall cards sit among the articles: card k after (k+1)*4 articles, or at the end of a short list
 function putRecall(list,before,n){while(fRi<fSlots.length&&fRi<fRecall.length&&fSlots[fRi]<=n){list.insertBefore(recallCard(fRecall[fRi]),before);fRi++}}
 function feedEnd(s){
@@ -478,8 +483,9 @@ function renderFeed(s){
   fRecall=fCount()||fMax?[]:J(A.recall?A.recall():'[]');
   fSlots=fRecall.length?J(A.recallSlots(fItems.length,fRecall.length)):[];
   if(!fCount()&&!fMax)putWeek(list);
-  putRecall(list,null,0);
-  fItems.slice(0,fShown).forEach(function(it,i){list.appendChild(card(it,'feed'));putRecall(list,null,i+1)});
+  fPath=fCount()||fMax||!A.pathNext?null:J(A.pathNext(fItems.length));
+  putRecall(list,null,0);putPath(list,null,0);
+  fItems.slice(0,fShown).forEach(function(it,i){list.appendChild(card(it,'feed'));putRecall(list,null,i+1);putPath(list,null,i+1)});
   list.appendChild(feedEnd(s));feedCount();
   var n=fCount();$('fmore').textContent='\u22EF'+(n?' '+n:'');$('fmore').className=n?'btn icon on':'btn icon';
   [5,15,30].forEach(function(m){var b=$('fm'+m);if(b)b.className='chip'+(fMax===m?' on':'')});
@@ -492,7 +498,7 @@ function feedMore(){
   if(m.scrollHeight-m.scrollTop-m.clientHeight>500)return;
   var list=$('feedlist'),end=$('fend'),from=fShown;
   fShown=Math.min(fItems.length,fShown+15);
-  for(var i=from;i<fShown;i++){list.insertBefore(card(fItems[i],'feed'),end);putRecall(list,end,i+1)}
+  for(var i=from;i<fShown;i++){list.insertBefore(card(fItems[i],'feed'),end);putRecall(list,end,i+1);putPath(list,end,i+1)}
   list.replaceChild(feedEnd(null),end);feedCount();
   setTimeout(feedMore,50);
 }
@@ -530,7 +536,7 @@ function buildOpts(){
   o.appendChild(el('div','label','Source'));
   var sel=el('select','btn');sel.style.maxWidth='100%';
   var all=el('option',null,'All sources');all.value='0';sel.appendChild(all);
-  J(A.sources?A.sources():'[]').filter(function(x){return x.enabled}).sort(function(a,b){return (a.name||a.url).toLowerCase()<(b.name||b.url).toLowerCase()?-1:1}).forEach(function(x){var op=el('option',null,x.name||x.url);op.value=x.id;sel.appendChild(op)});
+  J(A.sources?A.sources():'[]').filter(function(x){return x.enabled&&x.kind!=='path'}).sort(function(a,b){return (a.name||a.url).toLowerCase()<(b.name||b.url).toLowerCase()?-1:1}).forEach(function(x){var op=el('option',null,x.name||x.url);op.value=x.id;sel.appendChild(op)});
   sel.value=fF.source;sel.onchange=function(){fF.source=sel.value;renderFeed(J(A.status()))};
   o.appendChild(sel);
   chips('Sort',[['best','Best match'],['newest','Newest']],function(){return fF.newest?'newest':'best'},function(v){fF.newest=(v==='newest');saveSort(fF.newest?'newest':'best')});
@@ -538,11 +544,11 @@ function buildOpts(){
   clr.onclick=function(){fF={type:'',topic:'',source:'0',query:'',newest:fF.newest};buildPanel();renderFeed(J(A.status()))};
   o.appendChild(clr);
 }
-function gstart(key,done){
+function gstart(key,done,max){
   aiBusy++;var n=0;
   (function poll(){
     var r=A.geminiResult(key);
-    if(!r&&n++<300){setTimeout(poll,700);return}
+    if(!r&&n++<(max||300)){setTimeout(poll,700);return}
     aiBusy=Math.max(0,aiBusy-1);
     if(!r)r='err:Gemini took too long.';
     done(r.indexOf('ok:')===0,r.slice(r.indexOf(':')+1));
@@ -560,35 +566,66 @@ function mdBlock(md){
   });
   return w;
 }
-function renderPath(){
-  var box=$('pathbox');box.textContent='';
-  if(!topicFilter||notesOn)return;
+// Learn fast: the steps in order, a tick per kept item, a link per step that has nothing checked, channels to add
+function renderPath(topic,box){
+  box.textContent='';
   var has=!!(A.geminiKeySet&&A.geminiKeySet());
-  var p=J(A.pathJson?A.pathJson(topicFilter):'{}');
+  var p=J(A.pathJson?A.pathJson(topic):'{}');
   var panel=el('div','panel');
-  if(p&&p.md){
-    panel.appendChild(el('div','label','Learning path: '+topicFilter+' (Gemini, from what you kept)'));
-    panel.appendChild(mdBlock(p.md));
-    if((p.searches||[]).length){
-      panel.appendChild(el('div','label','Fill the gaps'));
-      p.searches.forEach(function(s){
-        var b=el('button','btn',(s.kind==='hn'?'Hacker News: ':'arXiv: ')+s.query);b.style.margin='0 6px 6px 0';
-        b.onclick=function(){var m=A.addQuerySource(s.kind,s.query);b.disabled=true;b.textContent=m?m:'Added: '+s.query;wasBusy=true};
-        panel.appendChild(b);
+  if(p&&p.steps){
+    panel.appendChild(el('div','label','Learning path: '+topic));
+    panel.appendChild(el('div','meta',p.kept+' of '+p.total+' kept | made '+ago(p.created)+(p.searched?' with Google Search':'')+' | every link was checked then'));
+    p.steps.forEach(function(s,i){
+      var h=el('div',null,(i+1)+'. '+s.step);h.style.fontWeight='600';h.style.marginTop='12px';panel.appendChild(h);
+      if(s.why)panel.appendChild(el('div','meta',s.why));
+      s.items.forEach(function(x){
+        var r=el('div','src');r.style.padding='6px 0';r.style.borderBottom='0';
+        var tk=el('button','btn'+(x.state===1?' on':''),x.state===1?'\u2713':(x.state===3?'\u2013':'\u25CB'));
+        tk.title=x.state===1?'Kept':(x.state===3?'Skipped':'Keep this step');tk.style.padding='2px 0';tk.style.minWidth='40px';
+        tk.onclick=function(){if(x.state===1)A.unkeep(x.id);else A.keep(x.id);renderPath(topic,box)};
+        var t=el('div','t');var a=el('a',null,x.title);a.href='#';
+        a.onclick=function(e){e.preventDefault();if(x.kind==='video')A.openUrl(x.link);else openPage(x.link)};
+        t.appendChild(a);t.appendChild(el('div',null,(x.kind==='video'?'video':'page')+' | '+x.mins+' min'+(x.author?' | '+x.author:'')));
+        r.appendChild(tk);r.appendChild(t);panel.appendChild(r);
       });
+      if(!s.items.length){var d=el('div','meta');var q=s.search||s.step;var sa=el('a',null,'Nothing checked for this step. Search YouTube: '+q);sa.href='#';
+        sa.onclick=function(e){e.preventDefault();A.openUrl('https://www.youtube.com/results?search_query='+encodeURIComponent(q))};d.appendChild(sa);panel.appendChild(d)}
+    });
+    if((p.offer||[]).length){
+      var cl=el('div','meta');cl.style.marginTop='12px';cl.style.alignItems='center';cl.appendChild(el('span',null,'Channels:'));
+      p.offer.forEach(function(ch){
+        cl.appendChild(el('span',null,ch.name));
+        var ab=el('button','btn','Add channel');ab.style.padding='0 10px';
+        ab.onclick=function(){
+          var m=A.addSource(ch.url);if(m){ab.textContent=m;return}
+          ab.disabled=true;ab.textContent='Adding...';
+          (function wait(){var r=A.addStatus();if(r.indexOf('done:')===0){var e=r.slice(5);ab.textContent=e?e:'Added';if(!e)wasBusy=true}else setTimeout(wait,600)})();
+        };
+        cl.appendChild(ab);
+      });
+      panel.appendChild(cl);
     }
+  }else if(p&&p.md){
+    panel.appendChild(el('div','label','Learning path: '+topic+' (made before 1.19)'));
+    panel.appendChild(mdBlock(p.md));
   }
   var msg=el('div','note');
+  var made=!!(p&&(p.steps||p.md));
   if(has){
-    var mk=el('button',p&&p.md?'btn':'btn main',p&&p.md?'Make it again':'Make a learning path for '+topicFilter);
-    mk.style.marginTop='8px';
+    var mk=el('button',made?'btn':'btn main',made?'Make it again':'Make a learning path for '+topic);
+    mk.style.marginTop='10px';
     mk.onclick=function(){
-      mk.disabled=true;mk.textContent='Asking Gemini...';msg.textContent='';
-      var t=topicFilter;A.makePath(t);
-      gstart('path:'+t,function(ok,m){if(ok&&topicFilter===t)renderPath();else{mk.disabled=false;mk.textContent='Make a learning path for '+t;if(!ok)msg.textContent=m}});
+      mk.disabled=true;mk.textContent='Asking Gemini, then checking every link...';msg.textContent='';
+      A.makePath(topic);
+      gstart('path:'+topic,function(ok,m){
+        if(ok&&topicOpen===topic&&tab==='topics'){render();return}
+        mk.disabled=false;mk.textContent=made?'Make it again':'Make a learning path for '+topic;msg.textContent=m;
+      },600);
     };
     panel.appendChild(mk);
-  }else if(!(p&&p.md)){panel.appendChild(el('div','meta','Add a free Gemini key in Sources to make a learning path from what you kept under this topic.'))}
+    if(made)panel.appendChild(el('div','meta','Making it again keeps what you kept; the old path is archived and its note file stays.'));
+    else panel.appendChild(el('div','meta','5 to 8 steps from zero to useful, from free material: YouTube first, then free courses and official docs. Every link is checked before it is shown.'));
+  }else panel.appendChild(el('div','meta','Add a free Gemini key in Sources to make a learning path for this topic.'));
   panel.appendChild(msg);box.appendChild(panel);
 }
 
@@ -695,7 +732,7 @@ function renderNotes(kb){
     if(o.kind==='week'){var wk=J(A.weekJson(o.start));md=stripFront(wk.md||'');title=o.title}
     else if(o.kind==='path'){var pp=J(A.pathJson(o.topic));md=pp.md||'';title='Learning path: '+o.topic}
     else{var d=J(A.item(o.id));var nm=A.noteMarkdown?A.noteMarkdown(o.id):'';md=nm?stripFront(nm):(d.ai||'');title=o.title;link=d.link||'';kept=!!nm}
-    if(o.kind==='path'){var h=el('h3',null,title);h.style.margin='12px 0 4px';kb.appendChild(h);kb.appendChild(el('div','label','Gemini, from what you kept'))}
+    if(o.kind==='path'){var h=el('h3',null,title);h.style.margin='12px 0 4px';kb.appendChild(h);kb.appendChild(el('div','label','Made with Gemini; open the topic in Topics to tick steps'))}
     var t=el('div','text');t.style.marginTop='10px';t.innerHTML=md2html(md);
     t.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(a){e.preventDefault();if(a.href&&/^https?:/i.test(a.href))openPage(a.href)}});
     kb.appendChild(t);
@@ -725,7 +762,7 @@ function renderNotes(kb){
 var KINDS={text:'article',hl:'highlight',note:'my note',ai:'AI notes'};
 function askVis(){
   var on=askQ.length>0;
-  ['chips','pathbox','keptlist'].forEach(function(n){$(n).style.display=on?'none':''});
+  ['chips','keptlist'].forEach(function(n){$(n).style.display=on?'none':''});
   $('askres').style.display=on?'':'none';
 }
 function renderAsk(){
@@ -781,6 +818,7 @@ function renderS2(){$('s2state').textContent=(A.s2KeySet&&A.s2KeySet())?'A key i
 function renderOa(){$('oastate').textContent=(A.oaKeySet&&A.oaKeySet())?'A key is saved on this phone.':'No key yet.'}
 function renderGemini(){renderS2();renderOa();
   $('gstate').textContent=(A.geminiKeySet&&A.geminiKeySet())?'A key is saved on this phone.':'No key yet.';
+  $('gtoday').textContent=A.geminiToday?A.geminiToday():'';
 }
 var recallOpen=0;
 /** A due recall card inside the Feed: question, Show answer, then Got it / Again tomorrow. It leaves the list once answered. */

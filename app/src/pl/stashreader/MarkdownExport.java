@@ -64,6 +64,12 @@ final class MarkdownExport {
         return "Path - " + (t.isEmpty() ? "topic" : t) + ".md";
     }
 
+    /** "Path - topic yyyy-MM-dd.md": a path made again gets a new file, so the old one stays. */
+    static String pathFileName(String topic, long made, TimeZone tz) {
+        String f = pathFileName(topic);
+        return f.substring(0, f.length() - 3) + " " + day(made, tz) + ".md";
+    }
+
     /** "YYYY-MM-DD title.md": the day the item was kept, then a file-name-safe title. */
     static String fileName(Note n, TimeZone tz) {
         String t = n.title.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", " ");

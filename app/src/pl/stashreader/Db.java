@@ -28,6 +28,8 @@ final class Db extends SQLiteOpenHelper {
     static final String CURATOR_URL = "https://raw.githubusercontent.com/jacekkotowski/apk-news-reader/curator-data/curator.xml";
     private static final String[][] DEFAULT_TOPICS = {{"tidymodels", "3"}, {"Power BI", "3"}, {"DAX", "2"}, {"Claude Code", "3"}, {"machine learning", "2"}, {"LLM", "2"}, {"data science", "2"}, {"causal inference", "2"}, {"duckdb", "2"}};
     private static final String WHEN = "CASE WHEN i.pub>0 THEN i.pub ELSE i.fetched END";
+    /** Learning path sources: their items are not Feed items. */
+    static final String PATHS = "(SELECT id FROM sources WHERE kind='path')", ACTIVE_PATHS = "(SELECT id FROM sources WHERE kind='path' AND enabled=1)";
     private static Db instance;
     private final Context ctx;
 
@@ -35,17 +37,18 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 17); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 18); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '', surprise_less INTEGER NOT NULL DEFAULT 0)");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '', seen INTEGER NOT NULL DEFAULT 0, opened_at INTEGER NOT NULL DEFAULT 0, author TEXT NOT NULL DEFAULT '')");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '', seen INTEGER NOT NULL DEFAULT 0, opened_at INTEGER NOT NULL DEFAULT 0, author TEXT NOT NULL DEFAULT '', ai_wanted INTEGER NOT NULL DEFAULT 0)");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
         createHighlights(d);
         createCards(d);
         createPaths(d);
+        pathsV18(d);
         createIndex(d);
         createListen(d);
         createWeeks(d);
@@ -125,6 +128,10 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("ALTER TABLE items ADD COLUMN opened_at INTEGER NOT NULL DEFAULT 0");
         }
         if (o < 17) d.execSQL("ALTER TABLE items ADD COLUMN author TEXT NOT NULL DEFAULT ''"); // items already stored get it at the next refresh, if the feed still lists them
+        if (o < 18) { // notes made on their own after a keep, and learning paths whose steps are items of their own source
+            d.execSQL("ALTER TABLE items ADD COLUMN ai_wanted INTEGER NOT NULL DEFAULT 0");
+            pathsV18(d);
+        }
         if (o < 12) { // full-text search over kept text, highlights and notes; every kept item is indexed on the first search
             createIndex(d);
             try { d.execSQL("INSERT OR IGNORE INTO fts_dirty SELECT id FROM items WHERE state=" + KEPT); } catch (RuntimeException ignored) { }
@@ -423,7 +430,7 @@ final class Db extends SQLiteOpenHelper {
         Map<Long, JSONArray> out = new HashMap<>();
         long now = System.currentTimeMillis();
         List<Clusters.Item> items = new ArrayList<>();
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.title, i.link, CASE WHEN s.name='' THEN s.url ELSE s.name END, " + WHEN + " FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + NEW + " AND s.enabled=1 AND " + WHEN + ">" + (now - Clusters.WINDOW_MS) + " ORDER BY " + WHEN + " DESC LIMIT " + Clusters.MAX_ITEMS, null)) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.id, i.title, i.link, CASE WHEN s.name='' THEN s.url ELSE s.name END, " + WHEN + " FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + NEW + " AND s.enabled=1 AND s.kind<>'path' AND " + WHEN + ">" + (now - Clusters.WINDOW_MS) + " ORDER BY " + WHEN + " DESC LIMIT " + Clusters.MAX_ITEMS, null)) {
             while (c.moveToNext()) items.add(new Clusters.Item(c.getLong(0), c.getString(1), c.getString(2), c.getString(3), c.getLong(4)));
         }
         Map<Long, Integer> pos = new HashMap<>();
@@ -451,6 +458,13 @@ final class Db extends SQLiteOpenHelper {
 
     private void createPaths(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE paths(topic TEXT PRIMARY KEY, md TEXT NOT NULL, searches TEXT NOT NULL DEFAULT '[]', created INTEGER NOT NULL)");
+    }
+
+    /** v18: a path made by Learn fast is a source of kind "path"; plan holds its steps and their item ids as JSON. */
+    private void pathsV18(SQLiteDatabase d) {
+        d.execSQL("ALTER TABLE paths ADD COLUMN source_id INTEGER NOT NULL DEFAULT 0");
+        d.execSQL("ALTER TABLE paths ADD COLUMN used INTEGER NOT NULL DEFAULT 0");
+        d.execSQL("ALTER TABLE paths ADD COLUMN plan TEXT NOT NULL DEFAULT ''");
     }
 
     private void createCards(SQLiteDatabase d) {
@@ -523,6 +537,7 @@ final class Db extends SQLiteOpenHelper {
     }
     void removeSource(long id) {
         SQLiteDatabase d = getWritableDatabase();
+        d.delete("paths", "source_id=? AND source_id>0", new String[]{"" + id}); // a learning path is archived: its .md file stays, kept items stay in the Stash
         d.delete("items", "source_id=? AND state<>" + KEPT, new String[]{"" + id});
         // kept items stay in the Stash; the source row stays hidden-less, so only custom sources without kept items are removed
         d.delete("sources", "id=? AND NOT EXISTS (SELECT 1 FROM items WHERE source_id=sources.id)", new String[]{"" + id});
@@ -577,9 +592,9 @@ final class Db extends SQLiteOpenHelper {
                 if (i.author != null && !i.author.isEmpty()) d.execSQL("UPDATE items SET author=? WHERE key=? AND author=''", new Object[]{i.author, i.uid});
             }
             // never drop kept items; drop the oldest of the rest beyond the cap
-            d.execSQL("DELETE FROM items WHERE state<>" + KEPT + " AND id NOT IN (SELECT id FROM items i WHERE state<>" + KEPT + " ORDER BY " + WHEN + " DESC LIMIT " + MAX_ITEMS + ")");
+            d.execSQL("DELETE FROM items WHERE state<>" + KEPT + " AND source_id NOT IN " + ACTIVE_PATHS + " AND id NOT IN (SELECT id FROM items i WHERE state<>" + KEPT + " ORDER BY " + WHEN + " DESC LIMIT " + MAX_ITEMS + ")");
             // an unkept card disappears 30 days after it arrived; it is marked done, so it is not offered again
-            d.execSQL("UPDATE items SET state=" + DONE + ", html='', article='' WHERE state=" + NEW + " AND fetched < " + FeedFilter.cutoff(now, FeedFilter.EXPIRY_DAYS));
+            d.execSQL("UPDATE items SET state=" + DONE + ", html='', article='' WHERE state=" + NEW + " AND source_id NOT IN " + ACTIVE_PATHS + " AND fetched < " + FeedFilter.cutoff(now, FeedFilter.EXPIRY_DAYS));
             d.setTransactionSuccessful();
         } finally { d.endTransaction(); }
         return added;
@@ -649,7 +664,7 @@ final class Db extends SQLiteOpenHelper {
         for (long id : ids) {
             ContentValues v = new ContentValues(); v.put("state", keep ? KEPT : LESS);
             v.put("kept_at", System.currentTimeMillis()); // for a less item: when it was swiped left, so the Learner can let it fade
-            if (d.update("items", v, "id=? AND state=" + NEW, new String[]{"" + id}) > 0) { changed.add(id); touch(id); }
+            if (d.update("items", v, "id=? AND state=" + NEW, new String[]{"" + id}) > 0) { changed.add(id); touch(id); usePath(id); }
         }
         return changed;
     }
@@ -686,7 +701,7 @@ final class Db extends SQLiteOpenHelper {
         List<Ranker.Doc> docs = new ArrayList<>();
         Map<Long, JSONObject> cards = new HashMap<>();
         Map<Long, Ranker.Cand> info = new HashMap<>();
-        try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + NEW + " AND s.enabled=1 ORDER BY " + WHEN + " DESC, i.id DESC LIMIT " + RANK_POOL, null)) {
+        try (Cursor c = getReadableDatabase().rawQuery(CARD + " WHERE i.state=" + NEW + " AND s.enabled=1 AND s.kind<>'path' ORDER BY " + WHEN + " DESC, i.id DESC LIMIT " + RANK_POOL, null)) {
             while (c.moveToNext()) {
                 JSONObject o = card(c);
                 boolean topicOk = false;
@@ -764,13 +779,14 @@ final class Db extends SQLiteOpenHelper {
         List<Learner.Label> out = new ArrayList<>();
         for (int state : new int[]{KEPT, LESS}) {
             String order = state == KEPT ? "i.kept_at DESC, i.id DESC" : "i.id DESC";
-            try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, CASE WHEN i.kept_at>0 THEN i.kept_at ELSE i.fetched END, i.author, i.mins FROM items i WHERE i.state=" + state + " ORDER BY " + order + " LIMIT 300", null)) {
+            String skip = state == LESS ? " AND i.source_id NOT IN " + PATHS : ""; // a learning path step swiped left is only skipped
+            try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, CASE WHEN i.kept_at>0 THEN i.kept_at ELSE i.fetched END, i.author, i.mins FROM items i WHERE i.state=" + state + skip + " ORDER BY " + order + " LIMIT 300", null)) {
                 while (c.moveToNext()) out.add(new Learner.Label(c.getString(0), c.getString(1), c.getLong(2), FeedParser.kindOf(c.getString(3), c.getString(4)), c.getLong(5), state == KEPT).by(c.getString(6), c.getInt(7)));
             }
         }
         // quiet signals from the last 30 days, for items you neither kept nor swiped left
         long now = System.currentTimeMillis(), since = now - 30L * 86400000L;
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, i.seen, i.opened_at, i.author, i.mins FROM items i WHERE i.state IN (" + NEW + "," + DONE + ") AND ((i.opened_at>?) OR (i.opened_at=0 AND i.seen>? AND i.seen<?)) ORDER BY i.id DESC LIMIT 1000",
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, i.seen, i.opened_at, i.author, i.mins FROM items i WHERE i.state IN (" + NEW + "," + DONE + ") AND i.source_id NOT IN " + PATHS + " AND ((i.opened_at>?) OR (i.opened_at=0 AND i.seen>? AND i.seen<?)) ORDER BY i.id DESC LIMIT 1000",
                 new String[]{"" + since, "" + since, "" + (now - 86400000L)})) {
             while (c.moveToNext()) {
                 boolean read = c.getLong(6) > 0;
@@ -809,6 +825,7 @@ final class Db extends SQLiteOpenHelper {
             while (c.moveToNext()) {
                 JSONObject o = new JSONObject();
                 o.put("id", "" + c.getLong(0)); o.put("phrase", c.getString(1)); o.put("weight", c.getInt(2));
+                o.put("path", pathProgress(c.getString(1)));
                 a.put(o);
             }
         }
@@ -1012,31 +1029,41 @@ final class Db extends SQLiteOpenHelper {
             ContentValues v = new ContentValues(); v.put("ai", md);
             d.update("items", v, "id=?", new String[]{"" + id});
             d.delete("cards", "item_id=? AND hl_id IS NULL", new String[]{"" + id});
-            long due = System.currentTimeMillis() + Recall.DAY;
-            for (String[] q : questions) {
+            long now = System.currentTimeMillis();
+            List<Long> waiting = new ArrayList<>();
+            try (Cursor c = d.rawQuery("SELECT due FROM cards WHERE hl_id IS NULL AND last=0 AND due>?", new String[]{"" + now})) { while (c.moveToNext()) waiting.add(c.getLong(0)); }
+            long[] dues = Recall.spread(waiting, now, questions.size(), java.util.TimeZone.getDefault());
+            for (int k = 0; k < questions.size(); k++) {
+                String[] q = questions.get(k);
                 ContentValues cv = new ContentValues();
-                cv.put("item_id", id); cv.put("front", q[0]); cv.put("back", q[1]); cv.put("due", due);
+                cv.put("item_id", id); cv.put("front", q[0]); cv.put("back", q[1]); cv.put("due", dues[k]);
                 d.insert("cards", null, cv);
             }
+            ContentValues w = new ContentValues(); w.put("ai_wanted", 0);
+            d.update("items", w, "id=?", new String[]{"" + id});
             d.setTransactionSuccessful();
         } finally { d.endTransaction(); }
         touch(id);
     }
 
-    /** Titles, sources and highlighted passages of the kept items on one topic, for the learning path. Never your own notes. */
-    String pathMaterial(String topic) {
+    /**
+     * Titles, sources, links and highlighted passages of the kept items on one topic, for the learning path. Never your own notes.
+     * links gets the normalised links of those items, which count as checked.
+     */
+    String pathMaterial(String topic, java.util.Set<String> links) {
         StringBuilder b = new StringBuilder();
         String want = topic.toLowerCase(java.util.Locale.ROOT);
         List<Ranker.Topic> topics = topicList();
         SQLiteDatabase d = getReadableDatabase();
         int n = 0;
-        try (Cursor c = d.rawQuery("SELECT i.id, i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.excerpt, s.topic FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + KEPT + " ORDER BY i.kept_at DESC, i.id DESC LIMIT 300", null)) {
+        try (Cursor c = d.rawQuery("SELECT i.id, i.title, CASE WHEN s.name='' THEN s.url ELSE s.name END, i.excerpt, s.topic, i.link FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + KEPT + " ORDER BY i.kept_at DESC, i.id DESC LIMIT 300", null)) {
             while (c.moveToNext() && n < 40 && b.length() < 15000) {
                 boolean hit = c.getString(4).toLowerCase(java.util.Locale.ROOT).equals(want);
                 if (!hit) for (String t : Ranker.matchedTopics(c.getString(1) + " " + c.getString(3), topics)) if (t.toLowerCase(java.util.Locale.ROOT).equals(want)) { hit = true; break; }
                 if (!hit) continue;
                 n++;
-                b.append("- ").append(oneLine(c.getString(1))).append(" (").append(oneLine(c.getString(2))).append(")\n");
+                b.append("- ").append(oneLine(c.getString(1))).append(" (").append(oneLine(c.getString(2))).append(")").append(c.getString(5).isEmpty() ? "" : " " + c.getString(5)).append("\n");
+                if (links != null && !c.getString(5).isEmpty()) links.add(FeedParser.normalizeLink(c.getString(5)));
                 try (Cursor h = d.rawQuery("SELECT text FROM highlights WHERE item_id=? ORDER BY id LIMIT 3", new String[]{"" + c.getLong(0)})) {
                     while (h.moveToNext()) {
                         String t = oneLine(h.getString(0));
@@ -1049,20 +1076,193 @@ final class Db extends SQLiteOpenHelper {
         return b.toString();
     }
 
-    void savePath(String topic, String md, List<String[]> searches) {
-        JSONArray a = new JSONArray();
-        try { for (String[] s : searches) { JSONObject o = new JSONObject(); o.put("kind", s[0]); o.put("query", s[1]); a.put(o); } } catch (Exception ignored) { }
-        ContentValues v = new ContentValues();
-        v.put("topic", topic); v.put("md", md); v.put("searches", a.toString()); v.put("created", System.currentTimeMillis());
-        getWritableDatabase().insertWithOnConflict("paths", null, v, SQLiteDatabase.CONFLICT_REPLACE);
+    // ---- Learn fast: learning paths ----
+
+    /**
+     * Stores a checked path as a source of kind "path" with one item per resource, and archives the topic's old path
+     * (its source is removed; its kept items stay in the Stash and its .md file stays). Returns the new source id.
+     */
+    long savePath(String topic, PathFinder.Plan p, String md, long now) {
+        SQLiteDatabase d = getWritableDatabase();
+        List<Long> old = new ArrayList<>();
+        try (Cursor c = d.rawQuery("SELECT source_id FROM paths WHERE topic=? COLLATE NOCASE", new String[]{topic})) { while (c.moveToNext()) old.add(c.getLong(0)); }
+        for (long sid : old) if (sid > 0) removeSource(sid);
+        d.beginTransaction();
+        try {
+            d.delete("paths", "topic=? COLLATE NOCASE", new String[]{topic});
+            String url = "path:" + topic.toLowerCase(java.util.Locale.ROOT) + ":" + now;
+            ContentValues sv = new ContentValues();
+            sv.put("url", url); sv.put("name", "Learning path: " + topic); sv.put("topic", topic); sv.put("kind", "path"); sv.put("query", topic); sv.put("custom", 1); sv.put("last_ok", now);
+            long sid = d.insert("sources", null, sv);
+            if (sid < 0) throw new IllegalStateException("The path could not be saved");
+            JSONObject plan = new JSONObject();
+            JSONArray steps = new JSONArray();
+            int total = 0;
+            for (PathFinder.Step st : p.steps) total += st.res.size();
+            int k = 0;
+            for (int i = 0; i < p.steps.size(); i++) {
+                PathFinder.Step st = p.steps.get(i);
+                JSONArray ids = new JSONArray();
+                for (PathFinder.Res r : st.res) {
+                    FeedParser.Item it = new FeedParser.Item();
+                    it.title = r.title; it.link = r.url; it.body = ""; it.published = now;
+                    FeedParser.Feed f = new FeedParser.Feed();
+                    FeedParser.add(f, it, url);
+                    if (f.items.isEmpty() || f.items.get(0).link.isEmpty()) continue;
+                    it = f.items.get(0);
+                    String ex = "Step " + (i + 1) + " of " + p.steps.size() + ": " + st.name + (st.why.isEmpty() ? "" : ". " + st.why);
+                    ContentValues v = new ContentValues();
+                    v.put("source_id", sid); v.put("key", it.uid); v.put("title", it.title); v.put("excerpt", Sanitizer.shorten(ex, 300)); v.put("html", "");
+                    v.put("link", it.link); v.put("pub", now - k); v.put("fetched", now); v.put("mins", Math.max(1, r.minutes)); v.put("author", r.channel);
+                    long id = d.insertWithOnConflict("items", null, v, SQLiteDatabase.CONFLICT_IGNORE);
+                    if (id == -1) { // known already: a kept item stays where it is; an unread or expired one becomes this step
+                        try (Cursor c = d.rawQuery("SELECT id FROM items WHERE key=?", new String[]{it.uid})) { if (c.moveToFirst()) id = c.getLong(0); }
+                        if (id == -1) continue;
+                        d.execSQL("UPDATE items SET source_id=?, state=" + NEW + ", excerpt=? WHERE id=? AND state IN (" + NEW + "," + DONE + ")", new Object[]{sid, Sanitizer.shorten(ex, 300), id});
+                    }
+                    r.itemId = id;
+                    ids.put(id);
+                    k++;
+                }
+                JSONObject so = new JSONObject();
+                so.put("step", st.name); so.put("why", st.why); so.put("search", st.search); so.put("items", ids);
+                steps.put(so);
+            }
+            JSONArray offer = new JSONArray();
+            for (String[] ch : PathFinder.offerChannels(p)) { JSONObject o = new JSONObject(); o.put("name", ch[0]); o.put("url", ch[1]); offer.put(o); }
+            plan.put("steps", steps); plan.put("offer", offer); plan.put("searched", p.searched); plan.put("suggested", p.suggested); plan.put("kept", total);
+            ContentValues v = new ContentValues();
+            v.put("topic", topic); v.put("md", md); v.put("searches", "[]"); v.put("created", now); v.put("source_id", sid); v.put("used", now); v.put("plan", plan.toString());
+            d.insertWithOnConflict("paths", null, v, SQLiteDatabase.CONFLICT_REPLACE);
+            d.setTransactionSuccessful();
+            return sid;
+        } catch (org.json.JSONException e) {
+            throw new IllegalStateException("The path could not be saved");
+        } finally { d.endTransaction(); }
+    }
+
+    /** A swipe or a keep on a path step makes that path the one in use. */
+    private void usePath(long item) {
+        try { getWritableDatabase().execSQL("UPDATE paths SET used=? WHERE source_id>0 AND source_id=(SELECT source_id FROM items WHERE id=?)", new Object[]{System.currentTimeMillis(), item}); } catch (RuntimeException ignored) { }
+    }
+
+    /** The stored plan with its items read back as a Plan (item ids and states); null for a path made before v1.19. */
+    private PathFinder.Plan storedPlan(String json, Map<Long, Integer> states) {
+        if (json == null || json.isEmpty()) return null;
+        try {
+            JSONObject o = new JSONObject(json);
+            JSONArray st = o.getJSONArray("steps");
+            PathFinder.Plan p = new PathFinder.Plan();
+            StringBuilder in = new StringBuilder();
+            for (int i = 0; i < st.length(); i++) {
+                JSONObject s = st.getJSONObject(i);
+                PathFinder.Step step = new PathFinder.Step();
+                step.name = s.optString("step"); step.why = s.optString("why"); step.search = s.optString("search");
+                JSONArray ids = s.getJSONArray("items");
+                for (int j = 0; j < ids.length(); j++) {
+                    PathFinder.Res r = new PathFinder.Res(); r.itemId = ids.getLong(j); step.res.add(r);
+                    if (in.length() > 0) in.append(',');
+                    in.append(r.itemId);
+                }
+                p.steps.add(step);
+            }
+            if (in.length() > 0) {
+                try (Cursor c = getReadableDatabase().rawQuery("SELECT id, state FROM items WHERE id IN (" + in + ")", null)) { while (c.moveToNext()) states.put(c.getLong(0), c.getInt(1)); }
+            }
+            return p;
+        } catch (org.json.JSONException e) { return null; }
+    }
+
+    /** "3 of 9 done" for the topic's path, "" when it has none. Done = kept or skipped. */
+    String pathProgress(String topic) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT plan FROM paths WHERE topic=? COLLATE NOCASE", new String[]{topic})) {
+            if (!c.moveToFirst()) return "";
+            Map<Long, Integer> states = new HashMap<>();
+            PathFinder.Plan p = storedPlan(c.getString(0), states);
+            if (p == null) return "made before 1.19";
+            int all = 0, kept = 0;
+            for (PathFinder.Step s : p.steps) for (PathFinder.Res r : s.res) { all++; Integer x = states.get(r.itemId); if (x != null && x == KEPT) kept++; }
+            return kept + " of " + all + " kept";
+        }
     }
 
     String pathJson(String topic) {
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT md, searches, created FROM paths WHERE topic=?", new String[]{topic})) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT md, searches, created, source_id, plan, topic FROM paths WHERE topic=? COLLATE NOCASE", new String[]{topic})) {
             JSONObject o = new JSONObject();
-            if (c.moveToFirst()) { o.put("md", c.getString(0)); o.put("searches", new JSONArray(c.getString(1))); o.put("created", c.getLong(2)); }
+            if (!c.moveToFirst()) return o.toString();
+            o.put("md", c.getString(0)); o.put("created", c.getLong(2)); o.put("topic", c.getString(5));
+            if (c.getLong(3) <= 0 || c.getString(4).isEmpty()) { o.put("searches", new JSONArray(c.getString(1))); return o.toString(); }
+            JSONObject plan = new JSONObject(c.getString(4));
+            JSONArray steps = new JSONArray();
+            int all = 0, kept = 0;
+            JSONArray st = plan.getJSONArray("steps");
+            for (int i = 0; i < st.length(); i++) {
+                JSONObject s = st.getJSONObject(i), out = new JSONObject();
+                out.put("step", s.optString("step")); out.put("why", s.optString("why")); out.put("search", s.optString("search"));
+                JSONArray items = new JSONArray(), ids = s.getJSONArray("items");
+                for (int j = 0; j < ids.length(); j++) {
+                    try (Cursor x = getReadableDatabase().rawQuery("SELECT id, title, link, state, mins, author, audio FROM items WHERE id=?", new String[]{"" + ids.getLong(j)})) {
+                        if (!x.moveToFirst()) continue;
+                        JSONObject it = new JSONObject();
+                        it.put("id", "" + x.getLong(0)); it.put("title", x.getString(1)); it.put("link", x.getString(2)); it.put("state", x.getInt(3));
+                        it.put("mins", x.getInt(4)); it.put("author", x.getString(5)); it.put("kind", FeedParser.kindOf(x.getString(2), x.getString(6)));
+                        items.put(it);
+                        all++; if (x.getInt(3) == KEPT) kept++;
+                    }
+                }
+                out.put("items", items);
+                steps.put(out);
+            }
+            o.put("steps", steps); o.put("offer", plan.optJSONArray("offer") == null ? new JSONArray() : plan.getJSONArray("offer"));
+            o.put("kept", kept); o.put("total", all); o.put("searched", plan.optBoolean("searched")); o.put("source", "" + c.getLong(3));
+            getWritableDatabase().execSQL("UPDATE paths SET used=? WHERE topic=? COLLATE NOCASE", new Object[]{System.currentTimeMillis(), topic});
             return o.toString();
         } catch (Exception e) { return "{}"; }
+    }
+
+    /**
+     * The next step to do of the path used most recently (a path that is finished gives way to the next one):
+     * {card, slot} for the plain Feed, or {} when there is none.
+     */
+    String pathNextJson(int articles) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT p.topic, p.plan FROM paths p JOIN sources s ON s.id=p.source_id WHERE s.enabled=1 AND p.plan<>'' ORDER BY MAX(p.used, p.created) DESC", null)) {
+            while (c.moveToNext()) {
+                Map<Long, Integer> states = new HashMap<>();
+                PathFinder.Plan p = storedPlan(c.getString(1), states);
+                if (p == null) continue;
+                int[] at = PathFinder.next(p, states);
+                if (at == null) continue;
+                long id = p.steps.get(at[0]).res.get(at[1]).itemId;
+                try (Cursor x = getReadableDatabase().rawQuery(CARD + " WHERE i.id=?", new String[]{"" + id})) {
+                    if (!x.moveToFirst()) continue;
+                    JSONObject card = card(x);
+                    card.put("path", c.getString(0));
+                    card.put("step", "Step " + (at[0] + 1) + " of " + p.steps.size());
+                    JSONObject o = new JSONObject();
+                    o.put("card", card); o.put("slot", FeedMix.pathSlot(articles));
+                    return o.toString();
+                }
+            }
+        } catch (Exception e) { return "{}"; }
+        return "{}";
+    }
+
+    // ---- Notes made on their own ----
+
+    /** After a keep: the item gets notes from Gemini when the worker gets to it. */
+    void wantNotes(long id) {
+        getWritableDatabase().execSQL("UPDATE items SET ai_wanted=1 WHERE id=? AND ai='' AND ai_wanted=0 AND state=" + KEPT, new Object[]{id});
+    }
+    boolean hasAi(long id) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT 1 FROM items WHERE id=? AND ai<>''", new String[]{"" + id})) { return c.moveToFirst(); }
+    }
+    /** The oldest kept item still waiting for notes, or -1. */
+    long nextWanted() {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT id FROM items WHERE ai_wanted=1 AND state=" + KEPT + " AND ai='' ORDER BY kept_at, id LIMIT 1", null)) { return c.moveToFirst() ? c.getLong(0) : -1; }
+    }
+    /** 0 = nothing to do, 2 = given up (no text, a podcast, a video Gemini cannot read). */
+    void setWanted(long id, int v) {
+        getWritableDatabase().execSQL("UPDATE items SET ai_wanted=? WHERE id=?", new Object[]{v, id});
     }
 
     String itemAudio(long id) {
@@ -1082,7 +1282,7 @@ final class Db extends SQLiteOpenHelper {
     }
     JSONObject counts() throws Exception {
         JSONObject o = new JSONObject();
-        o.put("fresh", count("SELECT COUNT(*) FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + NEW + " AND s.enabled=1"));
+        o.put("fresh", count("SELECT COUNT(*) FROM items i JOIN sources s ON s.id=i.source_id WHERE i.state=" + NEW + " AND s.enabled=1 AND s.kind<>'path'"));
         o.put("kept", count("SELECT COUNT(*) FROM items WHERE state=" + KEPT));
         o.put("sources", count("SELECT COUNT(*) FROM sources WHERE enabled=1"));
         o.put("failed", count("SELECT COUNT(*) FROM sources WHERE enabled=1 AND last_error<>'' AND last_error NOT LIKE 'Note:%'"));
@@ -1092,13 +1292,14 @@ final class Db extends SQLiteOpenHelper {
     String sourcesJson() throws Exception {
         JSONArray a = new JSONArray();
         long since = SourceStats.since(System.currentTimeMillis());
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT s.id, s.url, s.name, s.topic, s.custom, s.enabled, s.last_ok, s.last_error, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id), s.kind, s.query, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id AND x.fetched>=" + since + "), (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id AND x.state=" + KEPT + " AND x.fetched>=" + since + ") FROM sources s ORDER BY s.id", null)) {
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT s.id, s.url, s.name, s.topic, s.custom, s.enabled, s.last_ok, s.last_error, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id), s.kind, s.query, (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id AND x.fetched>=" + since + "), (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id AND x.state=" + KEPT + " AND x.fetched>=" + since + "), (SELECT COUNT(*) FROM items x WHERE x.source_id=s.id AND x.state=" + KEPT + ") FROM sources s ORDER BY s.id", null)) {
             while (c.moveToNext()) {
                 JSONObject o = new JSONObject();
                 o.put("id", "" + c.getLong(0)); o.put("url", c.getString(1)); o.put("name", c.getString(2)); o.put("topic", c.getString(3));
                 o.put("custom", c.getInt(4) != 0); o.put("enabled", c.getInt(5) != 0); o.put("lastOk", c.getLong(6)); o.put("error", c.getString(7)); o.put("count", c.getInt(8)); o.put("kind", c.getString(9)); o.put("query", c.getString(10));
                 o.put("stats", SourceStats.line(c.getInt(12), c.getInt(11)));
-                o.put("mute", SourceStats.suggestMute(c.getInt(12), c.getInt(11), c.getInt(5) != 0));
+                o.put("mute", SourceStats.suggestMute(c.getInt(12), c.getInt(11), c.getInt(5) != 0) && !c.getString(9).equals("path"));
+                o.put("keptAll", c.getInt(13));
                 a.put(o);
             }
         }
