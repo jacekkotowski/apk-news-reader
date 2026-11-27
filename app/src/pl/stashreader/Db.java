@@ -1130,7 +1130,7 @@ final class Db extends SQLiteOpenHelper {
             }
             JSONArray offer = new JSONArray();
             for (String[] ch : PathFinder.offerChannels(p)) { JSONObject o = new JSONObject(); o.put("name", ch[0]); o.put("url", ch[1]); offer.put(o); }
-            plan.put("steps", steps); plan.put("offer", offer); plan.put("searched", p.searched); plan.put("suggested", p.suggested); plan.put("kept", total);
+            plan.put("steps", steps); plan.put("offer", offer); plan.put("youtube", p.youtube); plan.put("suggested", p.suggested); plan.put("kept", total);
             ContentValues v = new ContentValues();
             v.put("topic", topic); v.put("md", md); v.put("searches", "[]"); v.put("created", now); v.put("source_id", sid); v.put("used", now); v.put("plan", plan.toString());
             d.insertWithOnConflict("paths", null, v, SQLiteDatabase.CONFLICT_REPLACE);
@@ -1198,7 +1198,8 @@ final class Db extends SQLiteOpenHelper {
             JSONArray st = plan.getJSONArray("steps");
             for (int i = 0; i < st.length(); i++) {
                 JSONObject s = st.getJSONObject(i), out = new JSONObject();
-                out.put("step", s.optString("step")); out.put("why", s.optString("why")); out.put("search", s.optString("search"));
+                PathFinder.Step q = new PathFinder.Step(); q.name = s.optString("step"); q.search = s.optString("search");
+                out.put("step", q.name); out.put("why", s.optString("why")); out.put("search", PathFinder.query(q, c.getString(5)));
                 JSONArray items = new JSONArray(), ids = s.getJSONArray("items");
                 for (int j = 0; j < ids.length(); j++) {
                     try (Cursor x = getReadableDatabase().rawQuery("SELECT id, title, link, state, mins, author, audio FROM items WHERE id=?", new String[]{"" + ids.getLong(j)})) {
@@ -1214,7 +1215,7 @@ final class Db extends SQLiteOpenHelper {
                 steps.put(out);
             }
             o.put("steps", steps); o.put("offer", plan.optJSONArray("offer") == null ? new JSONArray() : plan.getJSONArray("offer"));
-            o.put("kept", kept); o.put("total", all); o.put("searched", plan.optBoolean("searched")); o.put("source", "" + c.getLong(3));
+            o.put("kept", kept); o.put("total", all); o.put("youtube", plan.optBoolean("youtube")); o.put("source", "" + c.getLong(3));
             getWritableDatabase().execSQL("UPDATE paths SET used=? WHERE topic=? COLLATE NOCASE", new Object[]{System.currentTimeMillis(), topic});
             return o.toString();
         } catch (Exception e) { return "{}"; }

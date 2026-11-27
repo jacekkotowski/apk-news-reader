@@ -25,7 +25,7 @@ final class Gemini {
     static final int MAX_TEXT = 30000;
 
     static class GeminiException extends Exception { GeminiException(String m) { super(m); } }
-    /** HTTP 429 or RESOURCE_EXHAUSTED: the free limit is used up for now (or the feature is not in the free tier). */
+    /** HTTP 429 or RESOURCE_EXHAUSTED: the free limit is used up for now. */
     static final class Limit extends GeminiException { Limit(String m) { super(m); } }
 
     static final class Notes { String md = ""; final List<String[]> questions = new ArrayList<>(); }
@@ -55,11 +55,6 @@ final class Gemini {
     private static String request(String partsJson, String schema, String extraConfig) {
         String cfg = schema == null ? "" : ",\"generationConfig\":{\"responseMimeType\":\"application/json\",\"responseSchema\":" + schema + extraConfig + "}";
         return "{\"contents\":[{\"parts\":[" + partsJson + "]}]" + cfg + "}";
-    }
-
-    /** A request that may use Google Search; the JSON is then asked for in the text, since a schema is not promised together with the tool. */
-    private static String searchRequest(String partsJson) {
-        return "{\"contents\":[{\"parts\":[" + partsJson + "]}],\"tools\":[{\"google_search\":{}}]}";
     }
 
     private static String textPart(String t) { return "{\"text\":\"" + esc(t) + "\"}"; }
@@ -96,29 +91,24 @@ final class Gemini {
     private static final String PLAN_SCHEMA = "{\"type\":\"OBJECT\",\"properties\":{\"steps\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{"
             + "\"step\":{\"type\":\"STRING\"},\"why\":{\"type\":\"STRING\"},\"search\":{\"type\":\"STRING\"},\"resources\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{"
             + "\"title\":{\"type\":\"STRING\"},\"url\":{\"type\":\"STRING\"},\"kind\":{\"type\":\"STRING\"},\"minutes\":{\"type\":\"INTEGER\"}},\"required\":[\"title\",\"url\",\"kind\"]}}},"
-            + "\"required\":[\"step\",\"why\",\"resources\"]}},\"channels\":{\"type\":\"ARRAY\",\"items\":{\"type\":\"OBJECT\",\"properties\":{\"name\":{\"type\":\"STRING\"},\"url\":{\"type\":\"STRING\"}},\"required\":[\"name\",\"url\"]}}},"
-            + "\"required\":[\"steps\",\"channels\"]}";
+            + "\"required\":[\"step\",\"why\",\"search\",\"resources\"]}}},\"required\":[\"steps\"]}";
 
     /**
-     * A learning path from zero to useful on one topic, made of free material: YouTube first, then free courses, then official docs.
+     * A learning path from zero to useful on one topic. Gemini plans the steps, gives a YouTube search phrase for each and suggests
+     * free courses and official documentation; it gives no video links (the app finds videos with a real YouTube search).
      * material: titles, links and highlights kept on the topic (never private notes); may be empty.
-     * search: let Gemini use Google Search (not in the free tier of Gemini 3 models); the JSON is then asked for in the text.
      */
-    static String pathRequest(String topic, String topics, String material, boolean search) {
+    static String pathRequest(String topic, String topics, String material) {
         String m = material == null ? "" : material.trim();
         if (m.length() > 15000) m = m.substring(0, 15000);
         String p = "I want to learn " + topic + " fast, from zero to useful." + (topics.isEmpty() ? "" : " My other topics: " + topics + ".") + " "
                 + (m.isEmpty() ? "I have not kept anything on it yet. " : "Below is what I already kept on it: titles, links and passages I highlighted. Reuse an item where it fits, with its link. ")
                 + "Make a learning path of 5 to 8 steps, in order. For each step give: step (a short name), why (one sentence), "
-                + "search (a YouTube search phrase of 2 to 5 words for this step), and resources: 1 to 3 free resources, "
-                + "YouTube videos first, then free courses or MOOCs, then official documentation. "
-                + (search ? "Use Google Search to find them and give each one's real address. " : "Give only resources you are sure exist, with their exact full address. ")
-                + "YouTube videos as https://www.youtube.com/watch?v=ID. kind is one of video, course, docs, article. minutes is your estimate of the time it takes. "
-                + "Also give channels: 2 to 4 YouTube channels that teach this topic well, each with name and its channel address (https://www.youtube.com/@handle). "
-                + "Do not invent titles or links; leave a resource out when you are not sure."
-                + (search ? " Answer with one JSON object only, no other text: {\"steps\":[{\"step\":\"\",\"why\":\"\",\"search\":\"\",\"resources\":[{\"title\":\"\",\"url\":\"\",\"kind\":\"\",\"minutes\":0}]}],\"channels\":[{\"name\":\"\",\"url\":\"\"}]}" : "");
-        String part = textPart(m.isEmpty() ? p : p + "\n\n--- WHAT I KEPT ---\n" + m);
-        return search ? searchRequest(part) : request(part, PLAN_SCHEMA);
+                + "search (the words I would type into YouTube to find a good video for this step, 2 to 5 words, including the topic), "
+                + "and resources: 0 to 2 free resources that are not videos: free courses or MOOCs first, then official documentation. "
+                + "kind is one of course, docs, article. minutes is your estimate of the time it takes. "
+                + "Give only pages you are sure exist, with their exact full address, and no YouTube links. Leave resources empty when you are not sure.";
+        return request(textPart(m.isEmpty() ? p : p + "\n\n--- WHAT I KEPT ---\n" + m), PLAN_SCHEMA);
     }
 
     /** A question answered from numbered passages only. passages: {title, text}. The answer is plain text with [1], [2] citations. */
@@ -206,10 +196,7 @@ final class Gemini {
     }
 
     /** Sends one request and returns the model's text. The key goes in a header, never in the address. */
-    static String ask(String key, String requestJson, String agent) throws IOException, GeminiException { return askFull(key, requestJson, agent)[0]; }
-
-    /** {the model's text, the whole answer}: the answer also holds the Google Search sources when the tool was used. */
-    static String[] askFull(String key, String requestJson, String agent) throws IOException, GeminiException {
+    static String ask(String key, String requestJson, String agent) throws IOException, GeminiException {
         HttpURLConnection h = (HttpURLConnection) new URL(ENDPOINT).openConnection();
         try {
             h.setConnectTimeout(15000); h.setReadTimeout(120000);
@@ -227,8 +214,7 @@ final class Gemini {
                     for (int n; (n = i.read(b)) > 0; ) { buf.write(b, 0, n); if (buf.size() > 2000000) throw new IOException("Gemini's answer is too large"); }
                 }
             }
-            String body = new String(buf.toByteArray(), StandardCharsets.UTF_8);
-            return new String[]{replyText(code, body), body};
+            return replyText(code, new String(buf.toByteArray(), StandardCharsets.UTF_8));
         } finally { h.disconnect(); }
     }
 }

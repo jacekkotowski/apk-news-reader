@@ -14,23 +14,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Learn fast: reads the learning path Gemini suggests and keeps only links that were checked, so nothing made up reaches the reader.
- * Videos are checked with YouTube's oEmbed answer (real title and channel), pages by loading them and reading their title.
- * Gemini without Google Search makes up most video addresses, so a step without a checked video gets one from the search page of
- * a channel that was checked (YouTube's robots.txt allows a channel's search page, not the site search).
- * No Android imports; the network is behind {@link Web}, so the tests use saved answers.
+ * Learn fast: Gemini plans the steps and suggests free courses and documentation; videos come only from a real YouTube search
+ * (the YouTube Data API, with the reader's own free key). Every page Gemini names is loaded and its title compared with the
+ * step, so nothing made up reaches the reader. Without a YouTube key a step gets no video, only a "Search YouTube" link.
+ * No paid service is used. No Android imports; the network is behind {@link Web}, so the tests use saved answers.
  */
 final class PathFinder {
     private PathFinder() {}
 
-    static final int MAX_STEPS = 8, MAX_PER_STEP = 3, MAX_CHANNELS = 4, MAX_CHANNEL_SEARCHES = 10, MAX_CHANNELS_PER_STEP = 3, MAX_CHECKS = 45;
+    static final int MAX_STEPS = 8, MAX_PER_STEP = 3, MAX_CHECKS = 30, SEARCH_RESULTS = 5;
+    static final String YT_API = "https://www.googleapis.com/youtube/v3/";
 
     /** The network, as the checks need it. get throws an IOException for a page that does not answer with 2xx. */
-    interface Web {
-        String get(String url) throws IOException;
-        /** Where a redirect address points, or "" when it does not redirect. */
-        String location(String url) throws IOException;
-    }
+    interface Web { String get(String url) throws IOException; }
 
     static final class Res {
         String title = "", url = "", kind = "", channel = "", channelUrl = "";
@@ -40,18 +36,18 @@ final class PathFinder {
         Res(String title, String url, String kind, int minutes) { this.title = title; this.url = url; this.kind = kind; this.minutes = minutes; }
     }
     static final class Step { String name = "", why = "", search = ""; final List<Res> res = new ArrayList<>(); }
-    static final class Channel { String name = "", url = "", feed = ""; Channel() {} Channel(String n, String u) { name = n; url = u; } }
     static final class Plan {
         final List<Step> steps = new ArrayList<>();
-        final List<Channel> channels = new ArrayList<>();
-        /** Links Gemini gave, and how many of them were kept after the checks. */
+        /** Pages Gemini gave, and how many links the path has after the checks. */
         int suggested, kept;
-        boolean searched;
+        /** YouTube was searched (a key is set); youtubeNote says why it stopped early, or is "". */
+        boolean youtube;
+        String youtubeNote = "";
     }
 
     // ---- reading Gemini's answer ----
 
-    /** The plan from Gemini's text: plain JSON, JSON in a code fence, or JSON with a sentence around it. */
+    /** The plan from Gemini's text: plain JSON, JSON in a code fence, or JSON with a sentence around it. Video links are not taken. */
     static Plan parse(String text) throws Gemini.GeminiException {
         String t = Gemini.stripFences(text == null ? "" : text);
         Map<String, Object> o = null;
@@ -75,44 +71,14 @@ final class PathFinder {
                 if (r == null) continue;
                 String url = Json.str(r, "url").trim();
                 if (!url.regionMatches(true, 0, "https://", 0, 8) && !url.regionMatches(true, 0, "http://", 0, 7)) continue;
+                if (isYouTube(url)) continue; // videos come from the YouTube search, never from Gemini's memory
                 st.res.add(new Res(oneLine(Json.str(r, "title"), 200), url, Json.str(r, "kind").trim().toLowerCase(Locale.ROOT), (int) clampMinutes(Json.num(r, "minutes"))));
                 p.suggested++;
             }
             p.steps.add(st);
         }
-        List<Object> chs = Json.list(o.get("channels"));
-        if (chs != null) for (Object co : chs) {
-            Map<String, Object> c = Json.obj(co);
-            String u = channelUrl(Json.str(c, "url"));
-            if (u.isEmpty() || p.channels.size() >= MAX_CHANNELS) continue;
-            boolean dup = false;
-            for (Channel x : p.channels) if (x.url.equalsIgnoreCase(u)) dup = true;
-            if (!dup) p.channels.add(new Channel(oneLine(Json.str(c, "name"), 80), u));
-        }
         if (p.steps.isEmpty()) throw new Gemini.GeminiException("Gemini returned an empty learning path");
         return p;
-    }
-
-    /** The sources Google Search gave ({address, title}); the addresses are redirects through vertexaisearch.cloud.google.com. */
-    static List<String[]> groundingSources(String body) {
-        List<String[]> out = new ArrayList<>();
-        Map<String, Object> o;
-        try { o = Json.obj(Json.parse(body == null ? "" : body)); } catch (RuntimeException e) { return out; }
-        List<Object> cands = o == null ? null : Json.list(o.get("candidates"));
-        Map<String, Object> c0 = cands == null || cands.isEmpty() ? null : Json.obj(cands.get(0));
-        Map<String, Object> gm = c0 == null ? null : Json.obj(c0.get("groundingMetadata"));
-        List<Object> chunks = gm == null ? null : Json.list(gm.get("groundingChunks"));
-        if (chunks != null) for (Object ch : chunks) {
-            Map<String, Object> web = Json.obj(Json.obj(ch) == null ? null : Json.obj(ch).get("web"));
-            String uri = Json.str(web, "uri");
-            if (!uri.isEmpty()) out.add(new String[]{uri, Json.str(web, "title")});
-        }
-        return out;
-    }
-
-    static boolean isRedirect(String url) {
-        String h = PageWatch.host(url);
-        return h.equals("vertexaisearch.cloud.google.com") || h.endsWith(".vertexaisearch.cloud.google.com");
     }
 
     // ---- YouTube ----
@@ -135,100 +101,82 @@ final class PathFinder {
 
     static boolean isYouTube(String url) {
         String h = PageWatch.host(url);
-        return h.equals("youtube.com") || h.equals("m.youtube.com") || h.equals("youtu.be");
+        return h.equals("youtube.com") || h.equals("m.youtube.com") || h.equals("youtu.be") || h.equals("music.youtube.com");
     }
 
     static String watchUrl(String id) { return "https://www.youtube.com/watch?v=" + id; }
 
-    static String oembedUrl(String videoUrl) { return "https://www.youtube.com/oembed?format=json&url=" + enc(videoUrl); }
+    /** A YouTube API key looks like AIza followed by 35 letters, digits, - or _. */
+    static boolean validKey(String k) { return k != null && k.matches("AIza[0-9A-Za-z_-]{35}"); }
 
-    /** {title, channel name, channel address} from a YouTube oEmbed answer, or null when it is not a usable answer. */
-    static String[] oembed(String json) {
-        Map<String, Object> o;
-        try { o = Json.obj(Json.parse(json == null ? "" : json)); } catch (RuntimeException e) { return null; }
-        if (o == null) return null;
-        String title = oneLine(Json.str(o, "title"), 200);
-        if (title.isEmpty()) return null;
-        return new String[]{title, oneLine(Json.str(o, "author_name"), 80), channelUrl(Json.str(o, "author_url"))};
+    /** The search request: videos only, English, 5 results. The key is not in the address; the app sends it as a header. */
+    static String searchUrl(String query) {
+        return YT_API + "search?part=snippet&type=video&maxResults=" + SEARCH_RESULTS + "&relevanceLanguage=en&safeSearch=moderate&q=" + enc(query);
     }
 
-    /** A channel address as https://www.youtube.com/@handle (or /channel/UC..., /c/..., /user/...), or "" when it is not one. */
-    static String channelUrl(String url) {
-        if (url == null) return "";
-        String u = url.trim();
-        if (!isYouTube(u) || PageWatch.host(u).equals("youtu.be")) return "";
-        String p = pathOf(u);
-        Matcher m = Pattern.compile("^/(@[A-Za-z0-9._-]{2,60}|channel/UC[A-Za-z0-9_-]{20,24}|c/[A-Za-z0-9._-]{2,60}|user/[A-Za-z0-9._-]{2,60})(/.*)?$").matcher(p);
-        return m.matches() ? "https://www.youtube.com/" + m.group(1) : "";
-    }
+    /** The request for the lengths of these videos (one request for all). */
+    static String videosUrl(List<String> ids) { return YT_API + "videos?part=contentDetails&id=" + enc(String.join(",", ids)); }
 
-    /**
-     * A channel's own search page (allowed by YouTube's robots.txt, unlike /results). hl=en: without it YouTube shows
-     * titles machine-translated into the phone's region language, which would not match the English step names.
-     */
-    static String channelSearchUrl(String channelUrl, String query) { return channelUrl + "/search?query=" + enc(query) + "&hl=en"; }
-
-    /**
-     * Videos on a channel's search page, in page order: {id, title, minutes}. The desktop page (videoRenderer) and the mobile
-     * page that the app's Android User-Agent gets (compactVideoRenderer, its data inside a JavaScript string) are both read.
-     */
-    static List<Res> channelVideos(String html) {
+    /** Videos in a YouTube search answer, in YouTube's order: title, address, channel name and channel address. */
+    static List<Res> parseSearch(String json) {
         List<Res> out = new ArrayList<>();
-        if (html == null) return out;
-        if (html.contains("\\x22videoId\\x22")) html = jsUnescape(html);
-        Set<String> seen = new HashSet<>();
-        Pattern key = Pattern.compile("\"(?:compactVideoRenderer|videoRenderer)\":\\{\"videoId\":\"([A-Za-z0-9_-]{11})\"");
-        Matcher m = key.matcher(html);
-        List<int[]> at = new ArrayList<>();
-        while (m.find()) at.add(new int[]{m.start(), m.end()});
-        for (int k = 0; k < at.size() && out.size() < 30; k++) {
-            int e = at.get(k)[1];
-            String id = html.substring(e - 12, e - 1);
-            if (!seen.add(id)) continue;
-            int next = k + 1 < at.size() ? at.get(k + 1)[0] : Math.min(html.length(), e + 20000);
-            String part = html.substring(e, Math.max(e, next));
-            String title = jsonString(part, "\"title\":{\"runs\":[{\"text\":\"");
-            if (title.isEmpty()) title = jsonString(part, "\"title\":{\"simpleText\":\"");
+        Map<String, Object> o;
+        try { o = Json.obj(Json.parse(json == null ? "" : json)); } catch (RuntimeException e) { return out; }
+        List<Object> items = o == null ? null : Json.list(o.get("items"));
+        if (items != null) for (Object io : items) {
+            Map<String, Object> it = Json.obj(io);
+            Map<String, Object> id = it == null ? null : Json.obj(it.get("id"));
+            Map<String, Object> sn = it == null ? null : Json.obj(it.get("snippet"));
+            String vid = Json.str(id, "videoId");
+            if (!YT_ID.matcher(vid).matches() || sn == null) continue;
+            if (Json.str(sn, "liveBroadcastContent").equals("upcoming")) continue;
+            String title = oneLine(Sanitizer.decode(Json.str(sn, "title")), 200);
             if (title.isEmpty()) continue;
-            int lt = part.indexOf("\"lengthText\":");
-            String len = "";
-            if (lt >= 0) {
-                String l = part.substring(lt, Math.min(part.length(), lt + 400));
-                int a = l.indexOf("\"simpleText\":\""), b = l.indexOf("\"text\":\"");
-                len = a >= 0 && (b < 0 || a < b) ? jsonString(l, "\"simpleText\":\"") : jsonString(l, "\"text\":\"");
-            }
-            out.add(new Res(oneLine(title, 200), watchUrl(id), "video", minutes(len)));
+            Res r = new Res(title, watchUrl(vid), "video", 0);
+            r.channel = oneLine(Sanitizer.decode(Json.str(sn, "channelTitle")), 80);
+            String ch = Json.str(sn, "channelId");
+            if (ch.matches("UC[A-Za-z0-9_-]{20,24}")) r.channelUrl = "https://www.youtube.com/channel/" + ch;
+            out.add(r);
         }
         return out;
     }
 
-    /** Undoes JavaScript string escapes (x22 after a backslash ...), as on YouTube's mobile pages; JSON's own u escapes stay for the JSON reader. */
-    static String jsUnescape(String s) {
-        final char bs = '\\';
-        StringBuilder b = new StringBuilder(s.length());
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c != bs || i + 1 >= s.length()) { b.append(c); continue; }
-            char n = s.charAt(++i);
-            if (n == 'x' && i + 2 < s.length()) {
-                try { b.append((char) Integer.parseInt(s.substring(i + 1, i + 3), 16)); i += 2; continue; } catch (NumberFormatException e) { b.append(bs).append(n); continue; }
-            }
-            if (n == 'u') { b.append(bs).append(n); continue; } // left for the JSON reader
-            b.append(n == 'n' ? '\n' : n == 't' ? '\t' : n == 'r' ? '\r' : n); // a doubled backslash becomes one, which the JSON reader then reads
+    /** Video id to minutes, from a videos answer with contentDetails. */
+    static Map<String, Integer> parseLengths(String json) {
+        Map<String, Integer> out = new HashMap<>();
+        Map<String, Object> o;
+        try { o = Json.obj(Json.parse(json == null ? "" : json)); } catch (RuntimeException e) { return out; }
+        List<Object> items = o == null ? null : Json.list(o.get("items"));
+        if (items != null) for (Object io : items) {
+            Map<String, Object> it = Json.obj(io);
+            Map<String, Object> cd = it == null ? null : Json.obj(it.get("contentDetails"));
+            int m = isoMinutes(Json.str(cd, "duration"));
+            if (m > 0) out.put(Json.str(it, "id"), m);
         }
-        return b.toString();
+        return out;
     }
 
-    /** "1:02:03" or "12:34" as whole minutes, rounded up; 0 when unknown. */
-    static int minutes(String len) {
-        if (len == null || !len.matches("\\d{1,3}(:\\d{2}){1,2}")) return 0;
-        String[] p = len.split(":");
-        int sec = 0;
-        for (String x : p) sec = sec * 60 + Integer.parseInt(x);
-        return Math.max(1, (sec + 59) / 60);
+    private static final Pattern ISO = Pattern.compile("^P(?:(\\d+)D)?T?(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?$");
+
+    /** "PT1H2M3S" as whole minutes, rounded up; 0 when unknown. */
+    static int isoMinutes(String d) {
+        if (d == null || d.isEmpty()) return 0;
+        Matcher m = ISO.matcher(d);
+        if (!m.matches()) return 0;
+        long s = 0;
+        int[] mult = {86400, 3600, 60, 1};
+        for (int i = 0; i < 4; i++) if (m.group(i + 1) != null) s += Long.parseLong(m.group(i + 1)) * mult[i];
+        return s <= 0 ? 0 : (int) Math.min(6000, (s + 59) / 60);
     }
 
-    // ---- does a checked title fit what was asked for ----
+    /** The search words for a step: Gemini's phrase, with the topic in front when the phrase does not name it. */
+    static String query(Step st, String topic) {
+        String q = st.search.isEmpty() ? st.name : st.search;
+        for (String w : words(topic)) if (words(q).contains(w)) return q;
+        return topic + " " + q;
+    }
+
+    // ---- does a title fit what was asked for ----
 
     private static final Set<String> GENERIC = new HashSet<>(Arrays.asList(("tutorial tutorials guide beginner beginners introduction intro basics basic course "
         + "official documentation docs doc video videos learn learning how complete full crash part step overview explained explain start started getting "
@@ -250,21 +198,18 @@ final class PathFinder {
     }
 
     /**
-     * How well a video from a channel search fits a step; 0 when it does not fit. The title or the channel name must have a topic
-     * word, and the title must have words of the step that are not topic words: one, or two when the step has three or more.
-     * A step made only of topic words ("Introduction to DuckDB") gets no video this way; its search link is shown instead.
-     * Score: shared step words, plus 0.5 for the topic.
+     * How well a video found by the YouTube search fits a step; 0 when it does not. The title or the channel name must have a
+     * topic word, and when the step has words of its own, the title must share one of them. Score: shared step words plus 0.5.
      */
-    static double stepScore(String title, String channel, Step st, String topic) {
+    static double videoScore(String title, String channel, Step st, String topic) {
         Set<String> real = words(title), top = words(topic), chan = words(channel), own = words(st.search + " " + st.name);
         own.removeAll(top);
-        if (own.isEmpty()) return 0;
         boolean topicOk = false;
         for (String w : top) if (real.contains(w) || chan.contains(w)) topicOk = true;
         if (!topicOk) return 0;
         int shared = 0;
         for (String w : own) if (real.contains(w)) shared++;
-        return shared >= (own.size() >= 3 ? 2 : 1) ? shared + 0.5 : 0;
+        return !own.isEmpty() && shared == 0 ? 0 : shared + 0.5;
     }
 
     // ---- the checks ----
@@ -285,28 +230,12 @@ final class PathFinder {
 
     static final class Budget { int left = MAX_CHECKS; boolean take() { return left-- > 0; } }
 
-    /** Checks one suggested resource. Returns the checked copy (real title, channel), or null to drop it. */
-    static Res checkOne(Res r, Step st, String topic, Web web, Budget b) {
+    /** Checks one page Gemini named: it must load and its title (with the site's name) must fit. Returns the checked copy, or null. */
+    static Res checkPage(Res r, Step st, String topic, Web web, Budget b) {
         String url = r.url;
         try {
-            if (isRedirect(url)) {
-                if (!b.take()) return null;
-                url = web.location(url);
-                if (url.isEmpty() || isRedirect(url)) return null;
-            }
             if (url.regionMatches(true, 0, "http://", 0, 7)) url = "https://" + url.substring(7);
-            if (!url.regionMatches(true, 0, "https://", 0, 8)) return null;
-            if (isYouTube(url)) {
-                String id = videoId(url);
-                if (id.isEmpty()) return null; // channels and playlists are not steps
-                if (!b.take()) return null;
-                String[] o = oembed(web.get(oembedUrl(watchUrl(id))));
-                if (o == null || !fits(o[0] + " " + o[1], r.title, st.name, st.search, topic)) return null;
-                Res out = new Res(o[0], watchUrl(id), "video", r.minutes);
-                out.channel = o[1]; out.channelUrl = o[2];
-                return out;
-            }
-            if (!b.take()) return null;
+            if (!url.regionMatches(true, 0, "https://", 0, 8) || !b.take()) return null;
             String html = web.get(url);
             String to = metaRefresh(html, url);
             if (!to.isEmpty() && !to.equals(url) && b.take()) { url = to; html = web.get(url); }
@@ -319,10 +248,10 @@ final class PathFinder {
     }
 
     /**
-     * Checks every link of the plan and fills steps without a checked video from the search pages of checked channels.
-     * kept: links of items already kept on the topic, which count as checked. Returns the same plan, changed.
+     * Checks every page of the plan, then, when youtube is true, searches YouTube once per step and puts the best fitting video
+     * first. kept: links of items already kept on the topic, which count as checked. Returns the same plan, changed.
      */
-    static Plan check(Plan p, String topic, Web web, Set<String> kept) {
+    static Plan check(Plan p, String topic, Web web, Set<String> kept, boolean youtube) {
         Budget b = new Budget();
         Set<String> used = new HashSet<>();
         for (Step st : p.steps) {
@@ -330,87 +259,57 @@ final class PathFinder {
             for (Res r : st.res) {
                 if (ok.size() >= MAX_PER_STEP) break;
                 Res c;
-                if (kept != null && kept.contains(FeedParser.normalizeLink(r.url))) { c = r; if (c.kind.isEmpty()) c.kind = isYouTube(r.url) ? "video" : "article"; }
-                else c = checkOne(r, st, topic, web, b);
+                if (kept != null && kept.contains(FeedParser.normalizeLink(r.url))) { c = r; if (c.kind.isEmpty()) c.kind = "article"; }
+                else c = checkPage(r, st, topic, web, b);
                 if (c != null && used.add(dedupKey(c.url))) ok.add(c);
             }
             st.res.clear(); st.res.addAll(ok);
         }
-        // the channels to take videos from: the ones Gemini named that answer with a feed, then the channels of checked videos
-        List<Channel> chs = new ArrayList<>();
-        for (Channel c : p.channels) {
-            if (!b.take()) break;
-            try {
-                String html = web.get(c.url);
-                String feed = "";
-                for (String a : FeedDiscovery.alternates(html, c.url)) if (a.contains("channel_id=")) { feed = a; break; }
-                if (feed.isEmpty()) continue;
-                String name = PageWatch.meta(html).title.replaceAll("\\s*-\\s*YouTube$", "").trim();
-                c.name = name.isEmpty() ? c.name : oneLine(name, 80);
-                c.feed = feed;
-                chs.add(c);
-            } catch (IOException | RuntimeException ignored) { }
-        }
-        for (Step st : p.steps) for (Res r : st.res) {
-            if (r.channelUrl.isEmpty()) continue;
-            boolean known = false;
-            for (Channel c : chs) if (c.url.equalsIgnoreCase(r.channelUrl)) known = true;
-            if (!known && chs.size() < MAX_CHANNELS + 2) chs.add(new Channel(r.channel, r.channelUrl));
-        }
-        p.channels.clear(); p.channels.addAll(chs);
-        // a step without a checked video: the best fitting video from a checked channel's search page
-        int searches = 0, turn = 0;
-        Map<String, List<Res>> pages = new HashMap<>();
-        Map<String, Integer> hits = new HashMap<>();
-        for (Step st : p.steps) {
-            if (chs.isEmpty() || hasVideo(st)) continue;
-            String q = st.search.isEmpty() ? st.name : st.search;
-            Res best = null; double bestScore = 0;
-            // channels that already gave a video first, then the others in turn
-            List<Channel> order = new ArrayList<>();
-            for (int k = 0; k < chs.size(); k++) order.add(chs.get((turn + k) % chs.size()));
-            final Map<String, Integer> h = hits;
-            java.util.Collections.sort(order, (x, y) -> Integer.compare(h.containsKey(y.url) ? h.get(y.url) : 0, h.containsKey(x.url) ? h.get(x.url) : 0));
-            for (int k = 0; k < order.size() && k < MAX_CHANNELS_PER_STEP && best == null; k++) {
-                Channel c = order.get(k);
-                String key = c.url + "|" + q;
-                List<Res> vids = pages.get(key);
-                if (vids == null) {
-                    if (searches >= MAX_CHANNEL_SEARCHES || !b.take()) break;
-                    searches++;
-                    try { vids = channelVideos(web.get(channelSearchUrl(c.url, q))); } catch (IOException | RuntimeException e) { vids = new ArrayList<>(); }
-                    pages.put(key, vids);
+        p.youtube = youtube;
+        if (youtube) {
+            List<Res> found = new ArrayList<>();
+            for (Step st : p.steps) {
+                List<Res> vids;
+                try { vids = parseSearch(web.get(searchUrl(query(st, topic)))); }
+                catch (IOException e) {
+                    p.youtubeNote = "YouTube did not answer (" + e.getMessage() + "): the key may be wrong, or today's 100 searches are used.";
+                    break;
                 }
+                Res best = null; double bestScore = 0;
                 for (Res v : vids) {
                     if (used.contains(dedupKey(v.url))) continue;
-                    double s = stepScore(v.title, c.name, st, topic);
-                    if (s > bestScore) { best = v; bestScore = s; v.channelUrl = c.url; }
+                    double s = videoScore(v.title, v.channel, st, topic);
+                    if (s > bestScore) { best = v; bestScore = s; } // equal scores keep YouTube's order
                 }
+                if (best == null) continue;
+                used.add(dedupKey(best.url));
+                st.res.add(0, best);
+                while (st.res.size() > MAX_PER_STEP) st.res.remove(st.res.size() - 1);
+                found.add(best);
             }
-            turn++;
-            if (best == null) continue;
-            Res checked = checkOne(best, st, topic, web, b); // the oEmbed answer confirms it is public and gives the channel
-            if (checked == null) continue;
-            if (checked.minutes == 0) checked.minutes = best.minutes;
-            used.add(dedupKey(checked.url));
-            hits.put(best.channelUrl, (hits.containsKey(best.channelUrl) ? hits.get(best.channelUrl) : 0) + 1);
-            st.res.add(0, checked);
-            while (st.res.size() > MAX_PER_STEP) st.res.remove(st.res.size() - 1);
+            if (!found.isEmpty()) {
+                List<String> ids = new ArrayList<>();
+                for (Res v : found) ids.add(videoId(v.url));
+                try {
+                    Map<String, Integer> len = parseLengths(web.get(videosUrl(ids)));
+                    for (Res v : found) { Integer m = len.get(videoId(v.url)); if (m != null) v.minutes = m; }
+                } catch (IOException ignored) { } // lengths are a nicety
+            }
         }
-        int kept2 = 0;
+        int n = 0;
         for (Step st : p.steps) {
             sortRes(st.res);
-            for (Res r : st.res) { if (r.minutes <= 0) r.minutes = r.kind.equals("video") ? 10 : 8; kept2++; }
+            for (Res r : st.res) { if (r.minutes <= 0) r.minutes = r.kind.equals("video") ? 10 : 8; n++; }
         }
-        p.kept = kept2;
+        p.kept = n;
         return p;
     }
 
-    private static boolean hasVideo(Step st) { for (Res r : st.res) if (r.kind.equals("video")) return true; return false; }
+    static boolean hasVideo(Step st) { for (Res r : st.res) if (r.kind.equals("video")) return true; return false; }
 
     private static final List<String> ORDER = Arrays.asList("video", "course", "docs", "article");
 
-    /** Videos first, then free courses, then documentation, then other pages; otherwise in Gemini's order. */
+    /** Videos first, then free courses, then documentation, then other pages; otherwise in the given order. */
     static void sortRes(List<Res> l) {
         List<Res> c = new ArrayList<>(l);
         l.clear();
@@ -423,39 +322,33 @@ final class PathFinder {
         return id.isEmpty() ? FeedParser.normalizeLink(url).toLowerCase(Locale.ROOT) : "yt:" + id;
     }
 
-    /** YouTube channels that two or more resources of the path come from: {name, channel address}, most used first. */
+    /** YouTube channels that two or more videos of the path come from: {name, channel address}, most used first. */
     static List<String[]> offerChannels(Plan p) {
         Map<String, Integer> n = new LinkedHashMap<>();
         Map<String, String> names = new HashMap<>();
         for (Step st : p.steps) for (Res r : st.res) {
             if (r.channelUrl.isEmpty()) continue;
-            String k = r.channelUrl.toLowerCase(Locale.ROOT);
-            n.put(k, n.containsKey(k) ? n.get(k) + 1 : 1);
-            if (!names.containsKey(k)) names.put(k, r.channel.isEmpty() ? r.channelUrl : r.channel);
+            n.put(r.channelUrl, n.containsKey(r.channelUrl) ? n.get(r.channelUrl) + 1 : 1);
+            if (!names.containsKey(r.channelUrl)) names.put(r.channelUrl, r.channel.isEmpty() ? r.channelUrl : r.channel);
         }
         List<String[]> out = new ArrayList<>();
-        for (int want = 20; want >= 2; want--) for (Map.Entry<String, Integer> e : n.entrySet()) {
-            if (e.getValue() != want) continue;
-            String url = e.getKey();
-            for (Step st : p.steps) for (Res r : st.res) if (r.channelUrl.equalsIgnoreCase(url)) { url = r.channelUrl; break; }
-            out.add(new String[]{names.get(e.getKey()), url});
-        }
+        for (int want = 20; want >= 2; want--) for (Map.Entry<String, Integer> e : n.entrySet()) if (e.getValue() == want) out.add(new String[]{names.get(e.getKey()), e.getKey()});
         return out;
     }
 
-    /** The path as a Markdown note: one section per step, a checkbox per resource. */
+    /** The path as a Markdown note: one section per step, a checkbox per resource, a search line for a step without a video. */
     static String markdown(String topic, Plan p) {
         StringBuilder b = new StringBuilder();
-        b.append("Free material, every link checked when the path was made").append(p.searched ? " (found with Google Search)" : "").append(".\n");
+        b.append("Free material, every link checked when the path was made").append(p.youtube ? "; videos from a YouTube search" : "").append(".\n");
         for (int i = 0; i < p.steps.size(); i++) {
             Step st = p.steps.get(i);
             b.append("\n## ").append(i + 1).append(". ").append(st.name).append("\n\n");
             if (!st.why.isEmpty()) b.append(st.why).append("\n\n");
-            if (st.res.isEmpty()) b.append("- Nothing checked for this step. Search YouTube for: ").append(st.search.isEmpty() ? st.name : st.search).append('\n');
             for (Res r : st.res) {
                 b.append("- [ ] [").append(r.title.replace("[", "(").replace("]", ")")).append("](").append(r.url.replace(")", "%29").replace(" ", "%20")).append(") (")
                  .append(r.kind).append(", ").append(r.minutes).append(" min").append(r.channel.isEmpty() ? "" : ", " + r.channel).append(")\n");
             }
+            if (!hasVideo(st)) b.append("- Search YouTube for: ").append(query(st, topic)).append('\n');
         }
         return b.toString();
     }
@@ -505,21 +398,5 @@ final class PathFinder {
 
     static String enc(String s) {
         try { return java.net.URLEncoder.encode(s, "UTF-8"); } catch (java.io.UnsupportedEncodingException e) { return ""; }
-    }
-
-    /** The JSON string that starts right after the marker, unescaped; "" when the marker is missing. */
-    private static String jsonString(String s, String marker) {
-        int a = s.indexOf(marker);
-        if (a < 0) return "";
-        int i = a + marker.length();
-        StringBuilder raw = new StringBuilder("\"");
-        for (; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '\\' && i + 1 < s.length()) { raw.append(c).append(s.charAt(++i)); continue; }
-            if (c == '"') break;
-            raw.append(c);
-        }
-        raw.append('"');
-        try { return Json.str(Json.parse(raw.toString())); } catch (RuntimeException e) { return ""; }
     }
 }

@@ -1,0 +1,9 @@
+{
+  "kind": "youtube#videoListResponse",
+  "note": "Written by hand in the shape of Google's documented videos.list answer with part=contentDetails.",
+  "items": [
+    {"kind": "youtube#video", "id": "T23Bs75F7ZQ", "contentDetails": {"duration": "PT3H49M2S", "dimension": "2d", "definition": "hd", "caption": "false"}},
+    {"kind": "youtube#video", "id": "zeonmOO9jm4", "contentDetails": {"duration": "PT1H24M33S", "dimension": "2d", "definition": "hd", "caption": "false"}},
+    {"kind": "youtube#video", "id": "AKix55rQEUU", "contentDetails": {"duration": "PT9M43S", "dimension": "2d", "definition": "hd", "caption": "false"}}
+  ]
+}

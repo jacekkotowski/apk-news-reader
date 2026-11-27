@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "1.19";
+    static final String VERSION = "1.20";
     static final String AGENT = "StashReader/" + VERSION;
     private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
@@ -25,11 +25,14 @@ final class Refresher {
     private static volatile String s2Key = "";
     /** The reader's optional OpenAlex key; sent only to OpenAlex, as api_key in the address. */
     private static volatile String oaKey = "";
+    /** The reader's optional YouTube Data API key; sent only to the YouTube API, as the header x-goog-api-key. */
+    private static volatile String ytKey = "";
 
     static void loadKeys(Context c) {
         SharedPreferences p = c.getSharedPreferences("stash", Context.MODE_PRIVATE);
         s2Key = p.getString("s2Key", "");
         oaKey = p.getString("oaKey", "");
+        ytKey = p.getString("ytKey", "");
     }
 
     static boolean busy() { return BUSY.get(); }
@@ -101,21 +104,6 @@ final class Refresher {
         return PageText.decode(b, type[0]);
     }
 
-    /** Where a redirect address points (the Location header of a 3xx answer), or "" when it does not redirect. Nothing is downloaded. */
-    static String location(String address) throws IOException {
-        HttpURLConnection h = (HttpURLConnection) new URL(address).openConnection();
-        try {
-            h.setInstanceFollowRedirects(false);
-            h.setConnectTimeout(CONNECT_MS); h.setReadTimeout(READ_MS);
-            h.setRequestProperty("User-Agent", AGENT + " (personal reader; Android)");
-            int code = h.getResponseCode();
-            if (code == 429) throw new RateLimited(3600000L);
-            if (code < 300 || code >= 400) return "";
-            String loc = h.getHeaderField("Location");
-            return loc == null ? "" : FeedDiscovery.resolve(address, loc.trim());
-        } finally { h.disconnect(); }
-    }
-
     static byte[] fetch(String address, int max, String accept) throws IOException { return fetch(address, max, accept, new String[1]); }
 
     static byte[] fetch(String address, int max, String accept, String[] contentType) throws IOException { return request(address, null, max, accept, contentType); }
@@ -130,6 +118,7 @@ final class Refresher {
             h.setRequestProperty("User-Agent", AGENT + " (personal reader; Android)");
             h.setRequestProperty("Accept", accept);
             if (!s2Key.isEmpty() && QuerySource.isS2Host(address)) h.setRequestProperty("x-api-key", s2Key);
+            if (!ytKey.isEmpty() && address.startsWith(PathFinder.YT_API)) h.setRequestProperty("x-goog-api-key", ytKey);
             if (body != null) {
                 h.setRequestMethod("POST");
                 h.setDoOutput(true);

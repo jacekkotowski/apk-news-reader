@@ -487,6 +487,15 @@ public class MainActivity extends Activity {
             if (!v.isEmpty()) { db.clearS2Backoff(); refreshInBackground(); }
             return "";
         }
+        @JavascriptInterface public boolean ytKeySet() { return !prefs.getString("ytKey", "").isEmpty(); }
+        /** Saves (or, with an empty text, removes) the YouTube Data API key, used only to search YouTube for learning path videos. */
+        @JavascriptInterface public String setYtKey(String k) {
+            String v = k == null ? "" : k.trim();
+            if (!v.isEmpty() && !PathFinder.validKey(v)) return "That does not look like a YouTube API key (it starts with AIza).";
+            prefs.edit().putString("ytKey", v).apply();
+            Refresher.loadKeys(MainActivity.this);
+            return "";
+        }
         @JavascriptInterface public boolean oaKeySet() { return !prefs.getString("oaKey", "").isEmpty(); }
         /** Saves (or, with an empty text, removes) the OpenAlex key. Returns "" or a message. */
         @JavascriptInterface public String setOaKey(String k) {

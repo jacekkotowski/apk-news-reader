@@ -1,0 +1,18 @@
+{
+  "kind": "youtube#searchListResponse",
+  "note": "Written by hand in the shape of Google's documented search.list answer (no YouTube key was available to record a real one). The video and channel ids are real.",
+  "regionCode": "PL",
+  "pageInfo": {"totalResults": 1000000, "resultsPerPage": 5},
+  "items": [
+    {"kind": "youtube#searchResult", "id": {"kind": "youtube#video", "videoId": "AKix55rQEUU"},
+     "snippet": {"publishedAt": "2023-07-01T00:00:00Z", "channelId": "UCQli51lMp-oW0gUHrcIj0jA", "title": "Data + AI Summit 2023 &ndash; DuckDB keynote", "description": "", "channelTitle": "DuckDB", "liveBroadcastContent": "none"}},
+    {"kind": "youtube#searchResult", "id": {"kind": "youtube#video", "videoId": "zeonmOO9jm4"},
+     "snippet": {"publishedAt": "2025-05-27T00:00:00Z", "channelId": "UCQli51lMp-oW0gUHrcIj0jA", "title": "Introducing DuckLake", "description": "", "channelTitle": "DuckDB", "liveBroadcastContent": "none"}},
+    {"kind": "youtube#searchResult", "id": {"kind": "youtube#video", "videoId": "T23Bs75F7ZQ"},
+     "snippet": {"publishedAt": "2025-01-01T00:00:00Z", "channelId": "UC8butISFwT-Wl7EV0hUK0BQ", "title": "DuckDB &amp; Python: querying Pandas DataFrames with SQL", "description": "", "channelTitle": "freeCodeCamp.org", "liveBroadcastContent": "none"}},
+    {"kind": "youtube#searchResult", "id": {"kind": "youtube#video", "videoId": "UKo_LQyLTko"},
+     "snippet": {"publishedAt": "2026-12-01T00:00:00Z", "channelId": "UCQli51lMp-oW0gUHrcIj0jA", "title": "DuckDB Python live session", "description": "", "channelTitle": "DuckDB", "liveBroadcastContent": "upcoming"}},
+    {"kind": "youtube#searchResult", "id": {"kind": "youtube#channel", "channelId": "UCQli51lMp-oW0gUHrcIj0jA"},
+     "snippet": {"publishedAt": "2020-01-01T00:00:00Z", "channelId": "UCQli51lMp-oW0gUHrcIj0jA", "title": "DuckDB", "description": "", "channelTitle": "DuckDB", "liveBroadcastContent": "none"}}
+  ]
+}

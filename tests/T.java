@@ -102,15 +102,12 @@ public final class T {
         yes("gemini: an article asks for neither", !aj.contains("mediaResolution") && !aj.contains("said in the video"));
         StringBuilder big = new StringBuilder(); for (int i = 0; i < 50000; i++) big.append('x');
         yes("gemini: article text is capped", Gemini.notesRequest("", "T", "", big.toString()).length() < Gemini.MAX_TEXT + 3000);
-        String pj = Gemini.pathRequest("tidymodels", "Power BI", "- A (S)\n  highlight: \"x\"\n", false);
+        String pj = Gemini.pathRequest("tidymodels", "Power BI", "- A (S)\n  highlight: \"x\"\n");
         yes("gemini: path request is JSON and never mentions notes", Json.obj(Json.parse(pj)) != null && !pj.toLowerCase().contains("my note"));
-        yes("gemini: path without search asks for the schema and no tool", pj.contains("\"responseSchema\"") && !pj.contains("google_search") && pj.contains("WHAT I KEPT"));
-        String ps = Gemini.pathRequest("Meshtastic", "", "", true);
-        java.util.Map<String, Object> psj = Json.obj(Json.parse(ps));
-        yes("gemini: path with search sends the Google Search tool and no schema", ps.contains("\"tools\":[{\"google_search\":{}}]") && !ps.contains("responseSchema") && psj != null);
-        yes("gemini: path with search asks for JSON in the text", ps.contains("Answer with one JSON object only"));
+        yes("gemini: path asks for the schema and uses no paid tool", pj.contains("\"responseSchema\"") && !pj.contains("google_search") && !pj.contains("\"tools\"") && pj.contains("WHAT I KEPT"));
+        String ps = Gemini.pathRequest("Meshtastic", "", "");
         yes("gemini: a topic with nothing kept says so", ps.contains("I have not kept anything on it yet") && !ps.contains("WHAT I KEPT"));
-        yes("gemini: path asks for YouTube first and channels", ps.contains("YouTube videos first") && ps.contains("channels"));
+        yes("gemini: path asks for a YouTube search phrase and no YouTube links", ps.contains("type into YouTube") && ps.contains("no YouTube links"));
         String one = Gemini.notesRequest("t", "T", "", "Some text", 1);
         yes("gemini: notes on their own ask for 1 question", one.contains("questions holds 1 recall question,") && !one.contains("3 recall questions"));
         yes("gemini: Make notes still asks for 3", aj.contains("questions holds 3 recall questions"));
@@ -133,7 +130,7 @@ public final class T {
         yes("gemini: quota error is a calm sentence", quota.contains("free limit"));
         boolean limit = false;
         try { Gemini.replyText(429, text("tests/fixtures/gemini-ground-429.json")); } catch (Gemini.Limit e) { limit = true; } catch (Gemini.GeminiException e) { limit = false; }
-        yes("gemini: the live answer to Google Search on a free key is a Limit", limit);
+        yes("gemini: a real HTTP 429 answer is a Limit", limit);
         yes("gemini: unknown model", thrown(() -> Gemini.replyText(404, "{\"error\":{\"code\":404,\"message\":\"not found\"}}")).contains("needs an update"));
         yes("gemini: private video", thrown(() -> Gemini.replyText(400, "{\"error\":{\"code\":400,\"message\":\"Failed to process YouTube video\"}}")).contains("must be public"));
         yes("gemini: html error page", thrown(() -> Gemini.replyText(502, "<html>Bad gateway</html>")).startsWith("Gemini answered HTTP 502"));
@@ -1191,7 +1188,7 @@ public final class T {
 
     /** Saved answers for the link checks: address -> page; a missing address answers like HTTP 404. */
     static final class FakeWeb implements PathFinder.Web {
-        final java.util.Map<String, String> pages = new java.util.HashMap<>(), moves = new java.util.HashMap<>();
+        final java.util.Map<String, String> pages = new java.util.HashMap<>();
         final java.util.List<String> asked = new java.util.ArrayList<>();
         public String get(String url) throws java.io.IOException {
             asked.add(url);
@@ -1199,136 +1196,121 @@ public final class T {
             if (p == null) throw new java.io.IOException("The server answered HTTP 404");
             return p;
         }
-        public String location(String url) { asked.add(url); String m = moves.get(url); return m == null ? "" : m; }
     }
 
     static void learnFast() throws Exception {
-        // the real answer of gemini-3.5-flash-lite without Google Search (2026-11-27): every video address in it was made up
+        // the real answer of gemini-3.5-flash-lite to the v1.20 request (2026-11-27): steps, search phrases, docs, no videos
         PathFinder.Plan p = PathFinder.parse(Gemini.replyText(200, text("tests/fixtures/gemini-learn.json")));
         eq("learn: five steps", 5, p.steps.size());
-        eq("learn: ten links suggested", 10, p.suggested);
-        eq("learn: three channels", 3, p.channels.size());
-        eq("learn: channel address kept as given", "https://www.youtube.com/@DuckDB", p.channels.get(0).url);
-        yes("learn: step has a search phrase", !p.steps.get(0).search.isEmpty());
-        eq("learn: resources in Gemini's order", "video", p.steps.get(0).res.get(0).kind);
+        eq("learn: four pages suggested", 4, p.suggested);
+        yes("learn: every step has a search phrase", !p.steps.get(0).search.isEmpty() && !p.steps.get(4).search.isEmpty());
+        eq("learn: a step may come without pages", 0, p.steps.get(3).res.size());
         // other shapes
-        PathFinder.Plan f = PathFinder.parse("Here it is:\n```json\n{\"steps\":[{\"step\":\"A\",\"why\":\"w\",\"resources\":[{\"title\":\"t\",\"url\":\"ftp://x\",\"kind\":\"docs\"},{\"title\":\"t\",\"url\":\"https://x.org/a\",\"kind\":\"Docs\",\"minutes\":9999}]}],\"channels\":[{\"name\":\"n\",\"url\":\"https://example.com/@x\"}]}\n```");
+        PathFinder.Plan f = PathFinder.parse("Here it is:\n```json\n{\"steps\":[{\"step\":\"A\",\"why\":\"w\",\"resources\":[{\"title\":\"t\",\"url\":\"ftp://x\",\"kind\":\"docs\"},{\"title\":\"v\",\"url\":\"https://www.youtube.com/watch?v=AKix55rQEUU\",\"kind\":\"video\"},{\"title\":\"t\",\"url\":\"https://x.org/a\",\"kind\":\"Docs\",\"minutes\":9999}]}]}\n```");
         eq("learn: JSON inside a sentence and a fence is read", 1, f.steps.size());
-        eq("learn: only web addresses are kept", 1, f.steps.get(0).res.size());
+        eq("learn: only web pages are taken, never a video link from Gemini", 1, f.steps.get(0).res.size());
         eq("learn: kind is lower-cased", "docs", f.steps.get(0).res.get(0).kind);
         eq("learn: minutes are capped", 600, f.steps.get(0).res.get(0).minutes);
-        eq("learn: a channel outside YouTube is dropped", 0, f.channels.size());
-        yes("learn: no steps is refused", thrown(() -> PathFinder.parse("{\"steps\":[],\"channels\":[]}")).contains("empty"));
+        yes("learn: no steps is refused", thrown(() -> PathFinder.parse("{\"steps\":[]}")).contains("empty"));
         yes("learn: not JSON is refused", thrown(() -> PathFinder.parse("Sorry, I cannot")).contains("could not be read"));
 
-        // YouTube addresses
+        // YouTube addresses and keys
         eq("learn: watch id", "-Ykyy58lFOI", PathFinder.videoId("https://www.youtube.com/watch?v=-Ykyy58lFOI&t=30s"));
         eq("learn: youtu.be id", "-Ykyy58lFOI", PathFinder.videoId("https://youtu.be/-Ykyy58lFOI?si=x"));
         eq("learn: shorts id", "-Ykyy58lFOI", PathFinder.videoId("https://www.youtube.com/shorts/-Ykyy58lFOI"));
-        eq("learn: embed id", "-Ykyy58lFOI", PathFinder.videoId("https://m.youtube.com/embed/-Ykyy58lFOI"));
         eq("learn: a channel is not a video", "", PathFinder.videoId("https://www.youtube.com/@KM4ACK"));
         eq("learn: a short id is not a video", "", PathFinder.videoId("https://www.youtube.com/watch?v=abc"));
-        eq("learn: channel handle", "https://www.youtube.com/@KM4ACK", PathFinder.channelUrl("https://youtube.com/@KM4ACK/videos"));
-        eq("learn: channel id address", "https://www.youtube.com/channel/UCSQhXfGo_68Ta8-2wStAWkw", PathFinder.channelUrl("https://www.youtube.com/channel/UCSQhXfGo_68Ta8-2wStAWkw"));
-        eq("learn: a video is not a channel", "", PathFinder.channelUrl("https://www.youtube.com/watch?v=-Ykyy58lFOI"));
-        eq("learn: oEmbed address", "https://www.youtube.com/oembed?format=json&url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D-Ykyy58lFOI", PathFinder.oembedUrl("https://www.youtube.com/watch?v=-Ykyy58lFOI"));
-        String[] oe = PathFinder.oembed(text("tests/fixtures/yt-oembed.json"));
-        yes("learn: real oEmbed answer gives title, channel and its address", oe != null && oe[0].equals("BuddiPole PowerPro") && oe[1].equals("KM4ACK") && oe[2].equals("https://www.youtube.com/@KM4ACK"));
-        yes("learn: an error page is no oEmbed answer", PathFinder.oembed("Not Found") == null && PathFinder.oembed("{}") == null);
-        java.util.List<PathFinder.Res> vids = PathFinder.channelVideos(text("tests/fixtures/yt-channel-search.html"));
-        eq("learn: videos on a real channel search page", 3, vids.size());
-        yes("learn: channel search gives id, title and length", vids.get(0).url.equals("https://www.youtube.com/watch?v=hXH6U0t5p6k") && !vids.get(0).title.isEmpty() && vids.get(0).minutes > 0);
-        eq("learn: 9:06 is 10 minutes", 10, PathFinder.minutes("9:06"));
-        eq("learn: 1:02:00 is 62 minutes", 62, PathFinder.minutes("1:02:00"));
-        eq("learn: unknown length", 0, PathFinder.minutes("LIVE"));
-        eq("learn: channel search address, in English", "https://www.youtube.com/@KM4ACK/search?query=end+fed+antenna&hl=en", PathFinder.channelSearchUrl("https://www.youtube.com/@KM4ACK", "end fed antenna"));
-        // the mobile page that the app's Android User-Agent gets: the data sits in a JavaScript string
-        java.util.List<PathFinder.Res> mv = PathFinder.channelVideos(text("tests/fixtures/yt-channel-search-mobile.html"));
-        eq("learn: videos on a real mobile channel search page", 3, mv.size());
-        yes("learn: mobile page gives id, title and length", mv.get(0).url.endsWith("zeonmOO9jm4") && mv.get(0).title.equals("Introducing DuckLake") && mv.get(0).minutes == 85);
-        yes("learn: an escaped ampersand in a mobile title is read", mv.get(2).title.contains("Pedro Holanda & Sam"));
-        eq("learn: JavaScript escapes are undone", "{\"a\":1}", PathFinder.jsUnescape("\\x7b\\x22a\\x22:1\\x7d"));
-        eq("learn: a doubled backslash becomes one", "a\\b", PathFinder.jsUnescape("a\\\\b"));
-        // titles
+        yes("learn: a YouTube key looks like AIza plus 35", PathFinder.validKey("AIzaSyA1234567890abcdefghijklmnopqrstuv") && !PathFinder.validKey("AIza short") && !PathFinder.validKey("sk-1234567890abcdefghijklmnopqrstuvwxyzABC"));
+        String su = PathFinder.searchUrl("duckdb python pandas");
+        yes("learn: the search asks for 5 English videos", su.startsWith("https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=5&relevanceLanguage=en") && su.endsWith("q=duckdb+python+pandas"));
+        yes("learn: the key is never in the address", !su.contains("key="));
+        eq("learn: lengths in one request", "https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=a%2Cb", PathFinder.videosUrl(java.util.Arrays.asList("a", "b")));
+        java.util.List<PathFinder.Res> sr = PathFinder.parseSearch(text("tests/fixtures/yt-search.json"));
+        eq("learn: videos in a search answer, without channels and upcoming streams", 3, sr.size());
+        yes("learn: title, address, channel and its address", sr.get(1).title.equals("Introducing DuckLake") && sr.get(1).url.equals("https://www.youtube.com/watch?v=zeonmOO9jm4")
+            && sr.get(1).channel.equals("DuckDB") && sr.get(1).channelUrl.equals("https://www.youtube.com/channel/UCQli51lMp-oW0gUHrcIj0jA"));
+        eq("learn: entities in titles are decoded", "DuckDB & Python: querying Pandas DataFrames with SQL", sr.get(2).title);
+        eq("learn: an error answer has no videos", 0, PathFinder.parseSearch("{\"error\":{\"code\":403,\"message\":\"quotaExceeded\"}}").size());
+        java.util.Map<String, Integer> lens = PathFinder.parseLengths(text("tests/fixtures/yt-videos.json"));
+        yes("learn: lengths from the videos answer", lens.get("zeonmOO9jm4") == 85 && lens.get("AKix55rQEUU") == 10 && lens.get("T23Bs75F7ZQ") == 230);
+        eq("learn: PT9M43S", 10, PathFinder.isoMinutes("PT9M43S"));
+        eq("learn: PT45S", 1, PathFinder.isoMinutes("PT45S"));
+        eq("learn: P1DT1M", 1441, PathFinder.isoMinutes("P1DT1M"));
+        eq("learn: a live stream has no length", 0, PathFinder.isoMinutes("P0D"));
+        PathFinder.Step qs = new PathFinder.Step(); qs.name = "Python Integration"; qs.search = "python pandas";
+        eq("learn: the topic is added to a search that lacks it", "duckdb python pandas", PathFinder.query(qs, "duckdb"));
+        qs.search = "duckdb python pandas";
+        eq("learn: a search that names the topic is kept", "duckdb python pandas", PathFinder.query(qs, "duckdb"));
+
+        // which video fits a step
         yes("learn: a page title that shares a word fits", PathFinder.fits("CSV Import – DuckDB", "Querying CSV files", "", "duckdb"));
         yes("learn: only generic words do not fit", !PathFinder.fits("A beginner tutorial for everyone", "DuckDB tutorial for beginners", "Introduction", "duckdb"));
-        yes("learn: an unrelated title does not fit", !PathFinder.fits("Cooking pasta at home", "Meshtastic channels", "Encryption", "Meshtastic"));
-        PathFinder.Step st = new PathFinder.Step(); st.name = "End Fed Half Wave Antennas"; st.search = "EFHW antenna basics";
-        eq("learn: one of five step words is not enough", 0.0, PathFinder.stepScore("Best QRP Antenna? :: EFHW vs Dipole", "KM4ACK", st, "QRP radio with wire antennas"));
-        eq("learn: four step words and the topic fit", 4.5, PathFinder.stepScore("How-To Build, Cut & Tune an End Fed Half Wave Ham Radio Antenna!", "Ham Radio Crash Course", st, "QRP radio with wire antennas"));
-        eq("learn: the topic alone is not enough for a step with its own words", 0.0, PathFinder.stepScore("QRP radio night", "KM4ACK", st, "QRP radio with wire antennas"));
-        PathFinder.Step py = new PathFinder.Step(); py.name = "DuckDB with Python and Pandas"; py.search = "DuckDB Python Pandas tutorial";
-        eq("learn: a step word without the topic is not enough", 0.0, PathFinder.stepScore("Data Engineering with Python and AI", "freeCodeCamp.org", py, "duckdb"));
-        yes("learn: the channel name can carry the topic", PathFinder.stepScore("Python client deep dive", "DuckDB", py, "duckdb") >= 1.5);
-        PathFinder.Step intro = new PathFinder.Step(); intro.name = "Introduction to QRP"; intro.search = "QRP radio basics";
-        eq("learn: a step made only of topic words gets no channel video", 0.0, PathFinder.stepScore("My QRP radio station", "KM4ACK", intro, "QRP radio with wire antennas"));
-        PathFinder.Step field = new PathFinder.Step(); field.name = "Operating QRP in the Field"; field.search = "portable QRP operating";
-        eq("learn: one of three step words is not enough", 0.0, PathFinder.stepScore("Governor highlights amateur radio volunteers ahead of Field Day", "ARRLHQ", field, "QRP radio with wire antennas"));
-        yes("learn: two of three are", PathFinder.stepScore("Portable QRP operating from a park", "KM4ACK", field, "QRP radio with wire antennas") >= 2);
-        PathFinder.Step dip = new PathFinder.Step(); dip.name = "Building a Dipole Antenna"; dip.search = "build dipole antenna";
-        eq("learn: build is not a step word", 0.0, PathFinder.stepScore("Build a handheld Yagi antenna", "ARRLHQ", dip, "QRP radio with wire antennas"));
+        PathFinder.Step py = new PathFinder.Step(); py.name = "Python Integration"; py.search = "duckdb python pandas";
+        eq("learn: step words and the topic fit", 2.5, PathFinder.videoScore("DuckDB & Python: querying Pandas DataFrames with SQL", "freeCodeCamp.org", py, "duckdb"));
+        eq("learn: a step word without the topic is not enough", 0.0, PathFinder.videoScore("Data Engineering with Python", "freeCodeCamp.org", py, "duckdb"));
+        eq("learn: the topic without a step word is not enough", 0.0, PathFinder.videoScore("Introducing DuckLake", "DuckDB", py, "duckdb"));
+        yes("learn: the channel name can carry the topic", PathFinder.videoScore("Python client deep dive", "DuckDB", py, "duckdb") >= 1.5);
+        PathFinder.Step intro = new PathFinder.Step(); intro.name = "Introduction to DuckDB"; intro.search = "duckdb overview introduction";
+        eq("learn: a step of topic words takes a topic match", 0.5, PathFinder.videoScore("Introducing DuckLake", "DuckDB", intro, "duckdb"));
         eq("learn: instant meta refresh is followed", "https://duckdb.org/docs/2.0/data/csv/overview.html", PathFinder.metaRefresh(text("tests/fixtures/docs-redirect.html"), "https://duckdb.org/docs/data/csv"));
         eq("learn: a page without one", "", PathFinder.metaRefresh("<html><title>x</title></html>", "https://a.org/"));
-        yes("learn: Google Search redirects are known", PathFinder.isRedirect("https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbC") && !PathFinder.isRedirect("https://duckdb.org/"));
-        // hand-written: Google Search sources in an answer (the free key could not record a real one)
-        java.util.List<String[]> gs = PathFinder.groundingSources("{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"{}\"}]},\"groundingMetadata\":{\"groundingChunks\":[{\"web\":{\"uri\":\"https://vertexaisearch.cloud.google.com/grounding-api-redirect/X1\",\"title\":\"youtube.com\"}}]}}]}");
-        yes("learn: grounding sources are read", gs.size() == 1 && gs.get(0)[1].equals("youtube.com"));
-        eq("learn: no grounding in a plain answer", 0, PathFinder.groundingSources(text("tests/fixtures/gemini-learn.json")).size());
 
-        // the whole check, with saved pages: made-up videos go, real docs stay, videos come from a checked channel
+        // the whole check with saved answers: dead pages go, a redirect is followed, a video per step comes from the search
         FakeWeb w = new FakeWeb();
-        String docs = text("tests/fixtures/docs-page.html");
-        w.pages.put("https://duckdb.org/docs/", "<html><head><title>Documentation – DuckDB</title></head></html>");
-        w.pages.put("https://duckdb.org/docs/data/csv", text("tests/fixtures/docs-redirect.html"));
-        w.pages.put("https://duckdb.org/docs/2.0/data/csv/overview.html", docs);
-        w.pages.put("https://www.youtube.com/@DuckDB", text("tests/fixtures/yt-channel.html").replace("KM4ACK", "DuckDB"));
-        String search = text("tests/fixtures/yt-channel-search.html").replace("Best QRP Antenna? :: EFHW vs Dipole", "Querying CSV files with DuckDB");
-        w.pages.put(PathFinder.channelSearchUrl("https://www.youtube.com/@DuckDB", p.steps.get(2).search), search);
-        w.pages.put(PathFinder.oembedUrl("https://www.youtube.com/watch?v=hXH6U0t5p6k"), "{\"title\":\"Querying CSV files with DuckDB\",\"author_name\":\"DuckDB\",\"author_url\":\"https://www.youtube.com/@DuckDB\"}");
-        PathFinder.check(p, "duckdb", w, new java.util.HashSet<String>());
+        w.pages.put("https://duckdb.org/docs/", "<html><head><title>Documentation</title></head></html>");
+        w.pages.put("https://duckdb.org/docs/sql/introduction", text("tests/fixtures/docs-redirect.html"));
+        w.pages.put("https://duckdb.org/docs/2.0/data/csv/overview.html", text("tests/fixtures/docs-page.html"));
+        String search = text("tests/fixtures/yt-search.json");
+        for (PathFinder.Step st : p.steps) w.pages.put(PathFinder.searchUrl(PathFinder.query(st, "duckdb")), search);
+        w.pages.put(PathFinder.searchUrl(PathFinder.query(p.steps.get(1), "duckdb")), "{\"items\":[]}"); // the SQL step finds nothing
+        w.pages.put(PathFinder.videosUrl(java.util.Arrays.asList("AKix55rQEUU", "T23Bs75F7ZQ")), text("tests/fixtures/yt-videos.json"));
+        PathFinder.check(p, "duckdb", w, new java.util.HashSet<String>(), true);
         PathFinder.Step s0 = p.steps.get(0), s2 = p.steps.get(2);
-        yes("learn: a made-up video is dropped", !s0.res.isEmpty() && s0.res.get(0).url.equals("https://duckdb.org/docs/"));
-        yes("learn: a docs page that redirects is kept at its real address with its real title", s2.res.size() == 2 && s2.res.get(1).url.equals("https://duckdb.org/docs/2.0/data/csv/overview.html") && s2.res.get(1).title.startsWith("CSV Import"));
-        yes("learn: a video from the channel's search page fills the step, first", s2.res.get(0).kind.equals("video") && s2.res.get(0).url.endsWith("hXH6U0t5p6k") && s2.res.get(0).channel.equals("DuckDB") && s2.res.get(0).minutes == 10);
-        eq("learn: the channel is checked by its feed link", 1, p.channels.size());
-        yes("learn: a dead link (404) is dropped", p.steps.get(3).res.isEmpty() || !p.steps.get(3).res.get(0).url.contains("powerbi"));
-        yes("learn: no Google Search page was asked for", !String.valueOf(w.asked).contains("/results"));
-        yes("learn: no more checks than the budget", w.asked.size() <= PathFinder.MAX_CHECKS);
-        eq("learn: count of links kept", 3, p.kept);
-        // a video used once is not used again
-        int fromChannel = 0;
-        for (PathFinder.Step x : p.steps) for (PathFinder.Res r : x.res) if (r.url.endsWith("hXH6U0t5p6k")) fromChannel++;
-        eq("learn: one video appears once", 1, fromChannel);
-        // a Google Search redirect is resolved to the real address
+        yes("learn: a page titled only Documentation fits by its site name", s0.res.size() == 2 && s0.res.get(1).url.equals("https://duckdb.org/docs/"));
+        yes("learn: a step of topic words gets YouTube's first fitting video", s0.res.get(0).url.endsWith("AKix55rQEUU") && s0.res.get(0).minutes == 10);
+        yes("learn: the Python step gets the Python video, first, with its length", s2.res.get(0).url.endsWith("T23Bs75F7ZQ") && s2.res.get(0).minutes == 230 && s2.res.get(0).channel.equals("freeCodeCamp.org"));
+        yes("learn: a dead page (404) is dropped", s2.res.size() == 1);
+        yes("learn: a docs page that redirects is kept at its real address", p.steps.get(1).res.size() == 1 || p.steps.get(1).res.get(p.steps.get(1).res.size() - 1).url.contains("overview"));
+        int t23 = 0;
+        for (PathFinder.Step x : p.steps) for (PathFinder.Res r : x.res) if (r.url.endsWith("T23Bs75F7ZQ") || r.url.endsWith("AKix55rQEUU")) t23++;
+        eq("learn: a video is used once in a path", 2, t23);
+        yes("learn: YouTube was searched", p.youtube && p.youtubeNote.isEmpty());
+        yes("learn: nothing but the YouTube API and the pages Gemini named was asked", String.valueOf(w.asked).replaceAll("https://(www\\.googleapis\\.com/youtube/v3/|duckdb\\.org/docs/)[^,\\]]*", "").replaceAll("[\\[\\], ]", "").isEmpty());
+        String md = PathFinder.markdown("duckdb", p);
+        yes("learn: the note has numbered steps with checkboxes", md.contains("## 1. Introduction to DuckDB") && md.contains("- [ ] [Documentation](https://duckdb.org/docs/)"));
+        yes("learn: a step without a video has a search line", md.contains("- Search YouTube for: duckdb power bi integration"));
+        yes("learn: the note says where videos come from", md.startsWith("Free material, every link checked when the path was made; videos from a YouTube search."));
+        // without a key: no request to YouTube, every step gets the search line
         FakeWeb w2 = new FakeWeb();
-        String red = "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbC";
-        w2.moves.put(red, "https://www.youtube.com/watch?v=-Ykyy58lFOI");
-        w2.pages.put(PathFinder.oembedUrl("https://www.youtube.com/watch?v=-Ykyy58lFOI"), text("tests/fixtures/yt-oembed.json"));
-        PathFinder.Plan g = PathFinder.parse("{\"steps\":[{\"step\":\"Portable power\",\"why\":\"w\",\"search\":\"buddipole power\",\"resources\":[{\"title\":\"BuddiPole PowerPro review\",\"url\":\"" + red + "\",\"kind\":\"video\",\"minutes\":12}]},"
-            + "{\"step\":\"Second\",\"why\":\"w\",\"resources\":[{\"title\":\"BuddiPole again\",\"url\":\"https://youtu.be/-Ykyy58lFOI\",\"kind\":\"video\"}]}],\"channels\":[]}");
-        PathFinder.check(g, "QRP radio", w2, null);
-        yes("learn: a redirect becomes the real video with its real title", g.steps.get(0).res.size() == 1 && g.steps.get(0).res.get(0).url.equals("https://www.youtube.com/watch?v=-Ykyy58lFOI") && g.steps.get(0).res.get(0).title.equals("BuddiPole PowerPro"));
-        yes("learn: the same video twice is kept once", g.steps.get(1).res.isEmpty());
-        eq("learn: channel of a checked video is offered only when it appears twice", 0, PathFinder.offerChannels(g).size());
-        PathFinder.Res extra = new PathFinder.Res("Other", "https://www.youtube.com/watch?v=WukGE_fExuk", "video", 5); extra.channel = "KM4ACK"; extra.channelUrl = "https://www.youtube.com/@KM4ACK";
-        g.steps.get(1).res.add(extra);
-        java.util.List<String[]> offer = PathFinder.offerChannels(g);
-        yes("learn: a channel with two videos is offered", offer.size() == 1 && offer.get(0)[0].equals("KM4ACK") && offer.get(0)[1].equals("https://www.youtube.com/@KM4ACK"));
-        // an item already kept counts as checked
+        PathFinder.Plan nk = PathFinder.parse(Gemini.replyText(200, text("tests/fixtures/gemini-learn.json")));
+        PathFinder.check(nk, "duckdb", w2, null, false);
+        yes("learn: without a key YouTube is not asked", !String.valueOf(w2.asked).contains("googleapis"));
+        String md2 = PathFinder.markdown("duckdb", nk);
+        int lines = md2.split("- Search YouTube for:", -1).length - 1;
+        eq("learn: without a key every step has a search line", 5, lines);
+        // a refused key or a used-up day: the path is still made, and says why there are no videos
         FakeWeb w3 = new FakeWeb();
-        PathFinder.Plan k = PathFinder.parse("{\"steps\":[{\"step\":\"Basics\",\"why\":\"w\",\"resources\":[{\"title\":\"Mine\",\"url\":\"https://blog.example.org/post\",\"kind\":\"article\"}]}],\"channels\":[]}");
+        PathFinder.Plan rk = PathFinder.parse(Gemini.replyText(200, text("tests/fixtures/gemini-learn.json")));
+        PathFinder.check(rk, "duckdb", w3, null, true);
+        yes("learn: a failed search stops after one request and says why", rk.youtubeNote.contains("100 searches") && String.valueOf(w3.asked).split("googleapis", -1).length == 2);
+        // channels that appear twice can be added
+        PathFinder.Plan two = new PathFinder.Plan();
+        for (int i = 0; i < 2; i++) { PathFinder.Step x = new PathFinder.Step(); x.name = "s" + i; PathFinder.Res v = new PathFinder.Res("v" + i, PathFinder.watchUrl(i == 0 ? "AKix55rQEUU" : "zeonmOO9jm4"), "video", 5); v.channel = "DuckDB"; v.channelUrl = "https://www.youtube.com/channel/UCQli51lMp-oW0gUHrcIj0jA"; x.res.add(v); two.steps.add(x); }
+        java.util.List<String[]> offer = PathFinder.offerChannels(two);
+        yes("learn: a channel with two videos is offered", offer.size() == 1 && offer.get(0)[0].equals("DuckDB") && offer.get(0)[1].endsWith("UCQli51lMp-oW0gUHrcIj0jA"));
+        two.steps.get(1).res.get(0).channelUrl = "https://www.youtube.com/channel/UC8butISFwT-Wl7EV0hUK0BQ";
+        eq("learn: one video is not enough", 0, PathFinder.offerChannels(two).size());
+        // an item already kept counts as checked
+        FakeWeb w4 = new FakeWeb();
+        PathFinder.Plan k = PathFinder.parse("{\"steps\":[{\"step\":\"Basics\",\"why\":\"w\",\"search\":\"x basics\",\"resources\":[{\"title\":\"Mine\",\"url\":\"https://blog.example.org/post\",\"kind\":\"article\"}]}]}");
         java.util.Set<String> keptLinks = new java.util.HashSet<>(); keptLinks.add(FeedParser.normalizeLink("https://blog.example.org/post"));
-        PathFinder.check(k, "x", w3, keptLinks);
-        yes("learn: a kept item is reused without a request", k.steps.get(0).res.size() == 1 && w3.asked.isEmpty());
-        // order inside a step, the note, the next step
+        PathFinder.check(k, "x", w4, keptLinks, false);
+        yes("learn: a kept item is reused without a request", k.steps.get(0).res.size() == 1 && w4.asked.isEmpty());
+        // order inside a step, the next step
         java.util.List<PathFinder.Res> mix = new java.util.ArrayList<>();
         mix.add(new PathFinder.Res("d", "https://a.org/d", "docs", 1)); mix.add(new PathFinder.Res("v", "https://youtu.be/-Ykyy58lFOI", "video", 1)); mix.add(new PathFinder.Res("c", "https://a.org/c", "course", 1));
         PathFinder.sortRes(mix);
         eq("learn: videos, then courses, then docs", "v c d", mix.get(0).title + " " + mix.get(1).title + " " + mix.get(2).title);
-        String md = PathFinder.markdown("duckdb", p);
-        yes("learn: the note has numbered steps with checkboxes", md.contains("## 1. Introduction to DuckDB") && md.contains("- [ ] [Documentation – DuckDB](https://duckdb.org/docs/)"));
-        yes("learn: a step with nothing checked says what to search", md.contains("Nothing checked for this step. Search YouTube for:") || !md.contains("Nothing checked"));
-        yes("learn: the note says links were checked", md.startsWith("Free material, every link checked"));
         java.util.Map<Long, Integer> states = new java.util.HashMap<>();
         long idn = 1;
         for (PathFinder.Step x : p.steps) for (PathFinder.Res r : x.res) { r.itemId = idn; states.put(idn, 0); idn++; }
