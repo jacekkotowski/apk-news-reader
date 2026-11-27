@@ -49,8 +49,11 @@ final class Gemini {
         return b.toString();
     }
 
-    private static String request(String partsJson, String schema) {
-        String cfg = schema == null ? "" : ",\"generationConfig\":{\"responseMimeType\":\"application/json\",\"responseSchema\":" + schema + "}";
+    private static String request(String partsJson, String schema) { return request(partsJson, schema, ""); }
+
+    /** extraConfig: more members for generationConfig, each starting with a comma; only used together with a schema. */
+    private static String request(String partsJson, String schema, String extraConfig) {
+        String cfg = schema == null ? "" : ",\"generationConfig\":{\"responseMimeType\":\"application/json\",\"responseSchema\":" + schema + extraConfig + "}";
         return "{\"contents\":[{\"parts\":[" + partsJson + "]}]" + cfg + "}";
     }
 
@@ -69,8 +72,10 @@ final class Gemini {
                 + "'## Key ideas' (5 short bullets), '## Quotes' (up to 3 short quotes" + (video ? ", each with an mm:ss timestamp" : "") + "), "
                 + "'## Why it matters for me' (2 sentences; tie it to my topics only if it really fits), '## Try next' (2 bullets). "
                 + "questions holds 3 recall questions, each with a short answer. "
-                + "Use only what the " + what + " says; do not invent anything.";
-        if (video) return request("{\"fileData\":{\"fileUri\":\"" + esc(videoUrl) + "\"}}," + textPart(p), NOTES_SCHEMA);
+                + "Use only what the " + what + " says; do not invent anything."
+                + (video ? " Take the notes mainly from what is said in the video." : "");
+        // low resolution: the notes come from the speech, and a video then costs far fewer tokens
+        if (video) return request("{\"fileData\":{\"fileUri\":\"" + esc(videoUrl) + "\"}}," + textPart(p), NOTES_SCHEMA, ",\"mediaResolution\":\"MEDIA_RESOLUTION_LOW\"");
         String t = articleText == null ? "" : articleText;
         if (t.length() > MAX_TEXT) t = t.substring(0, MAX_TEXT);
         return request(textPart(p + "\n\n--- ARTICLE ---\n" + t), NOTES_SCHEMA);

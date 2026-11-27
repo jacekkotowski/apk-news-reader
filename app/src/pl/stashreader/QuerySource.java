@@ -9,18 +9,19 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.TreeMap;
 
 /**
  * Sources that are a search on an open API instead of a feed address: arXiv, Hacker News (Algolia), Hugging Face daily papers,
- * Reddit, GitHub and Semantic Scholar. Pure logic (build the request address, read the answer), no network and no Android imports.
+ * Reddit, GitHub, Semantic Scholar and OpenAlex. Pure logic (build the request address, read the answer), no network and no Android imports.
  */
 final class QuerySource {
     private QuerySource() {}
 
-    static final String ARXIV = "arxiv", HN = "hn", HF = "hf", REDDIT = "reddit", GITHUB = "github", S2 = "s2";
+    static final String ARXIV = "arxiv", HN = "hn", HF = "hf", REDDIT = "reddit", GITHUB = "github", S2 = "s2", OA = "openalex";
     /** Page watch, sitemap watch and the recommendations source are handled by their own classes. */
     static final String WATCH = "watch", SITEMAP = "sitemap", RECS = "recs";
-    static final String[] KINDS = {ARXIV, HN, HF, REDDIT, GITHUB, S2, WATCH, SITEMAP, RECS};
+    static final String[] KINDS = {ARXIV, HN, HF, REDDIT, GITHUB, S2, OA, WATCH, SITEMAP, RECS};
     /** Query sources are fetched at most this often; the stored items are the cache in between. */
     static final long MIN_INTERVAL_MS = 3 * 3600000L, WATCH_INTERVAL_MS = 24 * 3600000L;
 
@@ -38,6 +39,7 @@ final class QuerySource {
             case REDDIT: return "Reddit";
             case GITHUB: return "GitHub";
             case S2: return "Semantic Scholar";
+            case OA: return "OpenAlex";
             case WATCH: return "Watch a page (new links)";
             case SITEMAP: return "Watch a sitemap";
             case RECS: return "Recommendations from papers you kept";
@@ -83,6 +85,10 @@ final class QuerySource {
                 return "https://api.semanticscholar.org/graph/v1/paper/search?query=" + enc(q) + "&limit=25&year=" + (year - 1) + "-" + year
                     + "&fields=title,abstract,year,url,publicationDate,citationCount";
             }
+            case OA:
+                // the upper date matters: some records are dated a year ahead and would fill the whole newest-first page
+                return "https://api.openalex.org/works?search=" + enc(q) + "&filter=from_publication_date:" + day(now - 365L * 86400000L) + ",to_publication_date:" + day(now)
+                    + "&sort=publication_date:desc&per_page=25&select=id,doi,title,publication_date,cited_by_count,abstract_inverted_index,primary_location";
             case WATCH: case SITEMAP: return q;
             case RECS: return "https://api.semanticscholar.org/recommendations/v1/papers/?limit=30&fields=" + S2_FIELDS;
             default: throw new IllegalArgumentException("Unknown source kind " + kind);
@@ -94,6 +100,21 @@ final class QuerySource {
 
     /** A key as Semantic Scholar issues them: one word of letters, digits, dashes and underscores, 20 to 100 characters. */
     static boolean validS2Key(String k) { return k != null && k.matches("[A-Za-z0-9_\\-]{20,100}"); }
+
+    /** OpenAlex's API host: the only place the optional OpenAlex key is ever sent. */
+    static boolean isOaHost(String address) { return address != null && address.startsWith("https://api.openalex.org/"); }
+
+    /** An OpenAlex key: one word of letters and digits, 10 to 100 characters. */
+    static boolean validOaKey(String k) { return k != null && k.matches("[A-Za-z0-9]{10,100}"); }
+
+    /** The address with the OpenAlex key added (the key travels in the address). Any other address comes back unchanged. */
+    static String withOaKey(String address, String key) {
+        if (!validOaKey(key) || !isOaHost(address)) return address;
+        return address + (address.indexOf('?') < 0 ? "?" : "&") + "api_key=" + key;
+    }
+
+    /** An error message with any key in an address blanked, so it can be stored and shown. */
+    static String redact(String message) { return message == null ? "" : message.replaceAll("api_key=[^&\\s]*", "api_key=..."); }
 
     static final String S2_FIELDS = "title,abstract,year,url,publicationDate,citationCount";
 
@@ -155,6 +176,7 @@ final class QuerySource {
             case HF: hf(root, f, address, query); break;
             case GITHUB: github(root, f, address); break;
             case S2: s2(root, f, address); break;
+            case OA: oa(root, f, address); break;
             default: throw new FeedParser.FeedException("Unknown source kind");
         }
         FeedParser.finish(f);
@@ -309,5 +331,43 @@ final class QuerySource {
             i.body = "<p>" + html(abs.isEmpty() ? "(no abstract available)" : abs) + "</p><p>" + Json.num(m, "citationCount") + " citations.</p>";
             FeedParser.add(f, i, address);
         }
+    }
+
+    private static void oa(Object root, FeedParser.Feed f, String address) throws FeedParser.FeedException {
+        Map<String, Object> o = Json.obj(root);
+        List<Object> results = o == null ? null : Json.list(o.get("results"));
+        if (results == null) throw new FeedParser.FeedException(o != null && !Json.str(o, "message").isEmpty() ? "OpenAlex says: " + Json.str(o, "message") : "OpenAlex answered in an unexpected shape");
+        for (Object x : results) {
+            Map<String, Object> m = Json.obj(x);
+            if (m == null) continue;
+            String id = Json.str(m, "id"); // https://openalex.org/W123
+            String work = id.substring(id.lastIndexOf('/') + 1);
+            if (work.isEmpty()) continue;
+            String link = Json.str(m, "doi");
+            if (link.isEmpty()) link = Json.str(Json.obj(m.get("primary_location")), "landing_page_url");
+            if (link.isEmpty()) link = id;
+            String abs = abstractText(Json.obj(m.get("abstract_inverted_index")));
+            FeedParser.Item i = new FeedParser.Item();
+            i.uid = "oa:" + work;
+            i.title = Json.str(m, "title");
+            i.link = link;
+            i.published = FeedParser.date(Json.str(m, "publication_date"));
+            i.body = "<p>" + html(abs.isEmpty() ? "(no abstract available)" : abs) + "</p><p>" + Json.num(m, "cited_by_count") + " citations.</p>";
+            FeedParser.add(f, i, address);
+        }
+    }
+
+    /** OpenAlex sends an abstract as word -> positions in the text; this puts the words back in order. "" when there is none. */
+    static String abstractText(Map<String, Object> index) {
+        if (index == null) return "";
+        TreeMap<Long, String> at = new TreeMap<>();
+        for (Map.Entry<String, Object> e : index.entrySet()) {
+            List<Object> places = Json.list(e.getValue());
+            if (places == null) continue;
+            for (Object p : places) if (p instanceof Double) at.put(((Double) p).longValue(), e.getKey());
+        }
+        StringBuilder b = new StringBuilder();
+        for (String w : at.values()) { if (b.length() > 0) b.append(' '); b.append(w); }
+        return Sanitizer.collapse(b.toString());
     }
 }

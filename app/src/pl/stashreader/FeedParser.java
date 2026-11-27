@@ -36,6 +36,8 @@ final class FeedParser {
         String because = "";
         /** Podcast audio address from an RSS enclosure, https only; empty otherwise. */
         String audio = "";
+        /** Who wrote it, as the feed names them (the first author); empty when the feed does not say. */
+        String author = "";
     }
     static final class Feed { String title = ""; final List<Item> items = new ArrayList<>(); }
     static final class FeedException extends Exception { FeedException(String m) { super(m); } }
@@ -132,6 +134,8 @@ final class FeedParser {
         i.body = content.isEmpty() ? text(e, "description") : content;
         i.published = date(text(e, "pubDate"));
         if (i.published == 0) i.published = date(text(e, "date"));
+        i.author = author(text(e, "creator")); // dc:creator
+        if (i.author.isEmpty()) i.author = author(text(e, "author"));
         for (Element en : children(e, "enclosure")) {
             String u = en.getAttribute("url").trim(), t = en.getAttribute("type").toLowerCase(Locale.ROOT);
             if (!u.isEmpty() && (t.startsWith("audio/") || u.toLowerCase(Locale.ROOT).matches("[^?#]*\\.(mp3|m4a|aac|ogg|opus)([?#].*)?"))) { i.audio = u; break; }
@@ -157,7 +161,21 @@ final class FeedParser {
         }
         i.published = date(text(e, "published"));
         if (i.published == 0) i.published = date(text(e, "updated"));
+        Element who = first(e, "author");
+        if (who != null) i.author = author(text(who, "name"));
         return i;
+    }
+
+    private static final java.util.regex.Pattern MAIL = java.util.regex.Pattern.compile("[^\\s@]+@[^\\s@]+\\.[^\\s@]+");
+    private static final java.util.regex.Pattern MAIL_AND_NAME = java.util.regex.Pattern.compile("[^\\s@]+@[^\\s@]+\\s*\\((.+)\\)");
+
+    /** A name worth learning from: "mail (Name)" gives Name; a bare e-mail address or a stand-in such as "admin" gives "". */
+    static String author(String raw) {
+        String s = Sanitizer.collapse(Sanitizer.text(raw == null ? "" : raw));
+        java.util.regex.Matcher m = MAIL_AND_NAME.matcher(s);
+        if (m.matches()) s = m.group(1).trim();
+        if (MAIL.matcher(s).matches() || s.toLowerCase(Locale.ROOT).matches("admin|administrator|editor|unknown|author")) return "";
+        return s.length() > 80 ? s.substring(0, 80).trim() : s;
     }
 
     static void add(Feed f, Item i, String feedUrl) {

@@ -1,29 +1,32 @@
-## Stash Reader 1.17: a week note you keep, and a Feed that learns from what you skip
+## Stash Reader 1.18: swipe open articles, OpenAlex, a finer learner, lighter video notes
 
-This release also contains 1.16, which was not released on its own.
+**Swipe an open article**
+- An open Feed card swipes like a closed one: right keeps it, left asks for less, with Undo.
+- The swipe does not start on a code block, a table, a text field or a button, and not while text is selected. Code and tables still scroll sideways.
+- A kept card still cannot be swiped left. A note you are typing is saved before the card leaves.
 
-**The week note (written every Monday from what you kept)**
-- **Threads.** Items that build on each other are grouped under one heading, named by the words they share, for example "Thread: parquet, group".
-- **One short entry per item:** your note, else its first highlight, else one sentence quoted from the article. The note says "Sentence from the article", so it is never mistaken for a summary.
-- **Obsidian.** Each item links to its own note file (`[[2026-11-16 Title]]`), and the topics are tags. The week shows up in Obsidian's graph and tag list.
-- **To remember.** Three highlights from the week are listed. Their recall cards come back in the Feed now, not on their usual date.
-- **A closing line**, for example "You kept 9 and looked at 212 other cards in the Feed. Quietest sources: A, B."
-- **Your own words.** On the Monday after a week with something kept, the top of the Feed asks "What did you learn last week?". Your answer goes at the top of that week's note, and the file is written again. **Skip** closes the question for that week. It disappears after 7 days.
+**OpenAlex, a new place to search**
+- In **Sources**, "Add a search or watch a page" now lists **OpenAlex**: papers from the last 365 days, newest first, with abstract (when OpenAlex has one) and citation count.
+- It works without a key. A free key from openalex.org gives a larger daily budget: paste it under **Settings, OpenAlex (optional)**. It is sent only to OpenAlex and stays on the phone.
+- Records dated in the future are left out. A live search showed that without this limit the whole first page was dated ahead, up to a year.
 
-**What you skip and what you read (from 1.16)**
-- A card you **look at in the Feed** (most of it on screen for a moment) and never open counts as a very small "less" for its source only. It counts after a day, so you can still come back to it.
-- An article you **read for half a minute** without keeping it counts as a small "more".
-- Both are compared with how often a source appears in your Feed, so a big source is not punished for being big.
-- **Surprise cards** prefer sources the app knows little about, and say so.
-- **One story, many sources** joins two headlines only if they share at least two words that are not common across your Feed.
+**A finer learner**
+- The Feed now also learns from the **author** (when the feed names one) and from an article's **length** (under 4 minutes, 4 to 12, over 12). So it can tell a good article from a poor one on the same subject from the same source.
+- A card may say "You keep a lot by ..." or "Lowered: you often swipe away items by ...".
+
+**Lighter video notes**
+- **Make notes** on a video asks Gemini to read it at low resolution and to take the notes mainly from what is said. This uses fewer tokens of your free limit.
 
 **Try on the phone**
-1. Next Monday, look at the top of the Feed for "What did you learn last week?". Answer it, then open the week note in Obsidian.
-2. In Obsidian, click a `[[...]]` link in the week note: it should open that item's note.
+1. Open a card with a long article, swipe it right, then press Undo. Try to scroll a code block sideways, and select some text.
+2. Add an OpenAlex search in Sources, for example "causal inference". Look at what arrives.
+3. Make notes for a video and check that they are still good.
 
 **Known limits**
-- Not tested on a real phone. The PC tests cover the note's text, the answer, the tags, the links and the quiet signals with made-up data. The emulator only checks start-up and a swipe.
-- The week note is still written once, on the first start of a new week. Only your answer changes it later.
-- A note file name holding `[`, `]`, `#`, `^` or `|` gets no `[[link]]`, because Obsidian cannot open such a link.
-- The database moves to version 16 the first time 1.17 starts. There is no way back to an older version without reinstalling.
+- Not tested on a real phone. The swipe rules are tested with stand-in page elements, not by touch.
+- OpenAlex was asked live from a PC, not from the app. It searches titles, abstracts and full texts, newest first, so some results are only loosely related. Many of the newest records have no abstract.
+- The new video setting was not sent to Gemini; only the request text is tested.
+- Authors come from RSS and Atom feeds (blogs, arXiv, Reddit, YouTube). Other searches name none. Items already on the phone get an author only if their feed still lists them.
+- A card's length comes from the text the app has: an item that arrives as a summary counts as short until the full article is loaded. Videos and podcasts have no length for the learner.
+- The database moves to version 17 the first time 1.18 starts. There is no way back to an older version without reinstalling.
 - Earlier limits still apply.

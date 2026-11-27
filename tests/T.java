@@ -21,6 +21,7 @@ public final class T {
     public static void main(String[] a) throws Exception {
         sanitizer();
         feeds();
+        authors();
         shareAndRecall();
         gemini();
         feedFilter();
@@ -39,6 +40,7 @@ public final class T {
         weekNote();
         listening();
         s2key();
+        openAlex();
         markdown();
         json();
         querySources();
@@ -91,6 +93,11 @@ public final class T {
         yes("gemini: article request is JSON", Json.obj(Json.parse(aj)) != null);
         yes("gemini: article request has no video part and sends the text", !aj.contains("fileData") && aj.contains("Line one\\nLine \\\"two\\\""));
         yes("gemini: structured output is asked for", aj.contains("\"responseMimeType\":\"application/json\"") && aj.contains("\"responseSchema\""));
+        java.util.Map<String, Object> vcfg = Json.obj(Json.obj(vid).get("generationConfig"));
+        eq("gemini: video is read at low resolution", "MEDIA_RESOLUTION_LOW", Json.str(vcfg, "mediaResolution"));
+        yes("gemini: video request keeps the structured output", Json.str(vcfg, "responseMimeType").equals("application/json") && Json.obj(vcfg.get("responseSchema")) != null);
+        yes("gemini: video notes come mainly from the speech", vj.contains("Take the notes mainly from what is said in the video."));
+        yes("gemini: an article asks for neither", !aj.contains("mediaResolution") && !aj.contains("said in the video"));
         StringBuilder big = new StringBuilder(); for (int i = 0; i < 50000; i++) big.append('x');
         yes("gemini: article text is capped", Gemini.notesRequest("", "T", "", big.toString()).length() < Gemini.MAX_TEXT + 3000);
         String pj = Gemini.pathRequest("tidymodels", "Power BI", "- A (S)\n  highlight: \"x\"\n");
@@ -455,6 +462,67 @@ public final class T {
         yes("s2 host: the key never goes to another host", !QuerySource.isS2Host("https://evil.example/https://api.semanticscholar.org/") && !QuerySource.isS2Host("https://api.semanticscholar.org.evil.example/x") && !QuerySource.isS2Host("http://api.semanticscholar.org/x") && !QuerySource.isS2Host("https://www.reddit.com/r/x"));
     }
 
+    static void openAlex() throws Exception {
+        long now = 1794700000000L; // 2026-11-14
+        eq("oa: label", "OpenAlex", QuerySource.label(QuerySource.OA));
+        String u = QuerySource.requestUrl("openalex", " causal  inference ", now);
+        eq("oa url: the last 365 days up to today, newest first", "https://api.openalex.org/works?search=causal+inference&filter=from_publication_date:2025-11-14,to_publication_date:2026-11-14"
+            + "&sort=publication_date:desc&per_page=25&select=id,doi,title,publication_date,cited_by_count,abstract_inverted_index,primary_location", u);
+        yes("oa url: no mailto", !u.contains("mailto"));
+        eq("oa: asks for JSON", "application/json", QuerySource.accept("openalex"));
+        eq("oa: searched at most every three hours", 3 * 3600000L, QuerySource.minInterval("openalex"));
+        yes("oa: needs a query", QuerySource.needsQuery("openalex"));
+
+        String key = "aB3dEfGh1jKlMnOpQrStUv"; // made up
+        yes("oa key: letters and digits are valid", QuerySource.validOaKey(key) && QuerySource.validOaKey("abcdefghij"));
+        StringBuilder longKey = new StringBuilder(); for (int i = 0; i < 101; i++) longKey.append('a');
+        yes("oa key: too short, too long, spaces and signs are not", !QuerySource.validOaKey("abcdefghi") && !QuerySource.validOaKey(longKey.toString())
+            && !QuerySource.validOaKey("abcde fghijk") && !QuerySource.validOaKey("abcdefghij&x=1") && !QuerySource.validOaKey("") && !QuerySource.validOaKey(null));
+        yes("oa host: the API address", QuerySource.isOaHost(u));
+        yes("oa host: the key never goes to another host", !QuerySource.isOaHost("https://evil.example/https://api.openalex.org/") && !QuerySource.isOaHost("https://api.openalex.org.evil.example/works")
+            && !QuerySource.isOaHost("http://api.openalex.org/works") && !QuerySource.isOaHost("https://openalex.org/W1") && !QuerySource.isOaHost(null));
+        eq("oa key: added to the OpenAlex address", u + "&api_key=" + key, QuerySource.withOaKey(u, key));
+        eq("oa key: starts the query when there is none", "https://api.openalex.org/works/W1?api_key=" + key, QuerySource.withOaKey("https://api.openalex.org/works/W1", key));
+        eq("oa key: not added elsewhere", "https://api.semanticscholar.org/x?a=1", QuerySource.withOaKey("https://api.semanticscholar.org/x?a=1", key));
+        eq("oa key: no key, address unchanged", u, QuerySource.withOaKey(u, ""));
+        String shown = QuerySource.redact("failed to connect to " + u + "&api_key=" + key + " after 15000ms");
+        yes("oa key: blanked in error messages", !shown.contains(key) && shown.contains("api_key=... after 15000ms"));
+        eq("oa redact: other messages stay", "The server answered HTTP 403", QuerySource.redact("The server answered HTTP 403"));
+
+        java.util.Map<String, Object> idx = Json.obj(Json.parse("{\"the\": [0, 4], \"cat\": [1], \"sat\": [2], \"on\": [3], \"mat\": [5], \"odd\": \"x\"}"));
+        eq("oa abstract: words go back to their places", "the cat sat on the mat", QuerySource.abstractText(idx));
+        eq("oa abstract: none", "", QuerySource.abstractText(null));
+
+        // a saved real answer, cut to three works
+        FeedParser.Feed f = QuerySource.parse("openalex", "causal machine learning", file("tests/fixtures/openalex.json"), now);
+        eq("oa: three works", 3, f.items.size());
+        eq("oa: feed title", "OpenAlex: causal machine learning", f.title);
+        FeedParser.Item doi = null, noDoi = null, noAbstract = null;
+        for (FeedParser.Item i : f.items) {
+            if (i.title.startsWith("Machine Learning for Causal Inference")) doi = i;
+            if (i.title.startsWith("Exploration ")) noDoi = i;
+            if (i.title.startsWith("Learning by Imagining")) noAbstract = i;
+        }
+        yes("oa: all three are read", doi != null && noDoi != null && noAbstract != null);
+        eq("oa: the DOI is the link", "https://doi.org/10.25949/35134390", doi.link);
+        yes("oa: the abstract is rebuilt, with the citations", doi.body.startsWith("<p>Estimates of treatment effects and preferences inform decisions about healthcare") && doi.body.endsWith("</p><p>0 citations.</p>"));
+        eq("oa: publication date", FeedParser.date("2026-11-27"), doi.published);
+        eq("oa: without a DOI the landing page is the link", "https://hal.science/tel-05482693", noDoi.link);
+        yes("oa: a missing abstract is said so", noAbstract.body.contains("(no abstract available)"));
+        eq("oa: a DOI link can seed recommendations", "DOI:10.25949/35134390", QuerySource.paperId(doi.link));
+
+        FeedParser.Feed bare = QuerySource.parse("openalex", "x", "{\"results\":[{\"id\":\"https://openalex.org/W42\",\"doi\":null,\"title\":\"A <i>bare</i> work\",\"publication_date\":\"2026-01-02\",\"cited_by_count\":7,\"abstract_inverted_index\":{\"a<b\":[0]},\"primary_location\":null},{\"id\":\"https://openalex.org/W43\",\"title\":null}]}".getBytes(StandardCharsets.UTF_8), now);
+        eq("oa: a work without a title is skipped", 1, bare.items.size());
+        eq("oa: the OpenAlex page is the last resort", "https://openalex.org/W42", bare.items.get(0).link);
+        eq("oa: title is plain text", "A bare work", bare.items.get(0).title);
+        eq("oa: abstract is escaped for HTML", "<p>a&lt;b</p><p>7 citations.</p>", bare.items.get(0).body);
+        eq("oa: no matches is an empty list, not an error", 0, QuerySource.parse("openalex", "x", "{\"meta\":{\"count\":0},\"results\":[]}".getBytes(StandardCharsets.UTF_8), now).items.size());
+        try { QuerySource.parse("openalex", "x", "{\"error\":\"Invalid query\",\"message\":\"Bad filter.\"}".getBytes(StandardCharsets.UTF_8), now); yes("oa: message", false); }
+        catch (FeedParser.FeedException e) { eq("oa: message", "OpenAlex says: Bad filter.", e.getMessage()); }
+        try { QuerySource.parse("openalex", "x", "[]".getBytes(StandardCharsets.UTF_8), now); yes("oa: odd shape", false); }
+        catch (FeedParser.FeedException e) { eq("oa: odd shape", "OpenAlex answered in an unexpected shape", e.getMessage()); }
+    }
+
     static void listening() {
         yes("isArticle: a plain page is an article", FeedParser.isArticle("https://example.org/post", ""));
         yes("isArticle: a video is not", !FeedParser.isArticle("https://www.youtube.com/watch?v=1", ""));
@@ -687,6 +755,57 @@ public final class T {
         java.util.List<Ranker.Scored> rs = Ranker.rank(docs, none, kb, now);
         eq("learner: the kept source comes first", 2L, rs.get(0).id);
         yes("learner: and says why", rs.get(0).why.contains("You keep a lot from Blog B"));
+
+        // a good and a bad article on the same subject from the same source: author and length decide
+        java.util.List<java.util.Map<String, Double>> tp = new java.util.ArrayList<>(pool);
+        tp.add(Learner.features("A tidyverse article", "", 7, "", none, "Ann Good", 15));
+        tp.add(Learner.features("A tidyverse article", "", 7, "", none, "Bob Thin", 2));
+        java.util.List<Learner.Label> tv = new java.util.ArrayList<>();
+        tv.add(new Learner.Label("A tidyverse article", "", 7, "", now, true).by("Ann Good", 15));
+        tv.add(new Learner.Label("A tidyverse article", "", 7, "", now, false).by("Bob Thin", 2));
+        Learner.Model tm = Learner.build(tv, none, tp, now);
+        yes("learner: the shared source weighs about 0", Math.abs(tm.weight("s:7")) < 1e-9);
+        yes("learner: the shared word weighs about 0", Math.abs(tm.weight("w:tidyverse")) < 1e-9);
+        yes("learner: the kept author is up, the other down", tm.weight("a:ann good") > 0 && tm.weight("a:bob thin") < 0);
+        yes("learner: the kept length is up, the other down", tm.weight("len:long") > 0 && tm.weight("len:short") < 0);
+        Learner.Result good = tm.score(Learner.features("A tidyverse article", "", 7, "", none, "Ann Good", 20), "Blog", "Ann Good");
+        Learner.Result bad = tm.score(Learner.features("A tidyverse article", "", 7, "", none, "Bob Thin", 1), "Blog", "Bob Thin");
+        yes("learner: so one rises and the other sinks", good.score > 0.5 && bad.score < -0.5);
+        eq("learner: the reason names the author", "You keep a lot by Ann Good", good.up);
+        eq("learner: and for the other one", "Lowered: you often swipe away items by Bob Thin", bad.down);
+        double authorOnly = tm.score(Learner.features("Unrelated", "", 999, "", none, "Ann Good", 0), "X", "Ann Good").score;
+        double lengthOnly = tm.score(Learner.features("Unrelated", "", 999, "", none, "", 30), "X", "").score;
+        yes("learner: the author is capped", authorOnly > 0 && authorOnly <= Learner.AUTHOR_CAP + 1e-9);
+        yes("learner: the length is capped", lengthOnly > 0 && lengthOnly <= Learner.LENGTH_CAP + 1e-9);
+        eq("learner: length bands", "short medium medium long", Learner.length(3) + " " + Learner.length(4) + " " + Learner.length(12) + " " + Learner.length(13));
+        yes("learner: a video has no length feature", !Learner.features("T", "", 1, "video", none, "Ann", 3).containsKey("len:short"));
+        yes("learner: unknown author and length add no features", !Learner.features("T", "", 1, "", none, "  ", 0).toString().matches(".*(a:|len:).*"));
+        yes("learner: the author is lower-cased", Learner.features("T", "", 1, "", none, "Ann  Good", 5).containsKey("a:ann good"));
+        java.util.List<Ranker.Doc> ad = new java.util.ArrayList<>();
+        ad.add(new Ranker.Doc(1, "A tidyverse article", "", now, "", 7, "Blog", "").by("Bob Thin", 2));
+        ad.add(new Ranker.Doc(2, "A tidyverse article", "", now, "", 7, "Blog", "").by("Ann Good", 15));
+        for (int i = 3; i <= 8; i++) ad.add(new Ranker.Doc(i, "Other note " + i, "", now, "", 40 + i, "Blog " + i, "")); // a writer is only notable among others
+        java.util.List<Ranker.Scored> ar = Ranker.rank(ad, none, tv, now);
+        yes("learner: in the ranking the kept author comes first and is named", ar.get(0).id == 2L && ar.get(0).why.contains("You keep a lot by Ann Good"));
+    }
+
+    static void authors() throws Exception {
+        String rss = "<rss xmlns:dc=\"http://purl.org/dc/elements/1.1/\"><channel><title>T</title>"
+            + "<item><title>One</title><link>https://e.org/1</link><dc:creator><![CDATA[Julia  Silge]]></dc:creator><author>x@e.org</author></item>"
+            + "<item><title>Two</title><link>https://e.org/2</link><author>jane@e.org (Jane Doe)</author></item>"
+            + "<item><title>Three</title><link>https://e.org/3</link><author>jane@e.org</author></item>"
+            + "<item><title>Four</title><link>https://e.org/4</link></item></channel></rss>";
+        java.util.Map<String, String> by = new java.util.HashMap<>();
+        for (FeedParser.Item i : FeedParser.parse(rss.getBytes(StandardCharsets.UTF_8), "https://e.org/feed").items) by.put(i.title, i.author);
+        eq("author: dc:creator", "Julia Silge", by.get("One"));
+        eq("author: the name beside an e-mail address", "Jane Doe", by.get("Two"));
+        eq("author: a bare e-mail address is not a name", "", by.get("Three"));
+        eq("author: none", "", by.get("Four"));
+        String atom = "<feed><title>A</title><author><name>Feed Owner</name></author><entry><title>E</title><id>1</id><author><name>Ann One</name><email>a@e.org</email></author><author><name>Ben Two</name></author></entry></feed>";
+        eq("author: Atom author/name, the first one", "Ann One", FeedParser.parse(atom.getBytes(StandardCharsets.UTF_8), "https://e.org/a").items.get(0).author);
+        eq("author: a stand-in is no author", "", FeedParser.author("Admin"));
+        eq("author: very long names are cut", 80, FeedParser.author(new String(new char[200]).replace('\0', 'n')).length());
+        yes("author: arXiv papers have one", !QuerySource.parse("arxiv", "x", file("tests/fixtures/arxiv.xml"), 1794700000000L).items.get(0).author.isEmpty());
     }
 
     static void markdown() {
@@ -742,7 +861,7 @@ public final class T {
         long now = 1794700000000L; // 2026-11-14
         String q = "claude code";
         eq("key: lower case and trimmed", "query:hn:claude code", QuerySource.key("hn", "  Claude   Code "));
-        yes("kinds: all six are valid", QuerySource.valid("arxiv") && QuerySource.valid("hn") && QuerySource.valid("hf") && QuerySource.valid("reddit") && QuerySource.valid("github") && QuerySource.valid("s2") && !QuerySource.valid("rss"));
+        yes("kinds: all seven are valid", QuerySource.valid("arxiv") && QuerySource.valid("hn") && QuerySource.valid("hf") && QuerySource.valid("reddit") && QuerySource.valid("github") && QuerySource.valid("s2") && QuerySource.valid("openalex") && !QuerySource.valid("rss"));
         yes("url arxiv", QuerySource.requestUrl("arxiv", "causal inference", now).startsWith("https://export.arxiv.org/api/query?search_query=all%3A%22causal+inference%22&sortBy=submittedDate"));
         yes("url hn", QuerySource.requestUrl("hn", q, now).startsWith("https://hn.algolia.com/api/v1/search_by_date?query=claude+code&tags=story&numericFilters=points%3E%3D20"));
         eq("url hf", "https://huggingface.co/api/daily_papers?limit=50", QuerySource.requestUrl("hf", "", now));

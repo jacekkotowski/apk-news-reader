@@ -35,12 +35,12 @@ final class Db extends SQLiteOpenHelper {
         if (instance == null) instance = new Db(c.getApplicationContext());
         return instance;
     }
-    private Db(Context c) { super(c, "stash.db", null, 16); ctx = c; }
+    private Db(Context c) { super(c, "stash.db", null, 17); ctx = c; }
 
     @Override public void onConfigure(SQLiteDatabase d) { d.setForeignKeyConstraintsEnabled(true); }
     @Override public void onCreate(SQLiteDatabase d) {
         d.execSQL("CREATE TABLE sources(id INTEGER PRIMARY KEY, url TEXT UNIQUE NOT NULL, name TEXT NOT NULL DEFAULT '', topic TEXT NOT NULL DEFAULT '', custom INTEGER NOT NULL DEFAULT 0, enabled INTEGER NOT NULL DEFAULT 1, last_ok INTEGER NOT NULL DEFAULT 0, last_error TEXT NOT NULL DEFAULT '', retry_after INTEGER NOT NULL DEFAULT 0, kind TEXT NOT NULL DEFAULT 'rss', query TEXT NOT NULL DEFAULT '', surprise_less INTEGER NOT NULL DEFAULT 0)");
-        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '', seen INTEGER NOT NULL DEFAULT 0, opened_at INTEGER NOT NULL DEFAULT 0)");
+        d.execSQL("CREATE TABLE items(id INTEGER PRIMARY KEY, source_id INTEGER NOT NULL REFERENCES sources(id) ON DELETE CASCADE, key TEXT UNIQUE NOT NULL, title TEXT NOT NULL, excerpt TEXT NOT NULL, html TEXT NOT NULL, full INTEGER NOT NULL DEFAULT 0, link TEXT NOT NULL, pub INTEGER NOT NULL, fetched INTEGER NOT NULL, mins INTEGER NOT NULL DEFAULT 1, state INTEGER NOT NULL DEFAULT 0, article TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', kept_at INTEGER NOT NULL DEFAULT 0, because TEXT NOT NULL DEFAULT '', audio TEXT NOT NULL DEFAULT '', ai TEXT NOT NULL DEFAULT '', seen INTEGER NOT NULL DEFAULT 0, opened_at INTEGER NOT NULL DEFAULT 0, author TEXT NOT NULL DEFAULT '')");
         d.execSQL("CREATE INDEX items_state ON items(state)");
         createTopics(d);
         createHighlights(d);
@@ -124,6 +124,7 @@ final class Db extends SQLiteOpenHelper {
             d.execSQL("ALTER TABLE items ADD COLUMN seen INTEGER NOT NULL DEFAULT 0");
             d.execSQL("ALTER TABLE items ADD COLUMN opened_at INTEGER NOT NULL DEFAULT 0");
         }
+        if (o < 17) d.execSQL("ALTER TABLE items ADD COLUMN author TEXT NOT NULL DEFAULT ''"); // items already stored get it at the next refresh, if the feed still lists them
         if (o < 12) { // full-text search over kept text, highlights and notes; every kept item is indexed on the first search
             createIndex(d);
             try { d.execSQL("INSERT OR IGNORE INTO fts_dirty SELECT id FROM items WHERE state=" + KEPT); } catch (RuntimeException ignored) { }
@@ -567,11 +568,13 @@ final class Db extends SQLiteOpenHelper {
                 v.put("source_id", sourceId); v.put("key", i.uid); v.put("title", i.title);
                 v.put("excerpt", Sanitizer.shorten(plain, 300)); v.put("html", html);
                 v.put("because", i.because); v.put("audio", i.audio == null ? "" : i.audio);
+                v.put("author", i.author == null ? "" : i.author);
                 v.put("full", i.fromContent && Sanitizer.words(plain) >= 250 ? 1 : 0);
                 v.put("link", i.link); v.put("pub", i.published); v.put("fetched", now);
                 v.put("mins", Math.max(1, Math.round(Sanitizer.words(plain) / 220f)));
-                if (d.insertWithOnConflict("items", null, v, SQLiteDatabase.CONFLICT_IGNORE) != -1) added++;
-                else if (i.audio != null && !i.audio.isEmpty()) d.execSQL("UPDATE items SET audio=? WHERE key=? AND audio=''", new Object[]{i.audio, i.uid});
+                if (d.insertWithOnConflict("items", null, v, SQLiteDatabase.CONFLICT_IGNORE) != -1) { added++; continue; }
+                if (i.audio != null && !i.audio.isEmpty()) d.execSQL("UPDATE items SET audio=? WHERE key=? AND audio=''", new Object[]{i.audio, i.uid});
+                if (i.author != null && !i.author.isEmpty()) d.execSQL("UPDATE items SET author=? WHERE key=? AND author=''", new Object[]{i.author, i.uid});
             }
             // never drop kept items; drop the oldest of the rest beyond the cap
             d.execSQL("DELETE FROM items WHERE state<>" + KEPT + " AND id NOT IN (SELECT id FROM items i WHERE state<>" + KEPT + " ORDER BY " + WHEN + " DESC LIMIT " + MAX_ITEMS + ")");
@@ -671,7 +674,7 @@ final class Db extends SQLiteOpenHelper {
         o.put("kind", FeedParser.kindOf(c.getString(9), c.getString(10)));
         return o;
     }
-    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state, i.because, i.link, i.audio, i.source_id FROM items i JOIN sources s ON s.id=i.source_id";
+    private static final String CARD = "SELECT i.id, i.title, i.excerpt, " + WHEN + ", i.mins, CASE WHEN s.name='' THEN s.url ELSE s.name END, s.topic, i.state, i.because, i.link, i.audio, i.source_id, i.author FROM items i JOIN sources s ON s.id=i.source_id";
 
     /** The unread items, ordered by the explainable score. Each card carries a "why" sentence. */
     String feedJson() throws Exception { return feedJson(new FeedFilter.Filters()); }
@@ -697,7 +700,7 @@ final class Db extends SQLiteOpenHelper {
                 if (f.maxMins > 0 && mins > f.maxMins) continue;
                 info.put(id, new Ranker.Cand(mins, c.getLong(11), c.getString(5)));
                 cards.put(id, o);
-                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3), c.getString(8), c.getLong(11), c.getString(5), o.getString("kind")));
+                docs.add(new Ranker.Doc(id, c.getString(1), c.getString(2), c.getLong(3), c.getString(8), c.getLong(11), c.getString(5), o.getString("kind")).by(c.getString(12), c.getInt(4)));
             }
         }
         JSONArray a = new JSONArray();
@@ -746,6 +749,11 @@ final class Db extends SQLiteOpenHelper {
         getWritableDatabase().execSQL("UPDATE sources SET last_ok=0 WHERE kind IN ('" + QuerySource.S2 + "','" + QuerySource.RECS + "')");
     }
 
+    /** After an OpenAlex key is saved: ask again now instead of waiting out an earlier "slow down". */
+    void clearOaBackoff() {
+        getWritableDatabase().execSQL("UPDATE sources SET retry_after=0, last_error='', last_ok=0 WHERE kind='" + QuerySource.OA + "'");
+    }
+
     /** A surprise swiped left: surprises from that source become rarer, and stop after three. */
     void surpriseLess(long item) {
         getWritableDatabase().execSQL("UPDATE sources SET surprise_less=surprise_less+1 WHERE id=(SELECT source_id FROM items WHERE id=?)", new Object[]{item});
@@ -756,19 +764,19 @@ final class Db extends SQLiteOpenHelper {
         List<Learner.Label> out = new ArrayList<>();
         for (int state : new int[]{KEPT, LESS}) {
             String order = state == KEPT ? "i.kept_at DESC, i.id DESC" : "i.id DESC";
-            try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, CASE WHEN i.kept_at>0 THEN i.kept_at ELSE i.fetched END FROM items i WHERE i.state=" + state + " ORDER BY " + order + " LIMIT 300", null)) {
-                while (c.moveToNext()) out.add(new Learner.Label(c.getString(0), c.getString(1), c.getLong(2), FeedParser.kindOf(c.getString(3), c.getString(4)), c.getLong(5), state == KEPT));
+            try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, CASE WHEN i.kept_at>0 THEN i.kept_at ELSE i.fetched END, i.author, i.mins FROM items i WHERE i.state=" + state + " ORDER BY " + order + " LIMIT 300", null)) {
+                while (c.moveToNext()) out.add(new Learner.Label(c.getString(0), c.getString(1), c.getLong(2), FeedParser.kindOf(c.getString(3), c.getString(4)), c.getLong(5), state == KEPT).by(c.getString(6), c.getInt(7)));
             }
         }
         // quiet signals from the last 30 days, for items you neither kept nor swiped left
         long now = System.currentTimeMillis(), since = now - 30L * 86400000L;
-        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, i.seen, i.opened_at FROM items i WHERE i.state IN (" + NEW + "," + DONE + ") AND ((i.opened_at>?) OR (i.opened_at=0 AND i.seen>? AND i.seen<?)) ORDER BY i.id DESC LIMIT 1000",
+        try (Cursor c = getReadableDatabase().rawQuery("SELECT i.title, i.excerpt, i.source_id, i.link, i.audio, i.seen, i.opened_at, i.author, i.mins FROM items i WHERE i.state IN (" + NEW + "," + DONE + ") AND ((i.opened_at>?) OR (i.opened_at=0 AND i.seen>? AND i.seen<?)) ORDER BY i.id DESC LIMIT 1000",
                 new String[]{"" + since, "" + since, "" + (now - 86400000L)})) {
             while (c.moveToNext()) {
                 boolean read = c.getLong(6) > 0;
                 // a card looked at less than a day ago may still be opened, so it does not count yet
                 out.add(new Learner.Label(c.getString(0), c.getString(1), c.getLong(2), FeedParser.kindOf(c.getString(3), c.getString(4)), read ? c.getLong(6) : c.getLong(5), read,
-                    read ? Learner.READ_WEIGHT : Learner.SEEN_WEIGHT, !read));
+                    read ? Learner.READ_WEIGHT : Learner.SEEN_WEIGHT, !read).by(c.getString(7), c.getInt(8)));
             }
         }
         return out;

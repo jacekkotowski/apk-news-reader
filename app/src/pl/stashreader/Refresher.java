@@ -1,6 +1,7 @@
 package pl.stashreader;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,14 +17,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Fetches enabled sources on a small thread pool. A failure is stored on its source and never stops the others. */
 final class Refresher {
     private Refresher() {}
-    static final String VERSION = "1.12";
+    static final String VERSION = "1.18";
     static final String AGENT = "StashReader/" + VERSION;
     private static final int CONNECT_MS = 15000, READ_MS = 20000, MAX_BYTES = 16 * 1024 * 1024, PAGE_BYTES = 4 * 1024 * 1024, POOL = 4;
     private static final AtomicBoolean BUSY = new AtomicBoolean();
     /** The reader's optional Semantic Scholar key; sent only to Semantic Scholar, as the header x-api-key. */
     private static volatile String s2Key = "";
+    /** The reader's optional OpenAlex key; sent only to OpenAlex, as api_key in the address. */
+    private static volatile String oaKey = "";
 
-    static void loadKeys(Context c) { s2Key = c.getSharedPreferences("stash", Context.MODE_PRIVATE).getString("s2Key", ""); }
+    static void loadKeys(Context c) {
+        SharedPreferences p = c.getSharedPreferences("stash", Context.MODE_PRIVATE);
+        s2Key = p.getString("s2Key", "");
+        oaKey = p.getString("oaKey", "");
+    }
 
     static boolean busy() { return BUSY.get(); }
 
@@ -77,9 +84,9 @@ final class Refresher {
             catch (UnknownHostException e) { db.sourceFailed(id, "No network, or the server name was not found", 0); }
             catch (SocketTimeoutException e) { db.sourceFailed(id, "The server took too long to answer", failRetry); }
             catch (javax.net.ssl.SSLException e) { db.sourceFailed(id, "The server's secure connection could not be verified", failRetry); }
-            catch (IOException e) { db.sourceFailed(id, String.valueOf(e.getMessage()), failRetry); }
+            catch (IOException e) { db.sourceFailed(id, QuerySource.redact(String.valueOf(e.getMessage())), failRetry); }
         } catch (Throwable t) {
-            try { db.sourceFailed(id, "Unexpected problem: " + t, 0); } catch (Throwable ignored) { }
+            try { db.sourceFailed(id, QuerySource.redact("Unexpected problem: " + t), 0); } catch (Throwable ignored) { }
         }
     }
 
@@ -100,7 +107,7 @@ final class Refresher {
 
     /** One HTTP request. With a body it is a POST of JSON; without, a GET. HTTP 429 becomes RateLimited. */
     static byte[] request(String address, byte[] body, int max, String accept, String[] contentType) throws IOException {
-        HttpURLConnection h = (HttpURLConnection) new URL(address).openConnection();
+        HttpURLConnection h = (HttpURLConnection) new URL(QuerySource.withOaKey(address, oaKey)).openConnection();
         try {
             h.setConnectTimeout(CONNECT_MS); h.setReadTimeout(READ_MS);
             h.setRequestProperty("User-Agent", AGENT + " (personal reader; Android)");

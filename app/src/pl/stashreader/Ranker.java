@@ -14,7 +14,7 @@ import java.util.Set;
 /**
  * Explainable ranking, no Android imports:
  * score = topic match (BM25 on title and summary, times the topic weight)
- *       + what the Learner learned from items you kept and swiped left (words, source, topic, kind; capped)
+ *       + what the Learner learned from items you kept and swiped left (words, source, topic, kind, author, length; capped)
  *       + a small freshness term.
  * Every item comes with a short sentence saying why it is where it is.
  */
@@ -30,12 +30,14 @@ final class Ranker {
     static final class Doc {
         final long id; final String title, text, because; final long pub;
         final long sourceId; final String source, kind;
+        String author = ""; int mins; // 0 = length not known
         Doc(long id, String title, String text, long pub) { this(id, title, text, pub, ""); }
         Doc(long id, String title, String text, long pub, String because) { this(id, title, text, pub, because, 0, "", ""); }
         Doc(long id, String title, String text, long pub, String because, long sourceId, String source, String kind) {
             this.id = id; this.title = title; this.text = text; this.pub = pub; this.because = because == null ? "" : because;
             this.sourceId = sourceId; this.source = source == null ? "" : source; this.kind = kind == null ? "" : kind;
         }
+        Doc by(String author, int mins) { this.author = author == null ? "" : author; this.mins = mins; return this; }
     }
     static final class Scored { long id; double score; String why; boolean topicHit; boolean unknown; }
 
@@ -99,7 +101,7 @@ final class Ranker {
         double avg = ps.isEmpty() ? 1 : Math.max(1, totalLen / ps.size());
         int n = ps.size();
         List<Map<String, Double>> feats = new ArrayList<>();
-        for (Doc d : docs) feats.add(Learner.features(d.title, d.text, d.sourceId, d.kind, topics));
+        for (Doc d : docs) feats.add(Learner.features(d.title, d.text, d.sourceId, d.kind, topics, d.author, d.mins));
         Learner.Model model = Learner.build(labels, topics, feats, now);
         int at = 0;
 
@@ -126,7 +128,7 @@ final class Ranker {
                 why.add(b.toString());
             }
 
-            Learner.Result learned = model.score(feats.get(at++), p.doc.source);
+            Learner.Result learned = model.score(feats.get(at++), p.doc.source, p.doc.author);
             sc.unknown = p.doc.sourceId > 0 && model.heard(p.doc.sourceId) < UNKNOWN_BELOW;
             score += learned.score;
             if (!learned.up.isEmpty()) why.add(learned.up);

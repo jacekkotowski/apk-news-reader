@@ -22,7 +22,7 @@ section{display:none}section.on{display:block}
 .meta{font-size:12.5px;color:var(--dim);display:flex;flex-wrap:wrap;gap:4px 10px}
 .meta b{color:var(--gold);font-weight:600}
 .card h3{font-size:18px;line-height:1.3;margin:6px 0;overflow-wrap:anywhere}
-.card.sw{touch-action:pan-y}.card.sw.open{touch-action:auto}.card.swr{border-color:var(--ok);box-shadow:inset 0 0 0 999px rgba(46,160,100,.14)}.card.swl{border-color:var(--bad);box-shadow:inset 0 0 0 999px rgba(224,70,55,.14)}.card.swr.go{box-shadow:inset 0 0 0 999px rgba(46,160,100,.38)}.card.swl.go{box-shadow:inset 0 0 0 999px rgba(224,70,55,.38)}
+.card.sw{touch-action:pan-y}.card.sw.open{touch-action:pan-y}.card.sw pre,.card.sw table{touch-action:pan-x pan-y}.card.swr{border-color:var(--ok);box-shadow:inset 0 0 0 999px rgba(46,160,100,.14)}.card.swl{border-color:var(--bad);box-shadow:inset 0 0 0 999px rgba(224,70,55,.14)}.card.swr.go{box-shadow:inset 0 0 0 999px rgba(46,160,100,.38)}.card.swl.go{box-shadow:inset 0 0 0 999px rgba(224,70,55,.38)}
 .ex{color:var(--dim);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .open .ex{display:none}
 .why{font-size:12.5px;color:var(--dim);font-style:italic;margin-top:6px}
@@ -113,6 +113,12 @@ h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim)
     <div class="acts"><button class="btn" id="s2clear">Remove key</button></div>
     <div id="s2msg" class="note"></div>
     <p class="meta">Without a key, Semantic Scholar often answers "slow down" (HTTP 429) because everyone shares one small pool. A free key is requested at semanticscholar.org/product/api. It is sent only to Semantic Scholar and stays on this phone.</p>
+    <div class="label" style="margin-top:14px">OpenAlex (optional)</div>
+    <div class="meta" id="oastate"></div>
+    <div class="add"><input id="oakey" type="password" placeholder="Paste your OpenAlex API key" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"><button class="btn main" id="oasave">Save</button></div>
+    <div class="acts"><button class="btn" id="oaclear">Remove key</button></div>
+    <div id="oamsg" class="note"></div>
+    <p class="meta">Works without a key. A free key from openalex.org (any email) gives ten times the daily budget. It is sent only to OpenAlex and stays on this phone.</p>
   </div>
   <p class="meta" id="ver"></p>
 </section>
@@ -311,11 +317,14 @@ $('hlbtn').onclick=function(){if(selNow.card&&selNow.text){selNow.card.addHighli
 function gone(c){var p=c.parentNode;p.removeChild(c);if(!p.querySelector('.card'))render()}
 
 //SWIPE-START
-// A swipe on a closed Feed card: right keeps it, left asks for less like it. Both take the card off the Feed.
+// A swipe on a Feed card, open or closed: right keeps it, left asks for less like it. Both take the card off the Feed.
 // It counts when the finger moved at least twice as far sideways as up or down, and at least 30% of the card width.
+// In an open card it does not start on code, a table, a field or a button, and not while text is selected.
 function swipeable(c,it,isKept){
   var x=0,y=0,dx=0,dy=0,on=false,drag=false;
   c.classList.add('sw');
+  function selecting(){var s=window.getSelection&&window.getSelection();return !!s&&s.toString()!==''}
+  function busy(t){return c.classList.contains('open')&&(selecting()||!!(t&&t.closest&&t.closest('pre,table,input,textarea,button')))}
   function far(){return Math.abs(dx)>=2*Math.abs(dy)&&Math.abs(dx)>=0.3*c.offsetWidth}
   function reset(){on=drag=false;dx=dy=0;c.style.transform='';c.classList.remove('swr','swl','go')}
   function move(t){
@@ -323,12 +332,12 @@ function swipeable(c,it,isKept){
     if(dx<0&&isKept())dx=0; // a kept card cannot be swiped away as "less"
   }
   c.addEventListener('touchstart',function(e){
-    reset();if(e.touches.length!==1||c.classList.contains('open'))return;
+    reset();if(e.touches.length!==1||busy(e.target))return;
     on=true;x=e.touches[0].clientX;y=e.touches[0].clientY;
   },{passive:true});
   c.addEventListener('touchmove',function(e){
     if(!on)return;
-    if(e.touches.length!==1){reset();return}
+    if(e.touches.length!==1||(c.classList.contains('open')&&selecting())){reset();return} // a selection made by a long press
     move(e.touches[0]);
     if(!drag){
       var ax=Math.abs(e.touches[0].clientX-x),ay=Math.abs(dy);
@@ -357,6 +366,7 @@ function swHint(){if(!swLast)swBar(tab==='feed'&&!swHinted()&&document.querySele
 function swipeEnd(){clearTimeout(swT);if(swLast){swLast=null;if(A.swipeCommit)A.swipeCommit()}swHint()}
 function swipeAway(c,it,right){
   swipeEnd();swSeen();
+  var f=document.activeElement;if(f&&f.blur&&c.contains&&c.contains(f))f.blur(); // a note being typed in an open card is saved first
   var ids=[it.id].concat((it.also||[]).map(function(x){return x.id})); // the same story from other sources goes too
   if(A.swipe)A.swipe(ids.join(','),right,it.surprise?''+it.id:'');
   swLast={card:c,list:c.parentNode,next:c.nextSibling};
@@ -768,7 +778,8 @@ $('pnext').onclick=function(){A.listenNext();setTimeout(function(){listenPoll(0)
 $('pstop').onclick=function(){A.listenStop();setTimeout(function(){listenPoll(0)},400)};
 $('rate').onchange=function(){A.setListenRate&&A.setListenRate(parseInt($('rate').value))};
 function renderS2(){$('s2state').textContent=(A.s2KeySet&&A.s2KeySet())?'A key is saved on this phone.':'No key yet.'}
-function renderGemini(){renderS2();
+function renderOa(){$('oastate').textContent=(A.oaKeySet&&A.oaKeySet())?'A key is saved on this phone.':'No key yet.'}
+function renderGemini(){renderS2();renderOa();
   $('gstate').textContent=(A.geminiKeySet&&A.geminiKeySet())?'A key is saved on this phone.':'No key yet.';
 }
 var recallOpen=0;
@@ -851,6 +862,8 @@ $('qadd').onclick=function(){var m=A.addQuerySource($('qkind').value,$('qtext').
 $('gsave').onclick=function(){var m=A.setGeminiKey?A.setGeminiKey($('gkey').value):'';$('gmsg').textContent=m||'Saved on this phone.';if(!m)$('gkey').value='';renderGemini()};
 $('s2save').onclick=function(){var m=A.setS2Key?A.setS2Key($('s2key').value):'';$('s2msg').textContent=m||'Saved. Semantic Scholar is asked again now.';if(!m){$('s2key').value='';wasBusy=true}renderS2()};
 $('s2clear').onclick=function(){A.setS2Key('');$('s2msg').textContent='Key removed.';renderS2()};
+$('oasave').onclick=function(){var m=A.setOaKey?A.setOaKey($('oakey').value):'';$('oamsg').textContent=m||'Saved. OpenAlex is asked again now.';if(!m){$('oakey').value='';wasBusy=true}renderOa()};
+$('oaclear').onclick=function(){A.setOaKey('');$('oamsg').textContent='Key removed.';renderOa()};
 $('gclear').onclick=function(){A.setGeminiKey('');$('gmsg').textContent='Key removed.';renderGemini()};
 $('gtest').onclick=function(){
   if(!(A.geminiKeySet&&A.geminiKeySet())){$('gmsg').textContent='Save a key first.';return}

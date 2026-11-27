@@ -318,7 +318,7 @@ public class MainActivity extends Activity {
             if (v.startsWith("done:")) addState = "";
             return v;
         }
-        /** Adds a search on an open API (kind: arxiv, hn, hf, reddit, github, s2). Returns "" or a message. */
+        /** Adds a search on an open API (kind: arxiv, hn, hf, reddit, github, s2, openalex). Returns "" or a message. */
         @JavascriptInterface public String addQuerySource(String kind, String query) {
             if (!QuerySource.valid(kind)) return "Choose where to search";
             String q = QuerySource.clean(query);
@@ -483,6 +483,16 @@ public class MainActivity extends Activity {
             prefs.edit().putString("s2Key", v).apply();
             Refresher.loadKeys(MainActivity.this);
             if (!v.isEmpty()) { db.clearS2Backoff(); refreshInBackground(); }
+            return "";
+        }
+        @JavascriptInterface public boolean oaKeySet() { return !prefs.getString("oaKey", "").isEmpty(); }
+        /** Saves (or, with an empty text, removes) the OpenAlex key. Returns "" or a message. */
+        @JavascriptInterface public String setOaKey(String k) {
+            String v = k == null ? "" : k.trim();
+            if (!v.isEmpty() && !QuerySource.validOaKey(v)) return "That does not look like an OpenAlex API key.";
+            prefs.edit().putString("oaKey", v).apply();
+            Refresher.loadKeys(MainActivity.this);
+            if (!v.isEmpty()) { db.clearOaBackoff(); refreshInBackground(); }
             return "";
         }
         @JavascriptInterface public void testGemini() {

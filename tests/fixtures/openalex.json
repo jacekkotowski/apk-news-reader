@@ -1,0 +1,1817 @@
+{
+ "meta": {
+  "count": 159847,
+  "page": 1,
+  "per_page": 25
+ },
+ "results": [
+  {
+   "id": "https://openalex.org/W7240044301",
+   "doi": "https://doi.org/10.25949/35134390",
+   "title": "Machine Learning for Causal Inference and Preference Heterogeneity in Health Economics",
+   "publication_date": "2026-11-27",
+   "cited_by_count": 0,
+   "abstract_inverted_index": {
+    "Estimates": [
+     0
+    ],
+    "of": [
+     1,
+     85,
+     105,
+     175,
+     275
+    ],
+    "treatment": [
+     2,
+     71,
+     86,
+     108,
+     120
+    ],
+    "effects": [
+     3,
+     72
+    ],
+    "and": [
+     4,
+     10,
+     25,
+     44,
+     56,
+     89,
+     103,
+     110,
+     147,
+     154,
+     179,
+     220,
+     224,
+     244,
+     265,
+     288,
+     311
+    ],
+    "preferences": [
+     5
+    ],
+    "inform": [
+     6
+    ],
+    "decisions": [
+     7
+    ],
+    "about": [
+     8
+    ],
+    "healthcare": [
+     9
+    ],
+    "public": [
+     11
+    ],
+    "services.": [
+     12
+    ],
+    "Their": [
+     13
+    ],
+    "interpretation": [
+     14
+    ],
+    "depends": [
+     15
+    ],
+    "on": [
+     16,
+     73
+    ],
+    "how": [
+     17,
+     282
+    ],
+    "models": [
+     18
+    ],
+    "represent": [
+     19
+    ],
+    "the": [
+     20,
+     61,
+     101,
+     176,
+     272,
+     278,
+     315
+    ],
+    "relationships": [
+     21,
+     233,
+     316
+    ],
+    "between": [
+     22,
+     119,
+     144
+    ],
+    "outcomes,": [
+     23
+    ],
+    "choices": [
+     24,
+     55
+    ],
+    "observed": [
+     26,
+     231
+    ],
+    "characteristics.": [
+     27
+    ],
+    "This": [
+     28
+    ],
+    "thesis": [
+     29
+    ],
+    "develops": [
+     30,
+     196
+    ],
+    "three": [
+     31,
+     279
+    ],
+    "approaches": [
+     32
+    ],
+    "that": [
+     33,
+     258,
+     294,
+     317
+    ],
+    "combine": [
+     34
+    ],
+    "interpretable": [
+     35
+    ],
+    "econometric": [
+     36,
+     298
+    ],
+    "parameters": [
+     37,
+     207,
+     293
+    ],
+    "with": [
+     38,
+     130,
+     167
+    ],
+    "flexible": [
+     39,
+     83,
+     259,
+     283
+    ],
+    "machine": [
+     40,
+     68,
+     134,
+     199,
+     303
+    ],
+    "learning": [
+     41,
+     69,
+     200,
+     284,
+     304
+    ],
+    "for": [
+     42,
+     135,
+     204,
+     267
+    ],
+    "survival": [
+     43,
+     74,
+     107,
+     117
+    ],
+    "discrete": [
+     45
+    ],
+    "choice": [
+     46,
+     59
+    ],
+    "data.": [
+     47
+    ],
+    "Applications": [
+     48
+    ],
+    "to": [
+     49,
+     70,
+     234,
+     249
+    ],
+    "breast-cancer": [
+     50,
+     112
+    ],
+    "survival,": [
+     51
+    ],
+    "medical": [
+     52
+    ],
+    "students’": [
+     53
+    ],
+    "career": [
+     54
+    ],
+    "travel": [
+     57
+    ],
+    "mode": [
+     58
+    ],
+    "illustrate": [
+     60
+    ],
+    "approaches.": [
+     62
+    ],
+    "The": [
+     63,
+     122,
+     160,
+     193,
+     254,
+     300
+    ],
+    "first": [
+     64
+    ],
+    "paper": [
+     65,
+     124,
+     195
+    ],
+    "extends": [
+     66
+    ],
+    "double": [
+     67,
+     198
+    ],
+    "probabilities": [
+     75,
+     118
+    ],
+    "under": [
+     76,
+     189
+    ],
+    "right": [
+     77
+    ],
+    "censoring.": [
+     78
+    ],
+    "An": [
+     79
+    ],
+    "orthogonal": [
+     80,
+     218
+    ],
+    "score": [
+     81,
+     219
+    ],
+    "combines": [
+     82,
+     125
+    ],
+    "estimates": [
+     84,
+     114,
+     264
+    ],
+    "assignment,": [
+     87
+    ],
+    "events": [
+     88
+    ],
+    "censoring,": [
+     90
+    ],
+    "while": [
+     91,
+     150,
+     270,
+     291
+    ],
+    "cross-fitting": [
+     92
+    ],
+    "supports": [
+     93
+    ],
+    "inference": [
+     94,
+     266
+    ],
+    "at": [
+     95
+    ],
+    "fixed": [
+     96
+    ],
+    "time": [
+     97
+    ],
+    "horizons.": [
+     98
+    ],
+    "Simulations": [
+     99,
+     238
+    ],
+    "examine": [
+     100
+    ],
+    "bias": [
+     102
+    ],
+    "variability": [
+     104
+    ],
+    "estimated": [
+     106
+    ],
+    "effects,": [
+     109
+    ],
+    "a": [
+     111,
+     197,
+     209,
+     216,
+     250,
+     296
+    ],
+    "application": [
+     113,
+     163,
+     256
+    ],
+    "differences": [
+     115
+    ],
+    "in": [
+     116,
+     208,
+     241,
+     307,
+     321
+    ],
+    "groups.": [
+     121
+    ],
+    "second": [
+     123
+    ],
+    "class-specific": [
+     126
+    ],
+    "multinomial": [
+     127,
+     201,
+     251
+    ],
+    "logit": [
+     128,
+     202,
+     252
+    ],
+    "utilities": [
+     129
+    ],
+    "an": [
+     131,
+     151
+    ],
+    "explainable": [
+     132
+    ],
+    "boosting": [
+     133
+    ],
+    "class": [
+     136,
+     158,
+     187,
+     309
+    ],
+    "membership.": [
+     137
+    ],
+    "Additive": [
+     138
+    ],
+    "membership": [
+     139,
+     191,
+     310
+    ],
+    "functions": [
+     140
+    ],
+    "describe": [
+     141
+    ],
+    "nonlinear": [
+     142,
+     190
+    ],
+    "associations": [
+     143
+    ],
+    "respondent": [
+     145
+    ],
+    "characteristics": [
+     146
+    ],
+    "preference": [
+     148,
+     206,
+     268,
+     289
+    ],
+    "classes,": [
+     149
+    ],
+    "occupancy": [
+     152
+    ],
+    "penalty": [
+     153
+    ],
+    "validation": [
+     155
+    ],
+    "procedure": [
+     156
+    ],
+    "guide": [
+     157
+    ],
+    "selection.": [
+     159
+    ],
+    "Italian": [
+     161
+    ],
+    "medical-student": [
+     162
+    ],
+    "selects": [
+     164
+    ],
+    "four": [
+     165
+    ],
+    "classes": [
+     166,
+     178
+    ],
+    "distinct": [
+     168,
+     305
+    ],
+    "job": [
+     169
+    ],
+    "preferences.": [
+     170
+    ],
+    "Calibrated": [
+     171
+    ],
+    "simulations": [
+     172
+    ],
+    "assess": [
+     173
+    ],
+    "recovery": [
+     174,
+     243
+    ],
+    "generating": [
+     177
+    ],
+    "utility": [
+     180,
+     212,
+     232,
+     261
+    ],
+    "coefficients,": [
+     181
+    ],
+    "showing": [
+     182
+    ],
+    "gains": [
+     183
+    ],
+    "over": [
+     184
+    ],
+    "conventional": [
+     185
+    ],
+    "latent": [
+     186
+    ],
+    "estimation": [
+     188
+    ],
+    "relationships.": [
+     192
+    ],
+    "third": [
+     194
+    ],
+    "estimator": [
+     203
+    ],
+    "explicit": [
+     205
+    ],
+    "partially": [
+     210
+    ],
+    "linear": [
+     211
+    ],
+    "model.": [
+     213
+    ],
+    "We": [
+     214
+    ],
+    "construct": [
+     215
+    ],
+    "projected": [
+     217
+    ],
+    "establish": [
+     221
+    ],
+    "asymptotic": [
+     222
+    ],
+    "normality": [
+     223
+    ],
+    "consistent": [
+     225
+    ],
+    "clustered": [
+     226
+    ],
+    "variance": [
+     227
+    ],
+    "estimation,": [
+     228
+    ],
+    "allowing": [
+     229
+    ],
+    "additional": [
+     230
+    ],
+    "be": [
+     235,
+     319
+    ],
+    "learned": [
+     236
+    ],
+    "flexibly.": [
+     237
+    ],
+    "show": [
+     239,
+     281
+    ],
+    "improvements": [
+     240
+    ],
+    "coefficient": [
+     242
+    ],
+    "confidence": [
+     245
+    ],
+    "interval": [
+     246
+    ],
+    "coverage": [
+     247
+    ],
+    "relative": [
+     248
+    ],
+    "benchmark.": [
+     253
+    ],
+    "ModeCanada": [
+     255
+    ],
+    "demonstrates": [
+     257
+    ],
+    "nuisance": [
+     260,
+     312
+    ],
+    "can": [
+     262,
+     285,
+     318
+    ],
+    "change": [
+     263
+    ],
+    "heterogeneity": [
+     269
+    ],
+    "retaining": [
+     271
+    ],
+    "same": [
+     273
+    ],
+    "attributes": [
+     274
+    ],
+    "interest.": [
+     276
+    ],
+    "Together,": [
+     277
+    ],
+    "papers": [
+     280
+    ],
+    "support": [
+     286
+    ],
+    "causal": [
+     287
+    ],
+    "analysis": [
+     290
+    ],
+    "preserving": [
+     292
+    ],
+    "have": [
+     295
+    ],
+    "clear": [
+     297
+    ],
+    "interpretation.": [
+     299
+    ],
+    "methods": [
+     301
+    ],
+    "assign": [
+     302
+    ],
+    "roles": [
+     306
+    ],
+    "adjustment,": [
+     308
+    ],
+    "utility,": [
+     313
+    ],
+    "extending": [
+     314
+    ],
+    "represented": [
+     320
+    ],
+    "each": [
+     322
+    ],
+    "setting.": [
+     323
+    ]
+   },
+   "primary_location": {
+    "id": "doi:10.25949/35134390",
+    "doi": "https://doi.org/10.25949/35134390",
+    "is_oa": true,
+    "landing_page_url": "https://doi.org/10.25949/35134390",
+    "pdf_url": null,
+    "source": {
+     "id": "https://openalex.org/S7407050580",
+     "display_name": "Macquarie University",
+     "issn_l": null,
+     "issn": null,
+     "is_oa": false,
+     "is_in_doaj": false,
+     "is_core": false,
+     "listed_in": [],
+     "host_organization": "https://openalex.org/I99043593",
+     "host_organization_name": "Macquarie University",
+     "host_organization_lineage": [
+      "https://openalex.org/I99043593"
+     ],
+     "host_organization_lineage_names": [],
+     "type": "repository"
+    },
+    "license": null,
+    "license_id": null,
+    "version": null,
+    "is_accepted": false,
+    "is_published": false,
+    "raw_source_name": null,
+    "raw_type": "Dissertation"
+   }
+  },
+  {
+   "id": "https://openalex.org/W7134024096",
+   "doi": null,
+   "title": "Exploration à propos du concept de force dans les pratiques enseignantes au Bénin",
+   "publication_date": "2026-11-27",
+   "cited_by_count": 0,
+   "abstract_inverted_index": {
+    "Le": [
+     0,
+     51
+    ],
+    "mot": [
+     1,
+     38
+    ],
+    "«": [
+     2
+    ],
+    "force": [
+     3,
+     67,
+     406,
+     420
+    ],
+    "»": [
+     4
+    ],
+    "est": [
+     5,
+     22,
+     56,
+     68,
+     172,
+     197,
+     220,
+     227,
+     393,
+     412
+    ],
+    "utilisé": [
+     6
+    ],
+    "dans": [
+     7,
+     17,
+     70
+    ],
+    "la": [
+     8,
+     27,
+     45,
+     48,
+     77,
+     107,
+     130,
+     135,
+     147,
+     191,
+     240,
+     329,
+     376,
+     379,
+     413,
+     436,
+     441,
+     461,
+     466
+    ],
+    "vie": [
+     9,
+     183,
+     192
+    ],
+    "quotidienne": [
+     10,
+     184
+    ],
+    "de": [
+     11,
+     26,
+     42,
+     53,
+     66,
+     79,
+     117,
+     134,
+     152,
+     190,
+     210,
+     217,
+     239,
+     242,
+     244,
+     263,
+     269,
+     300,
+     302,
+     337,
+     378,
+     381,
+     405,
+     440,
+     446,
+     448,
+     465,
+     471
+    ],
+    "différentes": [
+     12
+    ],
+    "façons": [
+     13
+    ],
+    "avec": [
+     14,
+     185
+    ],
+    "des": [
+     15,
+     95,
+     109,
+     163,
+     186,
+     200,
+     215,
+     261,
+     265,
+     267,
+     271,
+     277,
+     280,
+     284,
+     289,
+     292,
+     296,
+     298,
+     308,
+     321,
+     331,
+     342,
+     425,
+     428
+    ],
+    "sensvariés": [
+     16
+    ],
+    "le": [
+     18,
+     71,
+     138,
+     161,
+     168,
+     179,
+     400,
+     418,
+     469
+    ],
+    "langage": [
+     19
+    ],
+    "courant.": [
+     20
+    ],
+    "Il": [
+     21,
+     392
+    ],
+    "aussi": [
+     23
+    ],
+    "un": [
+     24,
+     206,
+     221
+    ],
+    "concept": [
+     25,
+     65,
+     139,
+     404,
+     419,
+     470
+    ],
+    "physique": [
+     28,
+     136,
+     211,
+     467
+    ],
+    "étudié": [
+     29
+    ],
+    "à": [
+     30,
+     34,
+     76,
+     104,
+     106,
+     235,
+     375,
+     388
+    ],
+    "l’école,": [
+     31
+    ],
+    "aucollège": [
+     32
+    ],
+    "et": [
+     33,
+     47,
+     98,
+     188,
+     213,
+     225,
+     246,
+     255,
+     295,
+     312,
+     334,
+     340,
+     399,
+     427
+    ],
+    "l’université.": [
+     35
+    ],
+    "Ainsi,": [
+     36
+    ],
+    "ce": [
+     37,
+     449
+    ],
+    "admet": [
+     39
+    ],
+    "deux": [
+     40,
+     164,
+     170,
+     293,
+     362
+    ],
+    "domaines": [
+     41
+    ],
+    "réalités": [
+     43
+    ],
+    ":": [
+     44
+    ],
+    "réalitéculturelle": [
+     46
+    ],
+    "réalité": [
+     49
+    ],
+    "institutionnelle.": [
+     50
+    ],
+    "but": [
+     52
+    ],
+    "notre": [
+     54,
+     80,
+     101,
+     118,
+     121
+    ],
+    "recherche": [
+     55,
+     81,
+     102,
+     122,
+     196,
+     411
+    ],
+    "triple.": [
+     57
+    ],
+    "D’abord,": [
+     58
+    ],
+    "il": [
+     59,
+     369
+    ],
+    "s’estagi": [
+     60
+    ],
+    "d’explorer": [
+     61
+    ],
+    "comment": [
+     62
+    ],
+    "l’enseignement": [
+     63,
+     356,
+     447
+    ],
+    "du": [
+     64,
+     92,
+     125,
+     132,
+     257,
+     314,
+     403,
+     415,
+     463
+    ],
+    "fait": [
+     69,
+     394
+    ],
+    "contextebéninois.": [
+     72
+    ],
+    "Cette": [
+     73
+    ],
+    "exploration": [
+     74
+    ],
+    "vient": [
+     75
+    ],
+    "suite": [
+     78
+    ],
+    "préalable": [
+     82
+    ],
+    "qui": [
+     83,
+     113,
+     128
+    ],
+    "a": [
+     84,
+     87,
+     319
+    ],
+    "montré": [
+     85
+    ],
+    "qu’iln’y": [
+     86
+    ],
+    "pas": [
+     88,
+     372,
+     408
+    ],
+    "une": [
+     89,
+     396,
+     444
+    ],
+    "évolution": [
+     90
+    ],
+    "significative": [
+     91
+    ],
+    "registre": [
+     93
+    ],
+    "explicatif": [
+     94
+    ],
+    "élèves": [
+     96,
+     233,
+     326,
+     374
+    ],
+    "avant": [
+     97
+    ],
+    "aprèsenseignement.": [
+     99
+    ],
+    "Ensuite,": [
+     100
+    ],
+    "vise": [
+     103,
+     123
+    ],
+    "mettre": [
+     105
+    ],
+    "lumière": [
+     108
+    ],
+    "insuffisances": [
+     110
+    ],
+    "del’enseignement-apprentissage": [
+     111
+    ],
+    "ordinaire": [
+     112
+    ],
+    "expliqueraient": [
+     114
+    ],
+    "les": [
+     115,
+     275,
+     325,
+     361,
+     365,
+     373,
+     386,
+     432,
+     459
+    ],
+    "résultats": [
+     116,
+     424
+    ],
+    "recherchepréalable.": [
+     119
+    ],
+    "Enfin,": [
+     120
+    ],
+    "l’amélioration": [
+     124
+    ],
+    "processus": [
+     126
+    ],
+    "d’enseignement-apprentissage,": [
+     127
+    ],
+    "permettrait": [
+     129,
+     457
+    ],
+    "construction": [
+     131,
+     462
+    ],
+    "sens": [
+     133,
+     464
+    ],
+    "sur": [
+     137,
+     160,
+     174,
+     417,
+     468
+    ],
+    "deforce,": [
+     140
+    ],
+    "dès": [
+     141
+    ],
+    "sa": [
+     142
+    ],
+    "mise": [
+     143
+    ],
+    "en": [
+     144,
+     150,
+     345,
+     358,
+     438
+    ],
+    "œuvre": [
+     145,
+     359
+    ],
+    "pour": [
+     146,
+     274,
+     324,
+     347,
+     390,
+     443
+    ],
+    "première": [
+     148,
+     414
+    ],
+    "fois": [
+     149
+    ],
+    "classe": [
+     151,
+     241,
+     346
+    ],
+    "quatrième": [
+     153,
+     243
+    ],
+    "au": [
+     154,
+     421
+    ],
+    "collège.Nous": [
+     155
+    ],
+    "avons": [
+     156,
+     204,
+     305,
+     353
+    ],
+    "pris": [
+     157
+    ],
+    "appui": [
+     158
+    ],
+    "principalement": [
+     159
+    ],
+    "modèle": [
+     162
+    ],
+    "mondes.": [
+     165
+    ],
+    "En": [
+     166
+    ],
+    "effet": [
+     167
+    ],
+    "modèledes": [
+     169
+    ],
+    "mondes": [
+     171
+    ],
+    "basé": [
+     173
+    ],
+    "l’idée": [
+     175
+    ],
+    "qu’un": [
+     176,
+     454
+    ],
+    "individu": [
+     177
+    ],
+    "appréhende": [
+     178
+    ],
+    "monde": [
+     180
+    ],
+    "matériel": [
+     181
+    ],
+    "danssa": [
+     182
+    ],
+    "théories": [
+     187
+    ],
+    "modèles": [
+     189
+    ],
+    "quotidienne.": [
+     193
+    ],
+    "Notre": [
+     194,
+     410
+    ],
+    "méthodologiede": [
+     195
+    ],
+    "qualitative.": [
+     198
+    ],
+    "Par": [
+     199
+    ],
+    "choix": [
+     201
+    ],
+    "raisonnés": [
+     202
+    ],
+    "nous": [
+     203
+    ],
+    "retenu": [
+     205
+    ],
+    "échantillon": [
+     207
+    ],
+    "dedeux": [
+     208
+    ],
+    "enseignants": [
+     209,
+     294,
+     363
+    ],
+    "E1": [
+     212,
+     219,
+     245
+    ],
+    "E2": [
+     214,
+     226
+    ],
+    "classes": [
+     216
+    ],
+    "quatrième.": [
+     218
+    ],
+    "enseignantd’un": [
+     222
+    ],
+    "collège": [
+     223,
+     230
+    ],
+    "privé": [
+     224
+    ],
+    "enseignant": [
+     228
+    ],
+    "d’un": [
+     229
+    ],
+    "public.": [
+     231
+    ],
+    "Les": [
+     232,
+     423
+    ],
+    "participant": [
+     234
+    ],
+    "cetterecherche": [
+     236
+    ],
+    "sont": [
+     237,
+     250,
+     431
+    ],
+    "ceux": [
+     238
+    ],
+    "E2.": [
+     247
+    ],
+    "Nos": [
+     248
+    ],
+    "données": [
+     249
+    ],
+    "constituéesdes": [
+     251
+    ],
+    "documents": [
+     252,
+     309
+    ],
+    "programme": [
+     253,
+     258,
+     310,
+     315
+    ],
+    "d’étude": [
+     254,
+     259,
+     311,
+     316
+    ],
+    "guide": [
+     256,
+     313
+    ],
+    ",": [
+     260,
+     317
+    ],
+    "fiches": [
+     262,
+     268
+    ],
+    "préparation": [
+     264
+    ],
+    "enseignants,": [
+     266
+    ],
+    "présentation": [
+     270
+    ],
+    "tâches": [
+     272,
+     322,
+     350
+    ],
+    "prévues": [
+     273,
+     323
+    ],
+    "élèves,": [
+     276,
+     460
+    ],
+    "enregistrements": [
+     278,
+     332
+    ],
+    "audios": [
+     279
+    ],
+    "entretiens": [
+     281
+    ],
+    "ante": [
+     282
+    ],
+    "séances,": [
+     283
+    ],
+    "observations": [
+     285
+    ],
+    "instrumentées": [
+     286
+    ],
+    "in": [
+     287
+    ],
+    "situ": [
+     288
+    ],
+    "séances": [
+     290
+    ],
+    "d’enseignement": [
+     291
+    ],
+    "copies": [
+     297
+    ],
+    "cahiers": [
+     299
+    ],
+    "cours": [
+     301
+    ],
+    "quelques": [
+     303
+    ],
+    "élèves.Nous": [
+     304
+    ],
+    "effectué": [
+     306
+    ],
+    "l’analyse": [
+     307,
+     318,
+     336,
+     341
+    ],
+    "priori": [
+     320
+    ],
+    "par": [
+     327,
+     360
+    ],
+    "l’enseignant,": [
+     328
+    ],
+    "transcription": [
+     330
+    ],
+    "audio": [
+     333
+    ],
+    "vidéo,": [
+     335
+    ],
+    "ces": [
+     338
+    ],
+    "transcriptions": [
+     339
+    ],
+    "productions": [
+     343
+    ],
+    "retenues": [
+     344
+    ],
+    "répondre": [
+     348
+    ],
+    "aux": [
+     349
+    ],
+    "prévues.": [
+     351
+    ],
+    "Nous": [
+     352,
+     451
+    ],
+    "constaté": [
+     354
+    ],
+    "que": [
+     355
+    ],
+    "mis": [
+     357
+    ],
+    "respecte": [
+     364
+    ],
+    "prescriptions": [
+     366
+    ],
+    "institutionnelles.": [
+     367
+    ],
+    "Cependant,": [
+     368
+    ],
+    "ne": [
+     370
+    ],
+    "conduit": [
+     371
+    ],
+    "mobilisation": [
+     377
+    ],
+    "démarche": [
+     380
+    ],
+    "modélisation.": [
+     382
+    ],
+    "Cet": [
+     383
+    ],
+    "enseignement": [
+     384,
+     456
+    ],
+    "renforce": [
+     385
+    ],
+    "liens": [
+     387
+    ],
+    "déconstruire": [
+     389
+    ],
+    "apprendre.": [
+     391
+    ],
+    "suivant": [
+     395
+    ],
+    "relation": [
+     397
+    ],
+    "causale,": [
+     398
+    ],
+    "caractère": [
+     401
+    ],
+    "abstrait": [
+     402
+    ],
+    "n’est": [
+     407
+    ],
+    "abordé.": [
+     409
+    ],
+    "genre": [
+     416
+    ],
+    "Bénin.": [
+     422
+    ],
+    "explorations": [
+     426
+    ],
+    "analyses": [
+     429
+    ],
+    "menées": [
+     430
+    ],
+    "premières": [
+     433
+    ],
+    "pistes": [
+     434
+    ],
+    "vers": [
+     435
+    ],
+    "prise": [
+     437
+    ],
+    "compte": [
+     439
+    ],
+    "modélisation": [
+     442
+    ],
+    "amélioration": [
+     445
+    ],
+    "concept.": [
+     450
+    ],
+    "sommes": [
+     452
+    ],
+    "persuadés": [
+     453
+    ],
+    "tel": [
+     455
+    ],
+    "chez": [
+     458
+    ],
+    "force.": [
+     472
+    ]
+   },
+   "primary_location": {
+    "id": "pmh:oai:HAL:tel-05482693v1",
+    "doi": null,
+    "is_oa": true,
+    "landing_page_url": "https://hal.science/tel-05482693",
+    "pdf_url": "https://hal.science/tel-05482693v1/document",
+    "source": {
+     "id": "https://openalex.org/S4306402512",
+     "display_name": "HAL",
+     "issn_l": null,
+     "issn": null,
+     "is_oa": false,
+     "is_in_doaj": false,
+     "is_core": false,
+     "listed_in": [],
+     "host_organization": "https://openalex.org/I4405252976",
+     "host_organization_name": "Centre pour la Communication Scientifique Directe",
+     "host_organization_lineage": [
+      "https://openalex.org/I4405252976"
+     ],
+     "host_organization_lineage_names": [],
+     "type": "repository"
+    },
+    "license": "cc-by-nc-sa",
+    "license_id": "https://openalex.org/licenses/cc-by-nc-sa",
+    "version": "submittedVersion",
+    "is_accepted": false,
+    "is_published": false,
+    "raw_source_name": "Physique [physics]. Institut de Mathématiques et de Sciences Physiques (IMSP) Dangbo, Bénin.; Université d'Abomey Calavi (Bénin), 2026. Français. &#x27E8;NNT : &#x27E9;",
+    "raw_type": "info:eu-repo/semantics/doctoralThesis"
+   }
+  },
+  {
+   "id": "https://openalex.org/W4415316354",
+   "doi": "https://doi.org/10.1007/978-981-92-8131-2_33",
+   "title": "Learning by Imagining: Debiased Feature Augmentation for Compositional Zero-Shot Learning",
+   "publication_date": "2026-11-27",
+   "cited_by_count": 0,
+   "abstract_inverted_index": null,
+   "primary_location": {
+    "id": "doi:10.1007/978-981-92-8131-2_33",
+    "doi": "https://doi.org/10.1007/978-981-92-8131-2_33",
+    "is_oa": false,
+    "landing_page_url": "https://doi.org/10.1007/978-981-92-8131-2_33",
+    "pdf_url": null,
+    "source": {
+     "id": "https://openalex.org/S106296714",
+     "display_name": "Lecture notes in computer science",
+     "issn_l": "0302-9743",
+     "issn": [
+      "0302-9743",
+      "1611-3349"
+     ],
+     "is_oa": false,
+     "is_in_doaj": false,
+     "is_core": true,
+     "listed_in": [
+      "cwts-core",
+      "jufo-1",
+      "ki-jl-1",
+      "norway-1",
+      "vabb-shw"
+     ],
+     "host_organization": "https://openalex.org/P4310319900",
+     "host_organization_name": "Springer Science+Business Media",
+     "host_organization_lineage": [
+      "https://openalex.org/P4310319900",
+      "https://openalex.org/P4310319965"
+     ],
+     "host_organization_lineage_names": [
+      "Springer Science+Business Media",
+      "Springer Nature"
+     ],
+     "type": "book series"
+    },
+    "license": null,
+    "license_id": null,
+    "version": "publishedVersion",
+    "is_accepted": true,
+    "is_published": true,
+    "raw_source_name": "Lecture Notes in Computer Science",
+    "raw_type": "book-chapter"
+   }
+  }
+ ],
+ "group_by": []
+}

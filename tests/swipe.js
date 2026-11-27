@@ -24,8 +24,10 @@ function node(name) {
 function page(store) {
   const calls = [], els = { swtext: node('swtext'), swundo: node('swundo'), swbar: node('swbar') };
   const list = node('list'), timers = [];
+  const picked = { text: '' }; // the text selected on the page
   const env = {
     $: id => els[id], tab: 'feed', document: { querySelector: () => list.children.length > 1 ? list.children[0] : null },
+    window: { getSelection: () => ({ toString: () => picked.text }) },
     localStorage: { getItem: k => store[k] || null, setItem: (k, v) => { store[k] = String(v); } },
     A: { swipe: (i, k, s) => calls.push(['swipe', i, k, s]), swipeUndo: () => calls.push(['undo']), swipeCommit: () => calls.push(['commit']) },
     render: () => calls.push(['render']), status: () => {}, feedMore: () => {},
@@ -38,12 +40,14 @@ function page(store) {
   const run = ms => timers.filter(t => !t.off && t.ms === ms).forEach(t => { t.off = true; t.f(); });
   const card = (it, kept) => { const c = node('card ' + it.id); list.insertBefore(c, list.children.find(x => x.name === 'end')); api.swipeable(c, it, () => !!kept); return c; };
   list.insertBefore(node('end'), null);
-  return { calls, els, list, run, card, api };
+  return { calls, els, list, run, card, api, picked };
 }
+// a stand-in for the element a finger lands on, inside the given tags
+const inside = (...tags) => ({ closest: sel => tags.find(t => sel.split(',').includes(t)) || null });
 // one finger from (100,100) along the given points
-function drag(c, points) {
+function drag(c, points, target) {
   const at = (x, y) => ({ clientX: x, clientY: y });
-  c.fire('touchstart', { touches: [at(100, 100)] });
+  c.fire('touchstart', { touches: [at(100, 100)], target });
   points.forEach(p => c.fire('touchmove', { touches: [at(100 + p[0], 100 + p[1])] }));
   const last = points[points.length - 1];
   c.fire('touchend', { changedTouches: [at(100 + last[0], 100 + last[1])] });
@@ -60,8 +64,33 @@ drag(a, [[30, 5], [120, 70]]);
 is('less than twice as sideways as down does nothing', [], p.calls);
 drag(a, [[3, 30], [150, 40]]);
 is('a gesture that starts as a scroll stays a scroll', [], p.calls);
-a.classList.add('open'); drag(a, [[40, 0], [200, 0]]); a.classList.remove('open');
-is('an open card does not swipe', [], p.calls);
+a.classList.add('open');
+['pre', 'table', 'input', 'textarea', 'button'].forEach(t => {
+  drag(a, [[40, 0], [200, 0]], inside(t, 'div'));
+  is('in an open card a touch starting in ' + t + ' does not swipe', [[], ''], [p.calls, a.style.transform]);
+});
+p.picked.text = 'some words'; drag(a, [[40, 0], [200, 0]], inside('p', 'div'));
+is('a text selection blocks the swipe of an open card', [[], ''], [p.calls, a.style.transform]);
+p.picked.text = '';
+a.fire('touchstart', { touches: [{ clientX: 100, clientY: 100 }] });
+p.picked.text = 'picked by a long press';
+a.fire('touchmove', { touches: [{ clientX: 300, clientY: 100 }] });
+a.fire('touchend', { changedTouches: [{ clientX: 300, clientY: 100 }] });
+is('a selection that appears during the gesture stops it', [[], ''], [p.calls, a.style.transform]);
+p.picked.text = '';
+drag(a, [[3, 30], [150, 40]], inside('p', 'div'));
+is('scrolling down an open card stays a scroll', [], p.calls);
+let o = page({ swhint: '1' }), oc = o.card({ id: '9' }); oc.classList.add('open');
+drag(oc, [[40, 0], [200, 0]], inside('a', 'p', 'div'));
+is('an open card swipes, also from a link', [['swipe', '9', true, '']], o.calls);
+is('and leaves', ['end'], names(o.list));
+o = page({ swhint: '1' }); oc = o.card({ id: '8' }, true); oc.classList.add('open');
+drag(oc, [[-40, 0], [-200, 0]], inside('p'));
+is('an open kept card cannot be swiped left', [[], ['card 8', 'end']], [o.calls, names(o.list)]);
+a.classList.remove('open');
+drag(b, [[20, 2], [40, 2]], inside('button')); p.picked.text = 'elsewhere';
+is('a closed card ignores these rules', 0, p.calls.length);
+p.picked.text = '';
 a.fire('touchstart', { touches: [{ clientX: 100, clientY: 100 }] });
 a.fire('touchmove', { touches: [{ clientX: 220, clientY: 104 }] });
 is('the card follows the finger, green to the right', ['translateX(120px)', true, true], [a.style.transform, a.classList.contains('swr'), a.classList.contains('go')]);
