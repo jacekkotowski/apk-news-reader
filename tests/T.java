@@ -1231,6 +1231,14 @@ public final class T {
             && sr.get(1).channel.equals("DuckDB") && sr.get(1).channelUrl.equals("https://www.youtube.com/channel/UCQli51lMp-oW0gUHrcIj0jA"));
         eq("learn: entities in titles are decoded", "DuckDB & Python: querying Pandas DataFrames with SQL", sr.get(2).title);
         eq("learn: an error answer has no videos", 0, PathFinder.parseSearch("{\"error\":{\"code\":403,\"message\":\"quotaExceeded\"}}").size());
+        // real answers recorded with Jacek's key on 2026-11-27 (search "duckdb python pandas", and the lengths of a live path's videos)
+        java.util.List<PathFinder.Res> live = PathFinder.parseSearch(text("tests/fixtures/yt-search-live.json"));
+        yes("learn: a real search answer gives 5 videos with channels", live.size() == 5 && live.get(0).url.endsWith("8SYQtpSk_OI") && live.get(0).channel.equals("ArjanCodes") && live.get(0).channelUrl.startsWith("https://www.youtube.com/channel/UC"));
+        PathFinder.Step lpy = new PathFinder.Step(); lpy.name = "Python Integration"; lpy.search = "duckdb python pandas";
+        int fitting = 0; for (PathFinder.Res v : live) if (PathFinder.videoScore(v.title, v.channel, lpy, "duckdb") > 0) fitting++;
+        yes("learn: most real results fit the Python step", fitting >= 3);
+        java.util.Map<String, Integer> real = PathFinder.parseLengths(text("tests/fixtures/yt-videos-live.json"));
+        yes("learn: real lengths", real.size() == 4 && real.get("uHm6FEb2Re4") == 3 && real.get("HJGiMTLcpDs") == 25);
         java.util.Map<String, Integer> lens = PathFinder.parseLengths(text("tests/fixtures/yt-videos.json"));
         yes("learn: lengths from the videos answer", lens.get("zeonmOO9jm4") == 85 && lens.get("AKix55rQEUU") == 10 && lens.get("T23Bs75F7ZQ") == 230);
         eq("learn: PT9M43S", 10, PathFinder.isoMinutes("PT9M43S"));

@@ -22,7 +22,7 @@ No card and no payment. The free amount is 100 searches a day; one learning path
 2. Each step should show a video first, then pages. Tap a video to watch it in YouTube.
 
 **Known limits**
-- Not tested on a phone, and the YouTube search was not tried with a real key: no key was available on the PC. The answers it reads were written by hand in the form Google documents. If the key is refused, the path is still made and the message says so.
+- Not tested on a phone. The YouTube search was tried live from the PC with your key, the same way the app sends it: a duckdb path got a fitting video for 4 of its 5 steps. If the key is refused, the path is still made and the message says so.
 - A video is only taken when its title has the topic and a word of the step, so a step can still end with just the search link.
 - YouTube's free daily amount and Gemini's free tier can change.
 - Everything from 1.19 still applies (notes on keep, the path as a source, the next step in the Feed).

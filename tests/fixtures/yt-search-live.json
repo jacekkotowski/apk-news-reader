@@ -1,0 +1,232 @@
+{
+  "kind": "youtube#searchListResponse",
+  "etag": "i6silLXniZ5ras-RzMsVDH-U3xE",
+  "nextPageToken": "CAUQAA",
+  "regionCode": "PL",
+  "pageInfo": {
+    "totalResults": 10944,
+    "resultsPerPage": 5
+  },
+  "items": [
+    {
+      "kind": "youtube#searchResult",
+      "etag": "xg_LG3y0Qy3eglMoISe8ItKduBw",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "8SYQtpSk_OI"
+      },
+      "snippet": {
+        "publishedAt": "2025-02-07T16:00:08Z",
+        "channelId": "UCVhQ2NnY5Rskt6UjCUkJ_DA",
+        "title": "Stop Struggling with DataFrames – Try DuckDB for SQL on Pandas",
+        "description": "Try Convex here: https://convex.link/arjancodes. In this video, I'll talk about the power of DuckDB, a lightweight, embedded ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/8SYQtpSk_OI/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/8SYQtpSk_OI/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/8SYQtpSk_OI/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/8SYQtpSk_OI/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/8SYQtpSk_OI/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "ArjanCodes",
+        "liveBroadcastContent": "none",
+        "publishTime": "2025-02-07T16:00:08Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "ciaqZEEoqqhTcIthZy_CM3bXsMc",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "XRhw4B8Esms"
+      },
+      "snippet": {
+        "publishedAt": "2025-10-13T14:22:21Z",
+        "channelId": "UCC0AT6XjO_ebWIifTDp5REg",
+        "title": "DuckDB for Python Devs: 6 Reasons It Beats DataFrames",
+        "description": "Learn with @mehdio why DuckDB is the missing piece in your Python data pipeline. While Pandas and Polars are great, DuckDB ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/XRhw4B8Esms/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/XRhw4B8Esms/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/XRhw4B8Esms/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/XRhw4B8Esms/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/XRhw4B8Esms/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "MotherDuck",
+        "liveBroadcastContent": "none",
+        "publishTime": "2025-10-13T14:22:21Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "ouHV9bGjFwLJvfjvK7cFcXnN46w",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "nWxwqxb0FCk"
+      },
+      "snippet": {
+        "publishedAt": "2024-09-03T19:00:25Z",
+        "channelId": "UC8wZnXYK_CGKlBcZp-GxYPA",
+        "title": "DuckDB in Python - The Next Pandas Killer?",
+        "description": "Today we learn DuckDB and how to use it in Python. ◾◾◾◾◾◾◾◾◾◾◾◾◾◾◾◾◾ Programming Books & Merch ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/nWxwqxb0FCk/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/nWxwqxb0FCk/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/nWxwqxb0FCk/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/nWxwqxb0FCk/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/nWxwqxb0FCk/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "NeuralNine",
+        "liveBroadcastContent": "none",
+        "publishTime": "2024-09-03T19:00:25Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "CQrwOs9p5KNjflzSv5428sVj9P8",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "uHm6FEb2Re4"
+      },
+      "snippet": {
+        "publishedAt": "2025-08-14T18:23:22Z",
+        "channelId": "UCsBjURrPoezykLs9EqgamOA",
+        "title": "DuckDB in 100 Seconds",
+        "description": "Learn the basics of DuckDB - an in-process, analytical database optimized for OLAP workloads. It's lightweight, portable and ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/uHm6FEb2Re4/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/uHm6FEb2Re4/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/uHm6FEb2Re4/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/uHm6FEb2Re4/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/uHm6FEb2Re4/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "Fireship",
+        "liveBroadcastContent": "none",
+        "publishTime": "2025-08-14T18:23:22Z"
+      }
+    },
+    {
+      "kind": "youtube#searchResult",
+      "etag": "DiwUKbovfHjjffHh9j-V7IU7G0I",
+      "id": {
+        "kind": "youtube#video",
+        "videoId": "GqFok2dOuPc"
+      },
+      "snippet": {
+        "publishedAt": "2024-09-24T16:00:27Z",
+        "channelId": "UChgLj6NYHUniXGOFBPUUjuA",
+        "title": "Simplify Data With DuckDB | Python Tutorial",
+        "description": "In this video I show you how to create SQL for CSV files using Python's Duckdb library! #coding #100daysofcode ...",
+        "thumbnails": {
+          "default": {
+            "url": "https://i.ytimg.com/vi/GqFok2dOuPc/default.jpg",
+            "width": 120,
+            "height": 90
+          },
+          "medium": {
+            "url": "https://i.ytimg.com/vi/GqFok2dOuPc/mqdefault.jpg",
+            "width": 320,
+            "height": 180
+          },
+          "high": {
+            "url": "https://i.ytimg.com/vi/GqFok2dOuPc/hqdefault.jpg",
+            "width": 480,
+            "height": 360
+          },
+          "standard": {
+            "url": "https://i.ytimg.com/vi/GqFok2dOuPc/sddefault.jpg",
+            "width": 640,
+            "height": 480
+          },
+          "maxres": {
+            "url": "https://i.ytimg.com/vi/GqFok2dOuPc/maxresdefault.jpg",
+            "width": 1280,
+            "height": 720
+          }
+        },
+        "channelTitle": "TechnicallyRipped",
+        "liveBroadcastContent": "none",
+        "publishTime": "2024-09-24T16:00:27Z"
+      }
+    }
+  ]
+}
