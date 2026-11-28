@@ -1,0 +1,728 @@
+{
+ "version": "https://jsonfeed.org/version/1.1",
+ "title": "Stash Reader curator",
+ "items": [
+  {
+   "id": "hn:50676390",
+   "url": "https://xinyadu.github.io/blog/claude-code-sabotage.html",
+   "title": "Claude Code sabotage: preliminary benchmarking",
+   "content_text": "128 points and 44 comments on Hacker News.",
+   "date_published": "2026-11-28T10:37:40Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 8.89
+  },
+  {
+   "id": "gh:1460452633",
+   "url": "https://github.com/pierridotite/mobile-agent-testers",
+   "title": "pierridotite/mobile-agent-testers: 20 AI testers on 20 different phones, in parallel, on GitHub's free runners: Claude Code agents on iOS Si",
+   "content_text": "2671 stars, Python. 20 AI testers on 20 different phones, in parallel, on GitHub's free runners: Claude Code agents on iOS Simulators and Android emulators that find broken flows, translation, layout and accessibility bugs",
+   "date_published": "2026-11-16T19:11:44Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "GitHub",
+   "_score": 8.67
+  },
+  {
+   "id": "hn:50415628",
+   "url": "https://www.thestateofai.com/news/goldman-sachs-claude-code-traders-bankers",
+   "title": "Goldman Sachs is pulling Claude Code from its bankers and traders",
+   "content_text": "905 points and 497 comments on Hacker News.",
+   "date_published": "2026-11-08T18:16:07Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 8.24
+  },
+  {
+   "id": "hn:50407882",
+   "url": "https://apiiro.com/blog/coding-agents-leaking-secrets-github-dont-ask-again",
+   "title": "Claude Code's \"Don't Ask Again\" exposes passwords in 1,122 public GitHub files",
+   "content_text": "629 points and 433 comments on Hacker News.",
+   "date_published": "2026-11-07T20:45:32Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 8.12
+  },
+  {
+   "id": "hn:50481187",
+   "url": "https://status.claude.com/incidents/nn11wk485zfn",
+   "title": "Elevated errors on claude.ai, Claude Code, and platform.claude.com",
+   "content_text": "494 points and 396 comments on Hacker News.",
+   "date_published": "2026-11-13T10:18:13Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 8.11
+  },
+  {
+   "id": "hn:50463399",
+   "url": "https://www.youtube.com/watch?v=WPj3aQ-xxpI",
+   "title": "Claude Code and Codex reverse engineered my 1994 Jeep's ECU over a $3 Arduino [video]",
+   "content_text": "458 points and 244 comments on Hacker News.",
+   "date_published": "2026-11-12T05:29:24Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 8.07
+  },
+  {
+   "id": "hn:50529612",
+   "url": "https://claude.dev/blog/how-the-claude-code-team-thinks-about-verification/",
+   "title": "How the Claude Code team thinks about verification",
+   "content_text": "300 points and 235 comments on Hacker News.",
+   "date_published": "2026-11-17T10:20:40Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 8.03
+  },
+  {
+   "id": "hn:50655243",
+   "url": "https://session-vault.dev/",
+   "title": "Back up your Claude Code sessions and use them on any machine",
+   "content_text": "30 points and 7 comments on Hacker News.",
+   "date_published": "2026-11-26T13:43:14Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 7.93
+  },
+  {
+   "id": "hn:50492141",
+   "url": "https://claude.com/resources/articles/projects-redesigned",
+   "title": "Anthropic upgrades Claude Code Projects to run parallel AI workers",
+   "content_text": "101 points and 99 comments on Hacker News.",
+   "date_published": "2026-11-14T00:28:11Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 7.64
+  },
+  {
+   "id": "hn:50526584",
+   "url": "https://github.com/localixai/tokendoctor",
+   "title": "Tokendoctor – See what your Claude Code use overpays",
+   "content_text": "35 points and 18 comments on Hacker News.",
+   "date_published": "2026-11-17T02:19:50Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 7.39
+  },
+  {
+   "id": "hn:50480909",
+   "url": "https://news.ycombinator.com/item?id=50480909",
+   "title": "Tell HN: Claude Code Is Down",
+   "content_text": "37 points and 21 comments on Hacker News.",
+   "date_published": "2026-11-13T09:51:59Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 7.34
+  },
+  {
+   "id": "hn:50413970",
+   "url": "https://github.com/sshah03/recalc",
+   "title": "Show HN: Recalc – Spreadsheet where cells can be Claude Code or Codex terminals",
+   "content_text": "37 points and 16 comments on Hacker News. I built this because it was useful for me when building evals/benchmarks, and I decided to put it up for free for others. The goal was quite simple, make it easy to use a lead claude code / codex session in a panel on the side, while allowing every cell to also be a terminal session running claude/codex, and make it possible to continue a session in an actual terminal window if I needed to. They can all talk to each other using cells on the grid, named cells, or the MCP server that effectively glues the app together. I also found it useful for managing",
+   "date_published": "2026-11-08T15:12:07Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 7.29
+  },
+  {
+   "id": "hn:50477704",
+   "url": "https://github.com/anthropics/claude-code/issues/109446",
+   "title": "Anthropic carelessly killed a Claude Code feature users built on, no warning",
+   "content_text": "26 points and 7 comments on Hacker News.",
+   "date_published": "2026-11-13T03:13:43Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 7.23
+  },
+  {
+   "id": "gh:1473997803",
+   "url": "https://github.com/jmozez/tidysoilr",
+   "title": "jmozez/tidysoilr: Tidy tools for soil analysis in R, with tidymodels integration",
+   "content_text": "0 stars, R. Tidy tools for soil analysis in R, with tidymodels integration",
+   "date_published": "2026-11-27T05:03:13Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 7.03
+  },
+  {
+   "id": "gh:1473961511",
+   "url": "https://github.com/jmozez/tidybiotek",
+   "title": "jmozez/tidybiotek: Tidy applied biotechnology bioinformatics: sequences, assays, bioprocess kinetics and omics with tidymodels integration",
+   "content_text": "0 stars, R. Tidy applied biotechnology bioinformatics: sequences, assays, bioprocess kinetics and omics with tidymodels integration",
+   "date_published": "2026-11-27T04:11:39Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 7.02
+  },
+  {
+   "id": "gh:1468166953",
+   "url": "https://github.com/perceptioninterval/tidytmle",
+   "title": "perceptioninterval/tidytmle: Cross-fitted Targeted Maximum Likelihood Estimation (CV-TMLE) for tidymodels",
+   "content_text": "0 stars, R. Cross-fitted Targeted Maximum Likelihood Estimation (CV-TMLE) for tidymodels",
+   "date_published": "2026-11-23T01:46:56Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.53
+  },
+  {
+   "id": "gh:1464309547",
+   "url": "https://github.com/jmgirard/balancedsample",
+   "title": "jmgirard/balancedsample: Multivariate balanced data splitting for rsample and tidymodels",
+   "content_text": "0 stars, R. Multivariate balanced data splitting for rsample and tidymodels",
+   "date_published": "2026-11-19T15:15:19Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.38
+  },
+  {
+   "id": "gh:1462685883",
+   "url": "https://github.com/Tblue09/tidymodels-spam",
+   "title": "Tblue09/tidymodels-spam: Découverte de l’écosystème tidymodels en R : workflows reproductibles du prétraitement à l’évaluation, appliqués à",
+   "content_text": "0 stars. Découverte de l’écosystème tidymodels en R : workflows reproductibles du prétraitement à l’évaluation, appliqués à la détection de spams (16 pipelines comparés)",
+   "date_published": "2026-11-18T11:07:54Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.34
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.24149v1",
+   "url": "https://arxiv.org/abs/2611.24149v1",
+   "title": "Human-LLM Cognitive Extension: A Framework for Studying Coupled Cognition",
+   "content_text": "Recent research on the use of Large Language Models (LLMs) reports divergent cognitive outcomes, including improved assisted performance, limited transfer, and compromised unaided learning. Here, we argue that part of this seeming inconsistency arises because studies often assess different cognitive systems without making the unit of analysis explicit. Building on work in extended and distributed cognition, we propose the Human-LLM Cognitive Extension (HLCE) as a methodological framework for matching experimental designs, measures, and causal inferences to four distinct systems: the human acti",
+   "date_published": "2026-11-18T09:54:43Z",
+   "tags": [
+    "LLM",
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 6.34
+  },
+  {
+   "id": "gh:1461894466",
+   "url": "https://github.com/ningtia/District-Relative-Rent-Tier-Classification-in-Madrid",
+   "title": "ningtia/District-Relative-Rent-Tier-Classification-in-Madrid: A Regression-to-Classification Pipeline with Tidymodels",
+   "content_text": "0 stars. A Regression-to-Classification Pipeline with Tidymodels",
+   "date_published": "2026-11-17T19:45:51Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.33
+  },
+  {
+   "id": "gh:1460765547",
+   "url": "https://github.com/GiulianoXRG/ml-credito-portfolio",
+   "title": "GiulianoXRG/ml-credito-portfolio: Risco de crédito com regressão logística em R (tidymodels)",
+   "content_text": "0 stars, R. Risco de crédito com regressão logística em R (tidymodels)",
+   "date_published": "2026-11-17T01:21:09Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.31
+  },
+  {
+   "id": "gh:1452023062",
+   "url": "https://github.com/Josh4410/161324_DataMining_A2",
+   "title": "Josh4410/161324_DataMining_A2: Regression and classification in R (tidymodels, random forest) - Massey 161.324",
+   "content_text": "0 stars, HTML. Regression and classification in R (tidymodels, random forest) - Massey 161.324",
+   "date_published": "2026-11-10T00:15:36Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.21
+  },
+  {
+   "id": "gh:1451890946",
+   "url": "https://github.com/mbrussell/tidymodels",
+   "title": "mbrussell/tidymodels: Using tidymodels in forest modeling workflows",
+   "content_text": "0 stars, JavaScript. Using tidymodels in forest modeling workflows",
+   "date_published": "2026-11-09T21:18:15Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.21
+  },
+  {
+   "id": "gh:1450653479",
+   "url": "https://github.com/fhernanb/taller_tidymodels_latinR",
+   "title": "fhernanb/taller_tidymodels_latinR: Material de tutorial (taller) sobre tidymodels para LatinR 2026",
+   "content_text": "0 stars, SCSS. Material de tutorial (taller) sobre tidymodels para LatinR 2026",
+   "date_published": "2026-11-08T20:51:54Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 6.2
+  },
+  {
+   "id": "gh:1471624301",
+   "url": "https://github.com/nexu-io/opengame",
+   "title": "nexu-io/opengame: The Super Game Agent — the Unity & Unreal for AI agents, with 100+ viral games to remix. Turn 20+ coding agents (Claude Co",
+   "content_text": "2740 stars, TypeScript. The Super Game Agent — the Unity & Unreal for AI agents, with 100+ viral games to remix. Turn 20+ coding agents (Claude Code, Codex, DeepSeek, etc.) into a full-stack AI game studio. Build and publish 3D & mini-games to WeChat, Douyin, TikTok, Telegram, itch.io, and more.",
+   "date_published": "2026-11-25T10:35:45Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "GitHub",
+   "_score": 6.11
+  },
+  {
+   "id": "gh:1453006141",
+   "url": "https://github.com/XinaTian/MROffice",
+   "title": "XinaTian/MROffice: MR Office — the open-source editors of the AI office suite closest to Microsoft Office: documents, spreadsheets, presenta",
+   "content_text": "5374 stars, TypeScript. MR Office — the open-source editors of the AI office suite closest to Microsoft Office: documents, spreadsheets, presentations, PDF and code in the browser. Copilot in every editor edits real Word, Excel and PowerPoint files with you; an MCP server lets Claude, ChatGPT, Cursor and Codex create and edit them; embed it in your app with one line.",
+   "date_published": "2026-11-10T17:54:07Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "GitHub",
+   "_score": 5.79
+  },
+  {
+   "id": "gh:1457637971",
+   "url": "https://github.com/lelouvincx/zero-dollar-data-stack",
+   "title": "lelouvincx/zero-dollar-data-stack: A free modern data stack, end to end: dlt, DuckDB, dbt, GitHub Actions and anfra for BI",
+   "content_text": "20 stars, HTML. A free modern data stack, end to end: dlt, DuckDB, dbt, GitHub Actions and anfra for BI",
+   "date_published": "2026-11-14T10:31:00Z",
+   "tags": [
+    "duckdb"
+   ],
+   "_source": "GitHub",
+   "_score": 5.18
+  },
+  {
+   "id": "hf:2611.33093",
+   "url": "https://huggingface.co/papers/2611.33093",
+   "title": "AIChipBench: Benchmarking LLM Agents for Automated AI Accelerator Design",
+   "content_text": "A language-model decoder carries state between decoding steps, and in hardware a wrong state update can leave the current token correct and corrupt the output several tokens later, so a design can pass output tests and still be wrong. AIChipBench asks what LLM coding agents need to build such hardware correctly. Agents implement quantized Qwen3.5, Gemma 3, Gemma 4, and Llama 3.2 decoders in synthesizable register-transfer-level (RTL) code against an executable integer reference that specifies the outputs and the stored state at every decoding step. They debug against public tests under fixed b",
+   "date_published": "2026-11-24T00:00:00Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 5.08
+  },
+  {
+   "id": "hf:2611.30494",
+   "url": "https://huggingface.co/papers/2611.30494",
+   "title": "Revisiting LLMs as Context Engineers",
+   "content_text": "As large language models (LLMs) are used in more and more new tasks, context engineering becomes a fundamental method to efficiently steer LLMs by constructing instruction prompts or metadata without intensive training. A growing number of LLM context engineering (LCE) approaches automate the task by casting the LLM itself as the engineer that draws generalizable instructions or experiences from offline trials as context. Although these methods resemble how humans learn from experiences, it remains unclear when and how LLMs can engineer effective context from data. To answer the question, we f",
+   "date_published": "2026-11-23T00:00:00Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 5.06
+  },
+  {
+   "id": "hf:2611.30334",
+   "url": "https://huggingface.co/papers/2611.30334",
+   "title": "When Does Reasoning Help Entity Disambiguation? Small LLMs In-Domain and Under Shift",
+   "content_text": "Entity disambiguation (mapping ambiguous mentions in text to entities in a knowledge base) is a foundational step in tasks such as knowledge graph construction, question answering, and information extraction. Recent work has applied LLMs to this problem, achieving stateof-the-art performance. Notably, reasoning LLMs have been shown to perform entity disambiguation in a true zero-shot fashion, generalizing across knowledge bases and domains. However, it is unclear whether this capability survives, or remains competitive, with smaller LLMs, where entity disambiguation has typically relied on rer",
+   "date_published": "2026-11-23T00:00:00Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 4.94
+  },
+  {
+   "id": "hf:2611.34750",
+   "url": "https://huggingface.co/papers/2611.34750",
+   "title": "SOLVE: Sparse, Ordered Keyposes Make LLM Agents Versatile and Efficient Robot Manipulator",
+   "content_text": "LLM agents have made remarkable progress in robot manipulation, yet they suffer from expensive inference, dense step-by-step control, and tool bottlenecks. We introduce SOLVE, a training-free, versatile and efficient agent policy: a multimodal LLM agent writes a sparse, ordered sequence of 6-DoF end-effector keyposes per call, observes the result, and writes the next, while a motion planner interpolates between them. The agent decides the number and spacing of keyposes for both fast long-range motion and fine-grained manipulation. This granularity matches the sparsity of teleoperated manipulat",
+   "date_published": "2026-11-25T00:00:00Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 4.89
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.34057v1",
+   "url": "https://arxiv.org/abs/2611.34057v1",
+   "title": "Design-based causal inference for ROC curves",
+   "content_text": "In randomized experiments, causal inference traditionally focuses on the average treatment effect, yet comparing the treatment and control potential outcome distributions is often of interest. Under complete randomization, we adopt a design-based framework without imposing an outcome model to study the receiver operating characteristic (ROC) curve, which measures the proportion of treated outcomes exceeding each upper quantile of the control distribution. We propose an estimator that depends only on pooled outcome ranks, establish its asymptotic normality, and construct conservative variance e",
+   "date_published": "2026-11-25T09:33:28Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 4.73
+  },
+  {
+   "id": "hf:2611.21155",
+   "url": "https://huggingface.co/papers/2611.21155",
+   "title": "Edit Recommendation: Can LLMs Anticipate Edit Requests from Users, and When?",
+   "content_text": "After a large language model (LLM) agent generates an artifact, users often send edit requests for it. This paper studies whether an LLM can anticipate these requests before they are sent. Such anticipation is useful in practice because it reduces the effort of user review and feedback. We formalize this task as edit recommendation and build EditRecBench, a benchmark for evaluating the performance of LLMs on this task, from real-world conversation logs in WildChat-4.8M. Through benchmarking and failure analysis, we identify a practical challenge that some cases are inherently difficult to pred",
+   "date_published": "2026-11-16T00:00:00Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 4.7
+  },
+  {
+   "id": "hf:2611.29829",
+   "url": "https://huggingface.co/papers/2611.29829",
+   "title": "Who Makes the Decision? Auditing an Agentic LLM Pipeline for Illicit Cryptocurrency Transaction Monitoring",
+   "content_text": "Agentic pipelines that combine graph detectors, deterministic rules, retrieval-augmented generation and an LLM judge are being proposed to monitor illicit cryptocurrency flows and to write regulation-citing justifications for analysts. They are evaluated on end-to-end accuracy or on the quality of those justifications, and neither shows which component made a decision. We audit such a pipeline on the Elliptic++ Bitcoin dataset with decision-source attribution, a trace-level protocol with three layers: per-case actual causation, interventional Shapley credit, and mediation of upstream risk scor",
+   "date_published": "2026-11-22T00:00:00Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 4.68
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.33336v1",
+   "url": "https://arxiv.org/abs/2611.33336v1",
+   "title": "Addressing Missing Exposures in Causal Inference: A Practical Guide",
+   "content_text": "Missing exposure data are a common challenge in epidemiologic studies that can complicate the identification and estimation of causal effects. Particularly for researchers constructing doubly-robust estimators, it can be unclear how to adapt standard methods such as augmented inverse probability weighting (AIPW) to account for missing exposures. This paper clarifies challenges posed by missing exposures, and discusses approaches available for doubly-robust estimation in these settings. We outline numerous mechanisms that can give rise to missing exposures in practice, and demonstrate why doubl",
+   "date_published": "2026-11-24T19:23:11Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 4.66
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.33246v1",
+   "url": "https://arxiv.org/abs/2611.33246v1",
+   "title": "B-SLIM: BART Sparse Linear Interactions Model for Heterogeneous Treatment Effects",
+   "content_text": "Estimating covariate-dependent treatment effects is a central challenge in personalized medicine. Existing approaches often emphasize either fully parametric models, risking misspecification, or flexible machine learning methods, which may require large samples to detect the small treatment effect heterogeneity common in medical settings. We propose B-SLIM (BART Sparse Linear Interaction Model), a semi-parametric model for causal inference that combines a flexible Bayesian Additive Regression Trees (BART) prognostic component with a sparse linear treatment effect component. This hybrid structu",
+   "date_published": "2026-11-24T15:58:03Z",
+   "tags": [
+    "machine learning",
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 4.65
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.29762v1",
+   "url": "https://arxiv.org/abs/2611.29762v1",
+   "title": "probly: Uncertainty-Aware Machine Learning",
+   "content_text": "As machine learning systems are increasingly deployed in real-world applications, the question of how to represent and quantify uncertainty has moved from a methodological side issue to a central concern. In practice, however, making a model uncertainty-aware is still surprisingly difficult: relevant tools tend to be scattered across libraries, each tied to a particular framework and a particular approach to modeling uncertainty, and the choice of representation, quantification, and evaluation is typically left to the user without much guidance. In this paper, we present probly, a Python packa",
+   "date_published": "2026-11-22T20:51:06Z",
+   "tags": [
+    "machine learning"
+   ],
+   "_source": "arXiv",
+   "_score": 4.52
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.24321v1",
+   "url": "https://arxiv.org/abs/2611.24321v1",
+   "title": "Benchmarking LLM abilities on postdoc-level natural science problems",
+   "content_text": "Scientific problems have no answer key, so evaluating an agent means deciding what counts as a better solution before any agent is run. Existing benchmarks either match a symbolic answer against a key or, where they require executable work, score it by unit tests, by a rubric, or by position on a competition leaderboard. None of these is the criterion by which a field decides that one published method beats another. STEMBench adopts that criterion directly. Each of its twelve research problems in high-energy physics, astrophysics and neuroscience is scored by its own field's figure of merit, a",
+   "date_published": "2026-11-18T12:25:33Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "arXiv",
+   "_score": 4.34
+  },
+  {
+   "id": "hn:50444380",
+   "url": "https://news.ycombinator.com/item?id=50444380",
+   "title": "How do you keep up quality when you vibe-code?",
+   "content_text": "39 points and 39 comments on Hacker News. I'm having a really hard time working with claude. In the past when I wrote all the code manually, it was always carefully reviewed and architected, with all possible flows carefully mapped out. Now, my code is mostly AI written which has led to things going out of control. Since it's easy to add new features and support many user flows, we went ahead and implemented flows that support a lot of cases our users run into. But now, I feel like things are getting too complex with no central notion of behaviour definitions, which causes every bug-fixing ses",
+   "date_published": "2026-11-10T18:41:15Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hacker News",
+   "_score": 4.32
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.22339v1",
+   "url": "https://arxiv.org/abs/2611.22339v1",
+   "title": "Small Area Causal Inference",
+   "content_text": "We develop a framework for small area causal inference (SACI). Unlike the traditional doubly robust (DR) estimation approach, the new framework is based on the empirical best prediction (EBP) method. EBP takes into consideration not only the bias but also the variance factor, which is often a more dominant component in the mean squared prediction error (MSPE). Under a linear mixed model for SACI, we establish consistency and asymptotic normality of the maximum likelihood estimator of the model parameters. More relevant to our main objective, we establish asymptotic optimality of the EBP in ter",
+   "date_published": "2026-11-17T07:48:20Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 4.32
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.18086v2",
+   "url": "https://arxiv.org/abs/2611.18086v2",
+   "title": "Does Increasing Government Spending on Tertiary Education Provide a Return on Investment? A Bayesian Causal Inference Analysis",
+   "content_text": "Does public spending on tertiary (university) education generate a positive fiscal return once general economic growth is separated out? Cross-country data make this hard to answer because growing economies naturally collect more tax, international ratios divide per-student spending by GDP per person and student headcount, and cohorts take years to graduate. We assemble a five-year panel of 121 countries (1985-2024) and fit continuous-treatment Multivariate Bayesian Causal Forests modelling four tax changes jointly whilst adjusting for starting conditions, predicted funding, and follow-up grow",
+   "date_published": "2026-11-13T12:11:25Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 4.25
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.16335v1",
+   "url": "https://arxiv.org/abs/2611.16335v1",
+   "title": "From More to Better: Causal Inference and Digital Experimentation in the Age of AI",
+   "content_text": "Artificial intelligence (AI) is quickly expanding the capacity of organizations to produce and analyze data. We argue that this expansion shifts the leverage of data scientists from performing individual analyses to assessing the credibility and importance of findings and determining when evidence generalizes across contexts. Drawing on a roundtable of academic researchers and industry practitioners, we examine three ways in which data scientists who work on causal inference and experimentation can help organizations turn more analytical capacity into better decisions: preserving and accumulat",
+   "date_published": "2026-11-12T05:56:52Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 4.23
+  },
+  {
+   "id": "hn:50630294",
+   "url": "https://masondata.ai/",
+   "title": "Show HN: Mason – A lightweight Postgres read-replica, built on columnar storage",
+   "content_text": "110 points and 21 comments on Hacker News. Hi HN! TLDR: we’ve built an open-source drop-in replacement for a postgres read-replica, powered by duckdb’s columnar compute engine. It’s very fast. And it looks like postgres. So, this started out as: let’s just connect Clickhouse to our postgres dbs and throw our analytics queries at it instead. That will speed everything up. But we quickly found that 1) Clickhouse comes with quite the learning curve (engine optimisation) to make it fast (we needed something we could easily drop in to any customer’s postgres scenario), and 2) we had underestimated ",
+   "date_published": "2026-11-24T16:11:52Z",
+   "tags": [
+    "duckdb"
+   ],
+   "_source": "Hacker News",
+   "_score": 4.06
+  },
+  {
+   "id": "hf:2611.27112",
+   "url": "https://huggingface.co/papers/2611.27112",
+   "title": "Markdown Is Not a Firewall: four coding agents, one rules file, four boundaries",
+   "content_text": "Teams put a one-page rules file in a repository and call it a control on coding agents. A registered study found agents rarely look up a repository's contribution rules. I asked the security question: what does a rules file do at a boundary, against a gate? I tested one 278-word rules file, with hypotheses and analysis code deposited first. Claude Code, Codex CLI, Gemini CLI and OpenCode with DeepSeek worked through 20 small repositories with hidden tests, 12 for three of them. Three agents met four boundaries I built: a refused endpoint, a destructive shortcut, a planted instruction and a pla",
+   "date_published": "2026-11-20T00:00:00Z",
+   "tags": [
+    "Claude Code"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 3.6
+  },
+  {
+   "id": "hf:2611.34147",
+   "url": "https://huggingface.co/papers/2611.34147",
+   "title": "Letting Models Manage Their Own Context: Where We Stand",
+   "content_text": "Agent harnesses today manage context on the model's behalf: when the window fills, the harness triggers a compaction that summarizes the history. We study the alternative, model-driven context management, in which the model itself decides when and what to compact through a context API. We gave models control over their own context in \\nooa, NVIDIA's open source agent harness, and compared the two strategies on document research and machine learning engineering across context budgets from 8K to 512K tokens. Models that use the context API effectively reach higher accuracy, often with fewer inpu",
+   "date_published": "2026-11-25T00:00:00Z",
+   "tags": [
+    "machine learning"
+   ],
+   "_source": "Hugging Face daily papers",
+   "_score": 3.45
+  },
+  {
+   "id": "gh:1465892527",
+   "url": "https://github.com/pstat-197a-fall2026/vignette-weighted-knn",
+   "title": "pstat-197a-fall2026/vignette-weighted-knn: Distance-weighted k-nearest neighbors classification and hyperparameter tuning in R using tidymod",
+   "content_text": "0 stars, HTML. Distance-weighted k-nearest neighbors classification and hyperparameter tuning in R using tidymodels",
+   "date_published": "2026-11-20T20:53:34Z",
+   "tags": [
+    "tidymodels"
+   ],
+   "_source": "GitHub",
+   "_score": 3.42
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.33440v1",
+   "url": "https://arxiv.org/abs/2611.33440v1",
+   "title": "Adaptive confidence bands for a continuous treatment effect curve under shape constraints",
+   "content_text": "In causal inference with observational data new inferential targets arise when treatment is continuous rather than discrete. Here we form (simultaneous) confidence bands over the continuous treatment effect curve. We form confidence bands based on assuming the curve satisfies shape constraints of either monotonicity or concavity, under the assumption of no unmeasured confounding. As is commonly the case, two nuisance functions arise, and our bands are asymptotically valid if the product of the error rates of the two nuisance functions is small enough. We also develop non-causal shape constrain",
+   "date_published": "2026-11-24T21:05:13Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.67
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.32708v1",
+   "url": "https://arxiv.org/abs/2611.32708v1",
+   "title": "Contrastive Proxy Forests: Completeness-Preserving Proxy Learning from Multimodal Records",
+   "content_text": "Proximal causal inference removes unmeasured confounding using two proxies of the confounder, an outcome-side W and a treatment-side Z. The proxies must satisfy exclusion restrictions and be complete, meaning that they reflect every aspect of the confounder. In practice, they are a few variables hand-picked from a structured table, even though clinical notes and physiological waveforms carry rich information about the confounder. Such records are too high-dimensional for a proximal estimator, and generic compression such as PCA may keep modality-specific variation (style) instead of the confou",
+   "date_published": "2026-11-24T14:35:05Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.64
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.30838v1",
+   "url": "https://arxiv.org/abs/2611.30838v1",
+   "title": "Interpretable Discovery of Heterogeneous Causal Dose-Response Curves",
+   "content_text": "Discovering subgroups with heterogeneous treatment effects is a central task in causal inference. While methods for heterogeneous effect discovery have proliferated for discrete treatments, their counterparts for continuous treatments remain underdeveloped. In this paper, we introduce a novel, data-adaptive algorithm for discovering interpretable subgroups with heterogeneous causal dose-response curves. This algorithm combines doubly-robust dose-response curve estimation with recursive partitioning, using flexible objective functions to quantify heterogeneity across potential subgroups' dose-r",
+   "date_published": "2026-11-23T15:21:35Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.57
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.30779v1",
+   "url": "https://arxiv.org/abs/2611.30779v1",
+   "title": "SignalCount: Approximate Counts with Structured and Semantic Predicates in Seconds",
+   "content_text": "Many applications store records with structured columns and a text document, and ask how many records in a filtered set meet a criterion that only a reader of the text can judge, such as \"How many patients with type 2 diabetes, aged 40 to 70, stopped metformin because their blood sugar stayed high?\" An interactive application needs this count in seconds, as the user types the criterion, to decide whether the matching set is worth materializing with a batch pipeline in which an LLM judges the records. Prior approximate query processing over such semantic predicates has an expensive model, the o",
+   "date_published": "2026-11-23T14:46:46Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "arXiv",
+   "_score": 2.56
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.29789v1",
+   "url": "https://arxiv.org/abs/2611.29789v1",
+   "title": "Tabular Foundation Models for Weighted Regression and Classification",
+   "content_text": "Weighted regression and classification have applications ranging from missing-data analysis and causal inference to insurance pricing and particle physics. Existing weighted methods must be fitted and tuned on each dataset, which is costly for flexible nonlinear learners. Tabular foundation models avoid this cost. A Transformer is pretrained once on many simulated datasets and then predicts on a new dataset by in-context learning, using its observations as context without further fitting. Recent models such as TabPFN-3.5 surpass tuned conventional methods, but they cannot use sample weights. W",
+   "date_published": "2026-11-22T21:47:48Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.52
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.29270v1",
+   "url": "https://arxiv.org/abs/2611.29270v1",
+   "title": "A comparison of knot point screening algorithms for highly adaptive lasso",
+   "content_text": "Highly adaptive lasso (HAL) is a nonparametric regression estimator with a rate of convergence $n^{-1/3}(\\log n)^{d/2}$, where the data dimension $d$ only appears in the power of the log of sample size. This fast rate is crucial for many causal inference tasks, where efficient estimation typically requires nuisance parameters to be estimated at a specific rate. HAL achieves this rate and, when paired with semiparametrically efficient estimators -- such as those constructed using targeted maximum likelihood estimation (TMLE) -- can be used to develop efficient estimators. Beyond causal inferenc",
+   "date_published": "2026-11-22T06:27:43Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.48
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.28960v1",
+   "url": "https://arxiv.org/abs/2611.28960v1",
+   "title": "EmoRouter: Adaptive Modality Cascading for Multimodal Emotion Recognition",
+   "content_text": "Multimodal Emotion Recognition (MER) involves detecting the underlying emotion behind each utterance within a conversation, which is essential for emotionally aware human-computer interaction. While omni-modal large language models (Omni-LLMs) demonstrate strong capability for MER by jointly processing modalities including text, audio, and vision, different modality combinations yield different prediction outcomes across utterances: acoustic and visual inputs can help recover annotated labels missed by text-only inference, but can also turn correct predictions into errors. Processing all modal",
+   "date_published": "2026-11-21T17:52:45Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "arXiv",
+   "_score": 2.46
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.24143v1",
+   "url": "https://arxiv.org/abs/2611.24143v1",
+   "title": "Fill-Distance-Guided Active Learning for Causal Function Recovery under Network Interference",
+   "content_text": "Causal inference seeks to learn how outcomes change under alternative interventions, but network interactions complicate this task. Under network interference, outcomes depend on both own treatment and neighbors' treatments, making causal effects functions of neighborhood exposure rather than single treatment contrasts. Existing methods primarily target prespecified causal contrasts or their estimation precision, leaving global response-function recovery largely unexplored. We study sequential experimentation under a limited experimental budget, with the goal of recovering the full exposure-de",
+   "date_published": "2026-11-18T09:52:04Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.34
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.23524v1",
+   "url": "https://arxiv.org/abs/2611.23524v1",
+   "title": "Balancing Partition Forest for Causal Weighting",
+   "content_text": "Balancing weights are used in observational causal inference to construct a population in which the treatment is independent of observed pretreatment covariates. The ideal weight is the ratio between the product of the covariate and treatment marginals and their joint distribution, for binary and continuous treatments alike. We propose Balancing Partition Tree (BPT) and Balancing Partition Forest (BPF), which estimate this ratio on a learned rectangular partition of covariate--treatment space. Each split maximizes the gain in a Bregman divergence computed from joint and marginal counts. Two ch",
+   "date_published": "2026-11-17T21:25:02Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.33
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.17971v1",
+   "url": "https://arxiv.org/abs/2611.17971v1",
+   "title": "Efficient and Practical Clustering of Variables in Causal Graphs",
+   "content_text": "Clustering variables in a graph may improve visual clarity and simplify causal inference. Harnessing the full potential of clustering requires an automated method to detect useful clusters in a graph. We introduce a novel class of clusters called conduits, and present a sound, complete and efficient algorithm for detecting all conduits in the graph. In addition to algorithmic detectability, conduits appear naturally in causal graphs stemming from real-world applications, enabling substantial size reduction. Furthermore, the structure of conduits enables the application of known identifiability",
+   "date_published": "2026-11-13T09:58:14Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.25
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.16821v1",
+   "url": "https://arxiv.org/abs/2611.16821v1",
+   "title": "Calibration and Conformal Prediction for Medical Question Answering in Arabic and English: Evidence from Two Non-Parallel Benchmarks",
+   "content_text": "Large language models (LLMs) are increasingly tested on medical exam questions, but accuracy alone does not show when an answer can be trusted. I study the calibration and uncertainty of two open-weight models, Qwen2.5-7B-Instruct and Jais-adapted-7B-chat (both run in 4-bit precision), on 2,816 English multiple-choice questions from MedMCQA and 4,927 Arabic multiple-choice questions from MedAraBench. Accuracy was 0.561 (English) and 0.430 (Arabic) for Qwen, and 0.369 and 0.308 for Jais. Raw option probabilities were overconfident in all four settings (expected calibration error 0.242 to 0.486)",
+   "date_published": "2026-11-12T13:57:23Z",
+   "tags": [
+    "LLM"
+   ],
+   "_source": "arXiv",
+   "_score": 2.24
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.16559v1",
+   "url": "https://arxiv.org/abs/2611.16559v1",
+   "title": "Inverse Confounding Analysis: Part 2. Applications to Real- World Observational Data",
+   "content_text": "Unmeasured confounding factors in observational data may lead to biased estimates of the effect of an exposure on an outcome. Consequently, a central problem in causal inference based on observational data is sensitivity analysis with respect to unmeasured confounding. Existing sensitivity-analysis methods generally focus on worst-case bounds. We propose an exact method for quantifying the significance of confounding, defined here in terms of the complete range of analytical values of the stratification-based Risk Ratio over the set of all joint distributions compatible with the observed chara",
+   "date_published": "2026-11-12T09:46:41Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.23
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.16242v1",
+   "url": "https://arxiv.org/abs/2611.16242v1",
+   "title": "A Sensitivity Framework for Assessing External Validity",
+   "content_text": "Assessing the external validity of experimental results is a pervasive challenge in causal inference as internally valid findings need not generalize beyond sites in which the experiments were conducted. Since the number of sites is often smaller than the number of site-level variables that moderate causal effects, we develop a partial identification framework that lets practitioners assess external validity under a wide range of assumptions that allow extrapolation across site-level variables. Our optimization-driven approach can accommodate any affine family of parameter restrictions, such a",
+   "date_published": "2026-11-12T03:40:32Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.23
+  },
+  {
+   "id": "arxiv:http://arxiv.org/abs/2611.15698v1",
+   "url": "https://arxiv.org/abs/2611.15698v1",
+   "title": "Learning Mixtures of Exponential Family",
+   "content_text": "Motivated by causal inference and physical computing systems, we consider the problem of learning mixture of two bounded-support exponential-family distributions with a shared interaction parameter matrix and mixture component-specific linear parameter vectors. The unknown sequence of component labels belongs to a known structured class. We propose an estimator based on a convex loss that avoids the log-partition function; for each fixed label assignment, estimation is a convex optimization problem. We show that the conditional population loss uniquely identifies the interaction matrix and the",
+   "date_published": "2026-11-11T16:37:22Z",
+   "tags": [
+    "causal inference"
+   ],
+   "_source": "arXiv",
+   "_score": 2.23
+  }
+ ]
+}
